@@ -13,7 +13,7 @@ from pypdf import PdfReader
 # 1. CẤU HÌNH TRANG VÀ THIẾT LẬP SIÊU CSS ĐỊNH DẠNG THANH BÊN THEO BIỂU MẪU CHUẨN
 # ==============================================================================
 st.set_page_config(
-    page_title="Hệ Sinh Thái Giáo Viên Số",
+    page_title="HỆ SINH THÁI SỐ GIÁO VIÊN",
     page_icon="🚀",
     layout="wide"
 )
