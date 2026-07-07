@@ -9,6 +9,7 @@ from docx.shared import Pt, Inches
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from google import genai
 from pypdf import PdfReader
+
 # ==============================================================================
 # 1. CẤU HÌNH TRANG VÀ THIẾT LẬP SIÊU CSS ĐỊNH DẠNG THANH BÊN THEO BIỂU MẪU CHUẨN
 # ==============================================================================
@@ -17,27 +18,31 @@ st.set_page_config(
     page_icon="🚀",
     layout="wide"
 )
+
 # Giao diện tiêu đề chính
 st.title("📚 HỆ SINH THÁI SỐ - HỖ TRỢ GIÁO VIÊN")
 st.caption("Sản phẩm tham gia Cuộc thi AI for Life năm 2026, trường THCS Nguyễn Chí Thanh - Phường Tân Lập tỉnh Đắk Lắk")
 st.markdown("---")
+
 st.markdown("""
 <style>
-
 /* Đẩy nội dung thanh bên lên sát đỉnh đầu một cách vừa vặn */
 div[data-testid="stSidebarUserContent"] {
     padding-top: 1.0rem !important;
     padding-bottom: 0px !important;
 }
+
 /* Rút bớt lề của đường kẻ phân cách để hai khối nội dung sát lại nhau hơn */
 div[data-testid="stSidebarUserContent"] hr {
     margin-top: 0.6rem !important;
     margin-bottom: 0.6rem !important;
 }
+
 /* Thiết lập khoảng cách dọc giữa các Widget ở mức vừa phải, đẹp mắt */
 div[data-testid="stSidebarUserContent"] div[data-testid="stVerticalBlock"] > div {
     margin-bottom: 0px !important;
 }
+
 /* Ép nhãn tiêu đề CHỌN PHÂN HỆ TÁC NGHIỆP in đậm, căn giữa 100%, màu đỏ rực rỡ */
 div[data-testid="stSidebarUserContent"] div[data-testid="stRadio"] > label {
     font-weight: 900 !important;
@@ -51,32 +56,39 @@ div[data-testid="stSidebarUserContent"] div[data-testid="stRadio"] > label {
     padding-bottom: 6px !important;
     margin-bottom: 12px !important;
 }
-/* Làm nổi bật tuyệt đối 2 dòng chữ tùy chọn phân hệ: Chữ siêu đậm, tăng size */
-div[data-testid="stSidebarUserContent"] div[data-testid="stRadio"] div[data-baseweb="radio"] span {
+
+/* LÀM NỔI BẬT TUYỆT ĐỐI 2 DÒNG CHỮ TÙY CHỌN PHÂN HỆ: Chữ siêu đậm, tăng size */
+div[data-testid="stSidebarUserContent"] div[data-testid="stRadio"] div[data-baseweb="radio"] div[data-testid="stMarkdownContainer"] p {
     font-weight: 900 !important;
-    font-size: 26px !important;
+    font-size: 22px !important;
+    line-height: 1.4 !important;
 }
+
 /* Gán màu sắc đặc trưng nổi bật riêng cho từng mục tác nghiệp chuyên sâu */
-div[data-testid="stSidebarUserContent"] div[data-testid="stRadio"] div[data-baseweb="radio"]:nth-child(1) span {
+div[data-testid="stSidebarUserContent"] div[data-testid="stRadio"] div[data-baseweb="radio"]:nth-child(1) div[data-testid="stMarkdownContainer"] p {
     color: #1D4ED8 !important; /* Xanh Navy đậm nổi bật */
 }
-div[data-testid="stSidebarUserContent"] div[data-testid="stRadio"] div[data-baseweb="radio"]:nth-child(2) span {
+
+div[data-testid="stSidebarUserContent"] div[data-testid="stRadio"] div[data-baseweb="radio"]:nth-child(2) div[data-testid="stMarkdownContainer"] p {
     color: #EA580C !important; /* Cam hổ phách rực rỡ tương phản */
 }
+
 /* Hiệu ứng rê chuột mượt mà cho tất cả các nút bấm */
 div.stButton > button, div.stDownloadButton > button {
     transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
     border-radius: 8px !important;
 }
+
 div.stButton > button:hover, div.stDownloadButton > button:hover {
-    background-color: #1E40AF !important; 
-    color: #FFFFFF !important; 
-    border-color: #3B82F6 !important; 
+    background-color: #1E40AF !important;
+    color: #FFFFFF !important;
+    border-color: #3B82F6 !important;
     transform: translateY(-2px) !important;
     box-shadow: 0 6px 15px rgba(59, 130, 246, 0.4) !important;
 }
 </style>
 """, unsafe_allow_html=True)
+
 # ==============================================================================
 # 2. BỘ ENGINE AI & KẾ XUẤT VĂN BẢN CHUẨN ĐỊNH DẠNG HÀNH CHÍNH (TIMES NEW ROMAN)
 # ==============================================================================
