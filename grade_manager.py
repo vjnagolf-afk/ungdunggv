@@ -33,7 +33,7 @@ def parse_score_smart(val):
     try:
         val_str = str(val).replace(',', '.').strip()
         
-        if val_str in ["10", "100"]: return 10.0
+        if val_str in ["10", "100", "10.0"]: return 10.0
         
         # Nhập 95 tự thành 9.5, 55 tự thành 5.5
         if val_str.isdigit() and len(val_str) == 2:
@@ -56,8 +56,8 @@ def render_grade_manager_section():
     </style>
     <div class="tip-box">
     💡 TÍNH NĂNG THỜI GIAN THỰC:<br>
-    - Thầy gõ trực tiếp điểm (VD: 95, 10, 85). Bấm Enter hệ thống sẽ lập tức chuyển thành 9.5, 10.0, 8.5 và <b>TỰ TÍNH TBM</b>, <b>TỰ LƯU</b>.<br>
-    - Cột TBM và thông tin học sinh đã được khóa an toàn (Không cho phép sửa tay).
+    - Thầy gõ trực tiếp điểm (VD: 95, 10, 85). Bấm Enter hệ thống lập tức chuyển thành 9.5, 10.0, 8.5, <b>TỰ TÍNH TBM</b> và <b>TỰ LƯU</b>.<br>
+    - Cột STT, Mã HS, Họ và tên, TBM HK đã được khóa an toàn (Không thể sửa tay).
     </div>
     """, unsafe_allow_html=True)
 
@@ -219,7 +219,7 @@ def render_grade_manager_section():
         for c in score_cols:
             df_display[c] = df_display[c].apply(lambda x: f"{float(x):.1f}" if pd.notna(x) and str(x).strip() != "" else "")
 
-        # Cấu hình chiều rộng cột và khóa cột
+        # Cấu hình chiều rộng cột và khóa các cột quan trọng
         col_config = {
             "STT": st.column_config.NumberColumn("STT", width="small", disabled=True),
             "Mã HS": st.column_config.TextColumn("Mã HS", width="medium", disabled=True),
@@ -241,34 +241,34 @@ def render_grade_manager_section():
             num_rows="fixed",
             column_config=col_config,
             disabled=["STT", "Mã HS", "Họ và tên", "TBM HK"],
+            hide_index=True,
             height=700,
             key="grade_editor"
         )
         
-        # THUẬT TOÁN QUÉT SỰ THAY ĐỔI THỜI GIAN THỰC
-        changes_detected = False
-        for i in range(len(edited_df)):
-            for col in score_cols[:-1] + ["Nhận xét"]: # Không so sánh TBM
-                if str(edited_df.at[i, col]) != str(df_display.at[i, col]):
-                    changes_detected = True
-                    break
-            if changes_detected: break
-            
-        if changes_detected:
+        # LẮNG NGHE SỰ KIỆN ENTER TỪ BÀN PHÍM VÀ LƯU NGAY LẬP TỨC
+        editor_state = st.session_state.get("grade_editor", {})
+        edits = editor_state.get("edited_rows", {})
+        
+        if edits:
             conn = sqlite3.connect(DB_PATH)
             cursor = conn.cursor()
-            for _, row in edited_df.iterrows():
-                ma_hs = row["Mã HS"]
-                tx1 = parse_score_smart(row["TX1"])
-                tx2 = parse_score_smart(row["TX2"])
-                tx3 = parse_score_smart(row["TX3"])
-                tx4 = parse_score_smart(row["TX4"])
-                gk = parse_score_smart(row["Điểm GK"])
-                ck = parse_score_smart(row["Điểm CK"])
-                nx = row["Nhận xét"] if pd.notna(row["Nhận xét"]) else None
+            for row_idx_str, col_edits in edits.items():
+                row_idx = int(row_idx_str)
+                ma_hs = df_display.at[row_idx, "Mã HS"]
+                
+                row_data = edited_df.iloc[row_idx]
+                tx1 = parse_score_smart(row_data["TX1"])
+                tx2 = parse_score_smart(row_data["TX2"])
+                tx3 = parse_score_smart(row_data["TX3"])
+                tx4 = parse_score_smart(row_data["TX4"])
+                gk = parse_score_smart(row_data["Điểm GK"])
+                ck = parse_score_smart(row_data["Điểm CK"])
+                nx = row_data["Nhận xét"] if pd.notna(row_data["Nhận xét"]) else None
                 
                 tx_scores = [x for x in [tx1, tx2, tx3, tx4] if x is not None]
                 tbm = None
+                # SMAS chỉ tính TBM nếu đã có điểm Giữa kỳ và Cuối kỳ
                 if gk is not None and ck is not None:
                     total_sum = sum(tx_scores) + (gk * 2) + (ck * 3)
                     total_coef = len(tx_scores) + 2 + 3
@@ -282,15 +282,14 @@ def render_grade_manager_section():
             conn.commit()
             conn.close()
             
-            # Ép xóa cache để nạp lại dữ liệu chuẩn từ CSDL
-            if "grade_editor" in st.session_state:
-                del st.session_state["grade_editor"]
+            # Xóa cache trên phiên làm việc và Rerun lại giao diện
+            del st.session_state["grade_editor"]
             st.rerun()
 
         # Nút Xuất File bên dưới
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            export_df = edited_df.drop(columns=["STT"]) # Bỏ STT khi xuất file SMAS
+            export_df = edited_df.drop(columns=["STT"]) # Bỏ cột STT để cấu trúc giống hệt SMAS
             export_df.to_excel(writer, index=False, sheet_name=f"{selected_class}")
         
         st.markdown("<br>", unsafe_allow_html=True)
