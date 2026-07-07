@@ -1,0 +1,10 @@
+streamlit
+python-docx
+google-genai
+pypdf
+python-dotenv
+fpdf2
+pandas
+openpyxl
+gspread
+oauth2client
