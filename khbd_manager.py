@@ -94,13 +94,13 @@ def export_khbd_to_docx(markdown_content, images_list):
 # --- GIAO DIỆN CHÍNH CỦA PHÂN HỆ ---
 def render_khbd_section(run_ai_prompt_safe_func):
     
-    tab_xay_dung, tab_luu_khbd = st.tabs(["📝 XÂY DỰNG KẾ HOẠCH BÀI DẠY AI", "🗄️ LƯU KHBD ĐÃ XD"])
+    tab_xay_dung, tab_luu_khbd = st.tabs(["... XÂY DỰNG KẾ HOẠCH BÀI DẠY AI", "🗄️ LƯU KHBD ĐÃ XD"])
     
     if "ket_qua_giao_an" not in st.session_state: st.session_state["ket_qua_giao_an"] = ""
     if "lich_su_khbd" not in st.session_state: st.session_state["lich_su_khbd"] = []
     if "kho_anh_trich_xuat" not in st.session_state: st.session_state["kho_anh_trich_xuat"] = []
 
-    # ==================== THẺ 1: XÂY DỰNG KẾ HOẠCH BÀI DẠY AI ====================
+    # ==================== THỂ 1: XÂY DỰNG KẾ HOẠCH BÀI DẠY AI ====================
     with tab_xay_dung:
         st.markdown("<h3 style='text-align: center; color: red;'>📖 CHỨC NĂNG XÂY DỰNG KẾ HOẠCH BÀI DẠY TỐI ƯU HÓA CAO</h3>", unsafe_allow_html=True)
         
@@ -157,7 +157,7 @@ def render_khbd_section(run_ai_prompt_safe_func):
                        - BIỂU BẢNG: Phần so sánh hoặc phiếu học tập phải dùng bảng định dạng Markdown bằng ký tự '|' để chuyển sang Word.
                        - HÌNH ẢNH MINH HỌA: Tại các bước lý thuyết phù hợp, hãy chèn chính xác dòng chữ dòng đơn là "[Hình ảnh minh họa]" để hệ thống nhúng ảnh từ file gốc.
                     
-                    3. { 'TÍCH HỢP NĂNG LỰC SỐ VÀ AI: Yêu cầu bắt buộc ở phần I. MỤC TIÊU (Mục 2. Năng lực đặc thù) phải viết rõ mục tiêu hình thành "Năng lực số và ứng dụng AI cho học sinh". Đồng thời, trong phần III. TIẾN TRÌNH DẠY HỌC, ở các bước Tổ chức thực hiện, phải thiết kế cụ thể hoạt động học sinh được thao tác trên máy tính, khai thác học liệu số, phần mềm mô phỏng hoặc trực tiếp sử dụng các công cụ Trí tuệ nhân tạo (AI) để phân tích, tổng hợp dữ liệu bài học.' if tich_hop_ai else '' }
+                    3. TÍCH HỢP NĂNG LỰC SỐ VÀ AI: Yêu cầu bắt buộc ở phần I. MỤC TIÊU (Mục 2. Năng lực đặc thù) phải viết rõ mục tiêu hình thành "Năng lực số và ứng dụng AI cho học sinh". Đồng thời, trong phần III. TIẾN TRÌNH DẠY HỌC, ở các bước Tổ chức thực hiện, phải thiết kế cụ thể hoạt động học sinh được thao tác trên máy tính, khai thác học liệu số, phần mềm mô phỏng hoặc trực tiếp sử dụng các công cụ Trí tuệ nhân tạo (AI) để phân tích, tổng hợp dữ liệu bài học.
                     4. CĂN CỨ BỔ SUNG KHÁC: {yeu_cau_khac}
                     
                     DỮ LIỆU FILE NGUỒN TÀI LIỆU THAM KHẢO:
@@ -168,7 +168,6 @@ def render_khbd_section(run_ai_prompt_safe_func):
 
         with col_btn1:
             st.write(""); st.write("")
-            # CHỨC NĂNG 1: TẢI FILE WORD (.DOCX) THỰC TẾ VỀ MÁY
             from khbd_manager import export_khbd_to_docx
             docx_data = export_khbd_to_docx(st.session_state["ket_qua_giao_an"], st.session_state["kho_anh_trich_xuat"]) if st.session_state["ket_qua_giao_an"] else b""
             st.download_button(
@@ -191,22 +190,21 @@ def render_khbd_section(run_ai_prompt_safe_func):
             else:
                 st.caption("Bài soạn sau khi khởi tạo bằng AI sẽ hiển thị tại đây...")
 
-    # ==================== THẺ 2: LƯU TRỮ KẾ HOẠCH BÀI DẠY ĐÃ XD ====================
+    # ==================== THÈ 2: LƯU TRỮ KẾ HOẠCH BÀI DẠY ĐÃ XD ====================
     with tab_luu_khbd:
         st.markdown("### 🗄️ THƯ VIỆN LƯU TRỮ KẾ HOẠCH BÀI DẠY ĐÃ XÂY DỰNG")
         if not st.session_state["lich_su_khbd"]:
             st.info("Chưa có bài soạn nào được lưu trong phiên này.")
         else:
-            # CHỨC NĂNG 2: VÒNG LẶP DUYỆT DANH SÁCH CÓ TÍNH NĂNG XÓA BÀI
             for idx, item in enumerate(st.session_state["lich_su_khbd"]):
                 col_exp, col_del = st.columns([0.88, 0.12])
                 
                 with col_exp:
                     with st.expander(f"📚 {idx+1}. {item['Tên bài']} - Môn: {item['Môn']} (Lớp {item['Lớp']})"):
                         st.markdown(item["Nội dung"])
-                        # Cho phép tải lại file Word trực tiếp trong kho lưu trữ
                         from khbd_manager import export_khbd_to_docx
-                        saved_docx = export_khbd_to_docx(item["Nội dung"], item["Kho_anh"])
+                        # SỬA LỖI KEYERROR BẰNG .GET() TRÁNH CRASH TRANG KHI ĐỌC BÀI CŨ
+                        saved_docx = export_khbd_to_docx(item["Nội dung"], item.get("Kho_anh", []))
                         st.download_button(
                             label="📥 Tải lại bản Word (.docx)",
                             data=saved_docx,
@@ -215,8 +213,7 @@ def render_khbd_section(run_ai_prompt_safe_func):
                             key=f"dl_saved_docx_{idx}"
                         )
                 with col_del:
-                    st.write("") # Cân bằng dòng
-                    # Nút bấm xóa bài viết đã soạn ra khỏi bộ nhớ hệ thống
+                    st.write("") 
                     if st.button("🗑️ Xóa bài", key=f"del_khbd_{idx}", use_container_width=True, type="secondary"):
                         st.session_state["lich_su_khbd"].pop(idx)
                         st.success(f"Đã xóa bài số {idx+1}!")
