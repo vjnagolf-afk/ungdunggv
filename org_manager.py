@@ -49,7 +49,9 @@ def render_org_section():
     setup_org_database()
     st.sidebar.markdown("---")
     st.sidebar.markdown("### 🔒 CHỌN VAI TRÒ ĐĂNG NHẬP")
-    vai_tro = st.sidebar.radio("Vai trò", ["Giáo viên bộ môn", "Tổ trưởng chuyên môn (Admin)", "Ban giám hiệu"], label_visibility="collapsed", key="vai_tro_org_sidebar")
+    
+    # KHÓA CHẶT KEY TĨNH: Sửa lỗi gốc rễ gây sập trang khi AI tải lại dữ liệu ngầm
+    vai_tro = st.sidebar.radio("Vai trò", ["Giáo viên bộ môn", "Tổ trưởng chuyên môn (Admin)", "Ban giám hiệu"], label_visibility="collapsed", key="vai_tro_org_sidebar_fixed_all")
     
     is_admin = False
     if vai_tro == "Tổ trưởng chuyên môn (Admin)":
@@ -71,7 +73,7 @@ def render_org_section():
                 df_up_m.columns = [str(c).strip() for c in df_up_m.columns]
                 conn = sqlite3.connect(DB_PATH)
                 for _, r in df_up_m.iterrows():
-                    conn.execute("INSERT OR REPLACE INTO org_members (fullname, position, main_subject, email, phone, note) VALUES (?, ?, ?, ?, ?, ?)", (str(r.get("Họ và tên", "")), str(r.get("Chức vụ", "Tổ viên")), str(r.get("Phân môn chính", "")), str(r.get("Email", "")), str(r.get("掃除電話", "")), str(r.get("Ghi chú", ""))))
+                    conn.execute("INSERT OR REPLACE INTO org_members (fullname, position, main_subject, email, phone, note) VALUES (?, ?, ?, ?, ?, ?)", (str(r.get("Họ và tên", "")), str(r.get("Chức vụ", "Tổ viên")), str(r.get("Phân môn chính", "")), str(r.get("Email", "")), str(r.get("Số điện thoại", "")), str(r.get("Ghi chú", ""))))
                 conn.commit(); conn.close(); st.success("🎉 Đã nạp thành công!"); st.rerun()
             except Exception as e: st.error(f"Lỗi: {e}")
 
@@ -164,5 +166,5 @@ def render_org_section():
                     conn.commit(); conn.close(); st.success("🎉 Đã lưu!"); st.rerun()
             out_e = io.BytesIO()
             with pd.ExcelWriter(out_e, engine='openpyxl') as w: edited_e.to_excel(w, index=False, sheet_name="Thi_Dua")
-            st.download_button(label=f"📥 Kết xuất Báo cáo Thi đua năm học {selected_year} (.xlsx)", data=out_e.getvalue(), file_name=f"Bao_Cao_Thi_Dua_Nam_Hoc_{selected_year.replace(' ', '')}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True)
+            st.download_button(label="📥 Kết xuất Báo cáo Thi đua năm học {selected_year} (.xlsx)", data=out_e.getvalue(), file_name=f"Bao_Cao_Thi_Dua_Nam_Hoc_{selected_year.replace(' ', '')}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True)
         else: st.info(f"ℹ️ Chưa có dữ liệu lưu trữ thi đua cho **{selected_year}**.")
