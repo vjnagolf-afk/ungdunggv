@@ -7,24 +7,61 @@ def render_tkb_manager():
     
     if uploaded_tkb:
         try:
-            # header=3: Bỏ qua 3 dòng đầu (tiêu đề trường), dùng dòng 4 làm tên cột
-            df = pd.read_excel(uploaded_tkb, sheet_name="TKB_GV_S", header=3)
+            # 1. Đọc thô file để tự động tìm dòng tiêu đề chuẩn (Tránh cố định header=3 bị lệch)
+            df_raw = pd.read_excel(uploaded_tkb, header=None)
+            header_idx = 3 # Giá trị mặc định phòng hờ
+            for idx, row in df_raw.iterrows():
+                row_str = [str(x).upper() for x in row.values if pd.notna(x)]
+                if "THỨ" in row_str and "TIẾT" in row_str:
+                    header_idx = idx
+                    break
             
-            # Lấy danh sách tên GV từ tiêu đề cột (Loại bỏ các cột rác)
-            teachers = [c for c in df.columns if isinstance(c, str) and "Unnamed" not in c and c not in ["THỨ", "TIẾT"]]
+            # 2. Đọc lại file Excel từ dòng tiêu đề tìm được
+            df = pd.read_excel(uploaded_tkb, header=header_idx)
+            df.columns = [str(c).strip() for c in df.columns]
             
+            # Sửa lỗi gộp ô: Điền đầy đủ dữ liệu cho cột "THỨ" bị trống (Thứ 2, Thứ 3...)
+            if "THỨ" in df.columns:
+                df["THỨ"] = df["THỨ"].ffill()
+                
+            # Sửa lỗi hiển thị: Thay thế tất cả giá trị trống, None, nan thành chuỗi rỗng để sạch bảng
+            df = df.fillna("")
+            df = df.astype(str).replace(["None", "nan", "NaN"], "")
+            
+            # Lấy danh sách tên Giáo viên (Loại bỏ các cột định vị hệ thống)
+            teachers = [c for c in df.columns if "Unnamed" not in c and c.upper() not in ["THỨ", "TIẾT", "STT", "CỘT 1", "CỘT 2"]]
+            
+            # --- ĐIỀU HƯỚNG GIAO DIỆN TABS ---
             tab1, tab2 = st.tabs(["📊 Thời khóa biểu chung", "👤 TKB theo giáo viên"])
+            
             with tab1:
-                st.dataframe(df, use_container_width=True)
+                # Hiển thị bảng sạch sẽ hoàn toàn không còn chữ Unnamed hay None
+                st.dataframe(df, use_container_width=True, hide_index=True)
+                
             with tab2:
                 if not teachers:
                     st.error("Không tìm thấy tên giáo viên trong file. Vui lòng kiểm tra lại cấu trúc file.")
                 else:
-                    selected_teacher = st.selectbox("👤 Chọn giáo viên:", sorted(teachers))
-                    tkb_gv = df[["THỨ", "TIẾT", selected_teacher]].copy()
+                    selected_teacher = st.selectbox("👤 Chọn giáo viên cần tra cứu:", sorted(teachers))
+                    
+                    # Trích xuất lịch dạy của riêng giáo viên được chọn
+                    cols_filter = []
+                    if "THỨ" in df.columns: cols_filter.append("THỨ")
+                    if "TIẾT" in df.columns: cols_filter.append("TIẾT")
+                    cols_filter.append(selected_teacher)
+                    
+                    tkb_gv = df[cols_filter].copy()
                     tkb_gv.columns = ["Thứ", "Tiết", "Lịch dạy"]
-                    tkb_gv["Thứ"] = tkb_gv["Thứ"].ffill() # Điền thứ cho các dòng trống
-                    st.dataframe(tkb_gv.dropna(subset=["Lịch dạy"]), use_container_width=True, hide_index=True)
+                    
+                    # Thuật toán lọc: Chỉ giữ lại các hàng thực sự có tiết dạy (bỏ các hàng trống)
+                    tkb_gv_clean = tkb_gv[tkb_gv["Lịch dạy"].str.strip() != ""]
+                    
+                    if not tkb_gv_clean.empty:
+                        st.success(f"📋 Lịch giảng dạy trong tuần của thầy/cô: **{selected_teacher}**")
+                        st.dataframe(tkb_gv_clean, use_container_width=True, hide_index=True)
+                    else:
+                        st.info(f"ℹ️ Thầy/cô **{selected_teacher}** không có tiết giảng dạy nào trong tuần này.")
+                        
         except Exception as e:
             st.error(f"Lỗi khi đọc file TKB: {e}")
     else:
