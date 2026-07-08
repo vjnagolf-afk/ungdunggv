@@ -85,7 +85,6 @@ def render_org_section():
     with tab1:
         st.markdown("#### 👥 Danh sách thành viên tổ chuyên môn")
         
-        # Ô tải Excel công khai để giám khảo chấm thực tế, bọc xử lý logic an toàn
         excel_m = st.file_uploader("📥 Tải file Excel danh sách Giáo viên lên hệ thống:", type=["xlsx", "xls"], key="up_m")
         if excel_m:
             if st.button("🚀 Xác nhận nạp dữ liệu danh sách Giáo viên", type="secondary", use_container_width=True):
@@ -161,7 +160,7 @@ def render_org_section():
             out_a = io.BytesIO()
             with pd.ExcelWriter(out_a, engine='openpyxl') as w: df_assign.to_excel(w, index=False, sheet_name="Phan_Cong")
             st.download_button(label="📥 Tải file Excel phân công giảng dạy về máy", data=out_a.getvalue(), file_name="So_Do_Phan_Cong_Giang_Day.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True)
-    # ==================== THÈ 3: THÀNH TÍCH VÀ THI ĐUA ĐỘC LẬP HOÀN TOÀN ====================
+    # ==================== THÈ 3: THÀNH TÍCH VÀ THI ĐUA ĐỘC LẬP ====================
     with tab3:
         st.markdown("#### 🏆 Sổ theo dõi Thành tích & Thi đua qua các năm học")
         
@@ -188,31 +187,74 @@ def render_org_section():
                     st.rerun()
                 except Exception as e: st.error(f"Lỗi đọc file thi đua: {e}")
 
-        # 💥 THUẬT TOÁN ĐỘC LẬP: Truy vấn TRỰC TIẾP từ bảng thi đua năm học tải lên, không đồng bộ ép tên từ Thẻ 1
+        # Đọc dữ liệu thi đua thô từ SQLite3
         conn = sqlite3.connect(DB_PATH)
         df_emulation = pd.read_sql_query("""
-            SELECT fullname as [Họ và tên],
-                   dg_vien_chuc as [Đánh giá viên chức],
-                   bd_hsg as [BD HSG],
-                   nckh as [NCKH],
-                   stem as [STEM],
-                   sang_kien as [Sáng kiến],
-                   gvdg as [GVDG],
-                   gvcng as [GVCNG],
-                   tdtt_nv as [TDTT-NV],
-                   hien_mau as [Hiển máu nhân đạo],
-                   khac as [Khác]
+            SELECT fullname as [Họ và tên], dg_vien_chuc as [Đánh giá viên chức], bd_hsg as [BD HSG],
+                   nckh as [NCKH], stem as [STEM], sang_kien as [Sáng kiến], gvdg as [GVDG],
+                   gvcng as [GVCNG], tdtt_nv as [TDTT-NV], hien_mau as [Hiển máu nhân đạo], khac as [Khác]
             FROM org_emulation_years WHERE nam_hoc = ?
         """, conn, params=[selected_year])
         conn.close()
 
+        # 💥 THUẬT TOÁN KHỬ LỖI NAN: Thay thế toàn bộ chữ rác nan hệ thống bằng dấu gạch ngang "-"
+        df_emulation = df_emulation.fillna("-")
+        for col in df_emulation.columns:
+            df_emulation[col] = df_emulation[col].apply(lambda x: "-" if str(x).strip().lower() in ["nan", "none", ""] else str(x).strip())
+
         if not df_emulation.empty:
             df_emulation.insert(0, "Năm học", selected_year)
             df_emulation.insert(0, "STT", range(1, len(df_emulation) + 1))
-            st.dataframe(df_emulation, use_container_width=True, hide_index=True)
             
+            # Cấu hình thuộc tính cho phép sửa đổi trực tiếp dữ liệu lưới đối với tài khoản Admin
+            col_config_emu = {
+                "STT": st.column_config.NumberColumn("STT", disabled=True),
+                "Năm học": st.column_config.TextColumn("Năm học", disabled=True),
+                "Họ và tên": st.column_config.TextColumn("Họ và tên", disabled=True), # Khóa cột tên chống gõ lệch dòng
+                "Đánh giá viên chức": st.column_config.TextColumn("Đánh giá viên chức", disabled=not is_admin),
+                "BD HSG": st.column_config.TextColumn("BD HSG", disabled=not is_admin),
+                "NCKH": st.column_config.TextColumn("NCKH", disabled=not is_admin),
+                "STEM": st.column_config.TextColumn("STEM", disabled=not is_admin),
+                "Sáng kiến": st.column_config.TextColumn("Sáng kiến", disabled=not is_admin),
+                "GVDG": st.column_config.TextColumn("GVDG", disabled=not is_admin),
+                "GVCNG": st.column_config.TextColumn("GVCNG", disabled=not is_admin),
+                "TDTT-NV": st.column_config.TextColumn("TDTT-NV", disabled=not is_admin),
+                "Hiển máu nhân đạo": st.column_config.TextColumn("Hiển máu nhân đạo", disabled=not is_admin),
+                "Khác": st.column_config.TextColumn("Khác", disabled=not is_admin)
+            }
+            
+            # 🛠️ TÍCH HỢP TÍNH NĂNG CHỈNH SỬA TRỰC TIẾP TRÊN HỆ THỐNG QUA FORM ỔN ĐỊNH
+            with st.form("form_realtime_emulation", border=False):
+                if is_admin:
+                    st.write("👉 *Mẹo dành cho Admin: Thầy có thể click đúp chuột vào bất kỳ ô nào bên dưới để sửa đổi trực tiếp số liệu thi đua, sau đó nhấn nút Cập nhật ở dưới bảng để chốt lưu.*")
+                
+                edited_df = st.data_editor(
+                    df_emulation,
+                    use_container_width=True,
+                    hide_index=True,
+                    column_config=col_config_emu,
+                    key="stable_emulation_editor"
+                )
+                
+                submitted_emu = st.form_submit_button("💾 XÁC NHẬN CẬP NHẬT TOÀN BỘ SỔ THI ĐUA NĂM HỌC", type="primary", use_container_width=True, disabled=not is_admin)
+                
+            if submitted_emu and is_admin:
+                conn = sqlite3.connect(DB_PATH)
+                cursor = conn.cursor()
+                for _, row in edited_df.iterrows():
+                    cursor.execute("""
+                    INSERT OR REPLACE INTO org_emulation_years 
+                    (nam_hoc, fullname, dg_vien_chuc, bd_hsg, nckh, stem, sang_kien, gvdg, gvcng, tdtt_nv, hien_mau, khac)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (selected_year, str(row["Họ và tên"]), str(row["Đánh giá viên chức"]), str(row["BD HSG"]), str(row["NCKH"]), str(row["STEM"]), str(row["Sáng kiến"]), str(row["GVDG"]), str(row["GVCNG"]), str(row["TDTT-NV"]), str(row["Hiển máu nhân đạo"]), str(row["Khác"])))
+                conn.commit()
+                conn.close()
+                st.success(f"🎉 Hệ thống đã cập nhật vĩnh viễn dữ liệu chỉnh sửa của niên khóa {selected_year}!")
+                st.rerun()
+            
+            # KẾT XUẤT FILE EXCEL SAU KHI ĐÃ LÀM SẠCH CHỮ NAN
             out_e = io.BytesIO()
-            with pd.ExcelWriter(out_e, engine='openpyxl') as w: df_emulation.to_excel(w, index=False, sheet_name="Thi_Dua")
+            with pd.ExcelWriter(out_e, engine='openpyxl') as w: edited_df.to_excel(w, index=False, sheet_name=f"Thi_Dua")
             st.download_button(label=f"📥 Kết xuất Báo cáo Thi đua năm học {selected_year} (.xlsx)", data=out_e.getvalue(), file_name=f"Bao_Cao_Thi_Dua_Nam_Hoc_{selected_year.replace(' ', '')}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True)
         else:
             st.info(f"ℹ️ Chưa có dữ liệu lưu trữ thi đua cho **{selected_year}**. Vui lòng chọn năm học và nạp tệp Excel thi đua tương ứng ở phía trên.")
