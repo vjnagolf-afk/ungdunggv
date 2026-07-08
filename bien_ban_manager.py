@@ -64,7 +64,9 @@ def export_minutes_to_docx(meeting_date, session_number, present_members, absent
     bio = io.BytesIO()
     doc.save(bio)
     return bio.getvalue()
-def render_meeting_minutes():
+
+# Đã thêm tham số run_ai_prompt_safe vào đây
+def render_meeting_minutes(run_ai_prompt_safe):
     setup_minutes_database()
     st.markdown("<h3 style='text-align: left; color: #1E3A8A;'>📝 TRÌNH LẬP BIÊN BẢN HỌP TỔ CHUYÊN MÔN NÂNG CAO</h3>", unsafe_allow_html=True)
     tab_lap, tab_kho = st.tabs(["✍️ Lập biên bản mới", "🗄️ Kho lưu trữ biên bản họp"])
@@ -81,9 +83,8 @@ def render_meeting_minutes():
                 raw_text = extract_text_from_minutes_upload(file_ke_hoach)
                 if raw_text:
                     try:
-                        from app import run_ai_prompt_safe
-                        # Gọi cấu trúc prompt rút gọn hành vi định lượng sạch sẽ
-                        res_text, _ = run_ai_prompt_safe(f"Hãy đọc tệp văn bản này và tóm tắt thành một nội dung biên bản cuộc họp tổ chuyên môn cực kỳ chi tiết, dùng dấu gạch ngang '-', không dùng dấu **: {raw_text}", st.secrets.get("GEMINI_API_KEY", ""))
+                        # Đã sửa: Chỉ truyền 1 tham số prompt_text
+                        res_text, _ = run_ai_prompt_safe(f"Hãy đọc tệp văn bản này và tóm tắt thành một nội dung biên bản cuộc họp tổ chuyên môn cực kỳ chi tiết, dùng dấu gạch ngang '-', không dùng dấu **: {raw_text}")
                         st.session_state["minutes_content_draft"] = res_text
                         st.success("✅ Đã chèn dữ liệu tự động thành công vào khung bên dưới!")
                         st.rerun()
@@ -102,8 +103,8 @@ def render_meeting_minutes():
                 if m_content:
                     with st.spinner("AI đang đúc kết..."):
                         try:
-                            from app import run_ai_prompt_safe
-                            res_ai, _ = run_ai_prompt_safe(f"Tóm tắt ngắn gọn nghị quyết cuộc họp từ diễn biến này, dùng dấu '-', không dùng **: {m_content}", st.secrets.get("GEMINI_API_KEY", ""))
+                            # Đã sửa: Chỉ truyền 1 tham số prompt_text
+                            res_ai, _ = run_ai_prompt_safe(f"Tóm tắt ngắn gọn nghị quyết cuộc họp từ diễn biến này, dùng dấu '-', không dùng **: {m_content}")
                             st.session_state["minutes_resolution_draft"] = res_ai
                             st.rerun()
                         except: pass
