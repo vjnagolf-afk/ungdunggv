@@ -73,25 +73,24 @@ def render_grade_manager_section():
     }
     
     available_classes = []
-    if selected_grade == "Tất cả khối":
-        for classes in class_config.values():
-            available_classes.extend(classes)
-    else:
+    
+    # CHỈ HIỂN THỊ LỚP KHI ĐÃ CHỌN CỤ THỂ KHỐI
+    if selected_grade != "Tất cả khối":
         grade_num = "".join([c for c in selected_grade if c.isdigit()])
         if grade_num in class_config:
             available_classes = class_config[grade_num]
 
-    try:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        cursor.execute("SELECT DISTINCT classroom FROM students WHERE classroom IS NOT NULL")
-        db_classes = [row[0] for row in cursor.fetchall()]
-        for dc in db_classes:
-            if dc not in available_classes:
-                available_classes.append(dc)
-        conn.close()
-    except:
-        pass
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute("SELECT DISTINCT classroom FROM students WHERE classroom IS NOT NULL AND classroom LIKE ?", (f"%{grade_num}%",))
+            db_classes = [row[0] for row in cursor.fetchall()]
+            for dc in db_classes:
+                if dc not in available_classes:
+                    available_classes.append(dc)
+            conn.close()
+        except:
+            pass
 
     final_class_list = ["Tất cả lớp"] + sorted(list(set(available_classes)))
 
@@ -174,6 +173,7 @@ def render_grade_manager_section():
 
                     conn.commit()
                     conn.close()
+                    if "grade_editor" in st.session_state: del st.session_state["grade_editor"]
                     st.success(f"✅ Đã đồng bộ thành công dữ liệu và điểm của các lớp: {', '.join(set(imported_classes))}")
                     st.rerun()
                 except Exception as e:
@@ -226,7 +226,6 @@ def render_grade_manager_section():
             "Nhận xét": st.column_config.TextColumn("Nhận xét", width="medium")
         }
 
-        # BỌC BẢNG ĐIỂM VÀO ST.FORM ĐỂ CHẶN RERUN -> GIÚP PHÍM ENTER / MŨI TÊN HOẠT ĐỘNG MƯỢT MÀ
         with st.form("grade_form", border=False):
             edited_df = st.data_editor(
                 df_display,
@@ -238,7 +237,6 @@ def render_grade_manager_section():
                 height=700
             )
             
-            # Nút Lưu bây giờ là nút Submit của Form
             st.markdown("<br>", unsafe_allow_html=True)
             submitted = st.form_submit_button("💾 BẤM VÀO ĐÂY ĐỂ LƯU THAY ĐỔI & TÍNH TBM SAU KHI GÕ XONG", type="primary", use_container_width=True)
 
@@ -273,7 +271,6 @@ def render_grade_manager_section():
                 st.success("✅ Đã tính TBM và quy đổi định dạng điểm thành công!")
                 st.rerun()
 
-        # Nút Xuất File (Nằm ngoài form)
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine='openpyxl') as writer:
             export_df = edited_df.drop(columns=["STT"]) 
