@@ -26,7 +26,6 @@ def setup_database_structure():
     conn.commit()
     conn.close()
 
-# BỘ LỌC ĐIỂM THÔNG MINH
 def parse_score_smart(val):
     if pd.isna(val) or str(val).strip() in ["", "nan", "None"]: 
         return None
@@ -80,9 +79,9 @@ def render_grade_manager_section():
     .tip-box { background-color: #FEF3C7; color: #92400E; padding: 10px; border-radius: 5px; font-weight: bold; border: 1px solid #F59E0B; margin-bottom: 15px;}
     </style>
     <div class="tip-box">
-    💡 TÍNH NĂNG THỜI GIAN THỰC:<br>
-    - Thầy gõ trực tiếp điểm (VD: 95, 10, 85). Bấm Enter hệ thống sẽ <b>TỰ ĐỘNG LƯU</b>, chuyển thành 9.5, 10.0 và <b>TỰ TÍNH TBM</b>.<br>
-    - Cột STT, Họ và tên, TBM HK đã được khóa cứng. Cột Mã HS đã được ẩn đi cho gọn gàng.
+    💡 CẨM NANG VÀO ĐIỂM CHUẨN (Nhập liệu theo lô):<br>
+    - <b>Bước 1:</b> Thầy gõ liên tục từ trên xuống dưới (VD: gõ 95 -> bấm Enter để xuống dòng tiếp theo gõ tiếp). Trải nghiệm sẽ mượt như Excel, không bị giật chuột.<br>
+    - <b>Bước 2:</b> Nhập xong cả danh sách, thầy BẮT BUỘC bấm nút <b>"💾 Lưu thay đổi & Tính TBM"</b> bên dưới. Hệ thống sẽ tự quy đổi 95 thành 9.5 và tính TBM cho toàn bộ.
     </div>
     """, unsafe_allow_html=True)
 
@@ -127,7 +126,6 @@ def render_grade_manager_section():
     with col_import:
         uploaded_smas = st.file_uploader("📥 Nhập dữ liệu SMAS (.xlsx)", type=["xlsx", "xls"], label_visibility="collapsed")
 
-    # XỬ LÝ IMPORT FILE SMAS CÓ CHỨA SẴN ĐIỂM
     if uploaded_smas:
         if st.button("🚀 Bắt đầu đồng bộ SMAS", type="primary"):
             with st.spinner("Đang bóc tách dữ liệu và hút điểm..."):
@@ -202,93 +200,37 @@ def render_grade_manager_section():
                     conn.commit()
                     conn.close()
                     if "grade_editor" in st.session_state: del st.session_state["grade_editor"]
-                    st.success(f"✅ Đã đồng bộ SMAS thành công!")
+                    st.success(f"✅ Đã đồng bộ thành công dữ liệu và điểm của các lớp: {', '.join(set(imported_classes))}")
                     st.rerun()
                 except Exception as e:
                     st.error(f"Lỗi nhập liệu: {e}")
 
-    # Lấy dữ liệu thô từ CSDL
     df_display = get_df_display(selected_class, selected_grade)
 
-    # 1. TIỀN XỬ LÝ (PRE-PROCESSING): Bắt tín hiệu nhập liệu và xử lý NGAY LẬP TỨC
-    if "grade_editor" in st.session_state:
-        edits = st.session_state["grade_editor"].get("edited_rows", {})
-        if edits:
-            conn = sqlite3.connect(DB_PATH)
-            cursor = conn.cursor()
-            for row_idx_str, col_edits in edits.items():
-                row_idx = int(row_idx_str)
-                if row_idx < len(df_display):
-                    ma_hs = df_display.at[row_idx, "Mã HS"]
-                    current_vals = df_display.iloc[row_idx]
-                    
-                    # Trộn dữ liệu vừa gõ vào dữ liệu cũ
-                    tx1 = col_edits.get("TX1", current_vals["TX1"])
-                    tx2 = col_edits.get("TX2", current_vals["TX2"])
-                    tx3 = col_edits.get("TX3", current_vals["TX3"])
-                    tx4 = col_edits.get("TX4", current_vals["TX4"])
-                    gk  = col_edits.get("Điểm GK", current_vals["Điểm GK"])
-                    ck  = col_edits.get("Điểm CK", current_vals["Điểm CK"])
-                    nx  = col_edits.get("Nhận xét", current_vals["Nhận xét"])
-                    
-                    # Đẩy qua bộ lọc thông minh 95 -> 9.5
-                    tx1 = parse_score_smart(tx1)
-                    tx2 = parse_score_smart(tx2)
-                    tx3 = parse_score_smart(tx3)
-                    tx4 = parse_score_smart(tx4)
-                    gk  = parse_score_smart(gk)
-                    ck  = parse_score_smart(ck)
-                    nx  = str(nx) if pd.notna(nx) else None
-                    
-                    # Tính TBM
-                    tx_scores = [x for x in [tx1, tx2, tx3, tx4] if x is not None]
-                    tbm = None
-                    if gk is not None and ck is not None:
-                        total_sum = sum(tx_scores) + (gk * 2) + (ck * 3)
-                        total_coef = len(tx_scores) + 2 + 3
-                        tbm = round(total_sum / total_coef, 1)
-
-                    # Lưu vào Database
-                    cursor.execute("""
-                        UPDATE grades SET kttx1=?, kttx2=?, kttx3=?, kttx4=?, ktgk=?, ktck=?, tb=?, comment_hk=? 
-                        WHERE student_code=?
-                    """, (tx1, tx2, tx3, tx4, gk, ck, tbm, nx, ma_hs))
-            
-            conn.commit()
-            conn.close()
-            
-            # Xóa cache và tải lại DB để hiển thị kết quả chuẩn
-            del st.session_state["grade_editor"]
-            df_display = get_df_display(selected_class, selected_grade)
-
-    # 2. HIỂN THỊ GIAO DIỆN
     if not df_display.empty:
         st.markdown(f"##### 📝 BẢNG VÀO ĐIỂM LỚP {selected_class.upper()}")
         
-        # Thêm cột STT
         df_display.insert(0, "STT", range(1, len(df_display) + 1))
         
-        # Format hiển thị (chuẩn 10.0)
         score_cols = ["TX1", "TX2", "TX3", "TX4", "Điểm GK", "Điểm CK", "TBM HK"]
         for c in score_cols:
             df_display[c] = df_display[c].apply(lambda x: f"{float(x):.1f}" if pd.notna(x) and str(x).strip() != "" else "")
 
-        # Cấu hình khóa cột, ẩn mã HS, thu gọn độ rộng điểm
         col_config = {
             "STT": st.column_config.NumberColumn("STT", width="small", disabled=True),
-            "Mã HS": None, # Ẩn cột Mã HS
-            "Họ và tên": st.column_config.TextColumn("Họ và tên", disabled=True), # Khóa cột Tên
+            "Mã HS": None,
+            "Họ và tên": st.column_config.TextColumn("Họ và tên", disabled=True),
             "TX1": st.column_config.TextColumn("TX1", width="small"),
             "TX2": st.column_config.TextColumn("TX2", width="small"),
             "TX3": st.column_config.TextColumn("TX3", width="small"),
             "TX4": st.column_config.TextColumn("TX4", width="small"),
             "Điểm GK": st.column_config.TextColumn("Điểm GK", width="small"),
             "Điểm CK": st.column_config.TextColumn("Điểm CK", width="small"),
-            "TBM HK": st.column_config.TextColumn("TBM HK", width="small", disabled=True), # Khóa cột TBM
+            "TBM HK": st.column_config.TextColumn("TBM HK", width="small", disabled=True),
             "Nhận xét": st.column_config.TextColumn("Nhận xét", width="medium")
         }
 
-        # Vẽ bảng Data Editor với num_rows="fixed" để chặn Add Row
+        # Bảng nhập liệu ổn định không bị giật
         edited_df = st.data_editor(
             df_display,
             column_order=["STT", "Họ và tên", "TX1", "TX2", "TX3", "TX4", "Điểm GK", "Điểm CK", "TBM HK", "Nhận xét"],
@@ -302,18 +244,53 @@ def render_grade_manager_section():
 
         st.markdown("<br>", unsafe_allow_html=True)
         
-        # Nút Xuất Excel SMAS
-        output = io.BytesIO()
-        with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            export_df = edited_df.drop(columns=["STT"]) 
-            export_df.to_excel(writer, index=False, sheet_name=f"{selected_class}")
-        
-        st.download_button(
-            label="📤 Xuất File Điểm SMAS Hoàn Chỉnh", 
-            data=output.getvalue(), 
-            file_name=f"Diem_{selected_class}.xlsx", 
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            type="primary"
-        )
+        col_btn1, col_btn2 = st.columns([2, 8])
+        with col_btn1:
+            if st.button("💾 Lưu thay đổi & Tính TBM", type="primary", use_container_width=True):
+                conn = sqlite3.connect(DB_PATH)
+                cursor = conn.cursor()
+                for _, row in edited_df.iterrows():
+                    ma_hs = row["Mã HS"]
+                    
+                    tx1 = parse_score_smart(row["TX1"])
+                    tx2 = parse_score_smart(row["TX2"])
+                    tx3 = parse_score_smart(row["TX3"])
+                    tx4 = parse_score_smart(row["TX4"])
+                    gk = parse_score_smart(row["Điểm GK"])
+                    ck = parse_score_smart(row["Điểm CK"])
+                    nx = row["Nhận xét"] if pd.notna(row["Nhận xét"]) else None
+                    
+                    tx_scores = [x for x in [tx1, tx2, tx3, tx4] if x is not None]
+                    tbm = None
+                    if gk is not None and ck is not None:
+                        total_sum = sum(tx_scores) + (gk * 2) + (ck * 3)
+                        total_coef = len(tx_scores) + 2 + 3
+                        tbm = round(total_sum / total_coef, 1)
+
+                    cursor.execute("""
+                        UPDATE grades SET kttx1=?, kttx2=?, kttx3=?, kttx4=?, ktgk=?, ktck=?, tb=?, comment_hk=? 
+                        WHERE student_code=?
+                    """, (tx1, tx2, tx3, tx4, gk, ck, tbm, nx, ma_hs))
+                
+                conn.commit()
+                conn.close()
+                
+                if "grade_editor" in st.session_state:
+                    del st.session_state["grade_editor"]
+                st.success("✅ Đã tính TBM và quy đổi định dạng điểm thành công!")
+                st.rerun()
+
+        with col_btn2:
+            output = io.BytesIO()
+            with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                export_df = edited_df.drop(columns=["STT"]) 
+                export_df.to_excel(writer, index=False, sheet_name=f"{selected_class}")
+            
+            st.download_button(
+                label="📤 Xuất File Điểm SMAS Hoàn Chỉnh", 
+                data=output.getvalue(), 
+                file_name=f"Diem_{selected_class}.xlsx", 
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
     else:
         st.info("💡 Chưa có dữ liệu học sinh. Vui lòng tải file SMAS (.xlsx) lên để đồng bộ.")
