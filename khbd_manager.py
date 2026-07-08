@@ -2,14 +2,19 @@ import streamlit as st
 import docx  
 from docx.shared import Inches, Pt, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.enum.table import WD_TABLE_ALIGNMENT
+from docx.oxml import OxmlElement
+from docx.oxml.ns import qn
 import io
 import re
 from pypdf import PdfReader
 
-# --- HÀM TRÍCH XUẤT VĂN BẢN VÀ HÌNH ẢNH TỪ FILE NGUỒN ---
+# --- HÀM TRÍCH XUẤT VĂN BẢN VÀ LỌC ẢNH TRÙNG LẶP ---
 def extract_context_from_uploaded_files(uploaded_files):
     combined_text = ""
     extracted_images = [] 
+    seen_image_sizes = set() # Chống trích xuất trùng lặp một ảnh nhiều lần
+    
     for file in uploaded_files:
         try:
             if file.name.endswith('.docx'):
@@ -22,30 +27,87 @@ def extract_context_from_uploaded_files(uploaded_files):
                         combined_text += " | ".join(text_row) + "\n"
                 for rel in doc.part.relations.values():
                     if "image" in rel.target_ref:
-                        extracted_images.append(rel.target_part.blob)
+                        img_blob = rel.target_part.blob
+                        img_size = len(img_blob)
+                        if img_size not in seen_image_sizes: # Lọc trùng
+                            seen_image_sizes.add(img_size)
+                            extracted_images.append(img_blob)
             elif file.name.endswith('.pdf'):
                 reader = PdfReader(file)
                 for page in reader.pages:
                     combined_text += (page.extract_text() or "") + "\n"
                     for img_file_object in page.images:
-                        extracted_images.append(img_file_object.data)
+                        img_blob = img_file_object.data
+                        img_size = len(img_blob)
+                        if img_size not in seen_image_sizes:
+                            seen_image_sizes.add(img_size)
+                            extracted_images.append(img_blob)
             elif file.name.endswith('.txt'):
                 combined_text += file.read().decode("utf-8") + "\n"
         except Exception as e:
             st.error(f"Lỗi khi xử lý file {file.name}: {str(e)}")
     return combined_text, extracted_images
 
-# --- HÀM XUẤT FILE WORD (.DOCX) CHUẨN ĐỊNH DẠNG MÀU SẮC, FONT, CỠ CHỮ ---
+# --- HÀM SET KHOẢNG CÁCH ĐOẠN 3 - 4.5 PT CHUẨN UX ---
+def set_paragraph_spacing(paragraph, before_pt=3.0, after_pt=4.5):
+    p_pr = paragraph._p.get_or_add_pPr()
+    spacing = OxmlElement('w:spacing')
+    spacing.set(qn('w:before'), str(int(before_pt * 20))) # Quy đổi sang dxa
+    spacing.set(qn('w:after'), str(int(after_pt * 20)))
+    spacing.set(qn('w:line'), '240') # Dòng đơn chuẩn
+    spacing.set(qn('w:lineRule'), 'auto')
+    p_pr.append(spacing)
+
+# --- HÀM CHUYỂN ĐỔI BIỂU THỨC THÀNH CÔNG THỨC TOÁN ĐỨNG (GIỐNG ẢNH MINH HỌA) ---
+def add_math_expression(doc, text_line):
+    # Phát hiện định dạng phân số dạng [frac: tử/mẫu] hoặc căn [root: n|biểu thức]
+    if "[frac:" in text_line or "[root:" in text_line:
+        p = doc.add_paragraph()
+        set_paragraph_spacing(p)
+        p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+        
+        # Nếu dòng chứa phép toán phân số đứng hoặc căn, dựng bằng Table Grid ẩn viền để tạo khối công thức đứng
+        m_table = doc.add_table(rows=1, cols=3)
+        m_table.alignment = WD_TABLE_ALIGNMENT.LEFT
+        
+        # Xử lý trích xuất các thành phần phân số, căn thức
+        frac_match = re.search(r'\[frac:\s*([^/]+)/([^\]]+)\]', text_line)
+        root_match = re.search(r'\[root:\s*([^|]+)\|([^\]]+)\]', text_line)
+        
+        if frac_match:
+            tu, mau = frac_match.group(1).strip(), frac_match.group(2).strip()
+            cell = m_table.cell(0, 0)
+            cell.text = f"{tu}\n---\n{mau}" # Tạo cấu trúc phân số dạng khối đứng
+            for para in cell.paragraphs:
+                para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                for run in para.runs:
+                    run.font.name = 'Times New Roman'
+                    run.font.size = Pt(14)
+        if root_match:
+            bac, b_thuc = root_match.group(1).strip(), root_match.group(2).strip()
+            cell = m_table.cell(0, 1)
+            cell.text = f"^{bac}√({b_thuc})"
+            for para in cell.paragraphs:
+                for run in para.runs:
+                    run.font.name = 'Times New Roman'
+                    run.font.size = Pt(14)
+    else:
+        p = doc.add_paragraph()
+        set_paragraph_spacing(p)
+        p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+        run = p.add_run(text_line)
+        run.font.name = 'Times New Roman'
+        run.font.size = Pt(14)
+
+# --- HÀM XUẤT FILE WORD TỔNG HỢP NÂNG CAO ---
 def export_khbd_to_docx(markdown_content, images_list):
     doc = docx.Document()
-    # Định dạng lề trang chuẩn văn bản hành chính Việt Nam
     for section in doc.sections:
         section.top_margin = Inches(0.79)
         section.bottom_margin = Inches(0.79)
         section.left_margin = Inches(1.18)
         section.right_margin = Inches(0.59)
 
-    # Cấu hình màu sắc chuẩn
     MAU_DO = RGBColor(255, 0, 0)
     MAU_XANH_DUONG = RGBColor(0, 51, 153)
     MAU_DEN = RGBColor(0, 0, 0)
@@ -53,11 +115,11 @@ def export_khbd_to_docx(markdown_content, images_list):
     lines = markdown_content.split('\n')
     in_table = False
     table_data = []
+    used_img_idx = 0 # Chỉ số theo dõi ảnh chèn, tránh lặp lại cùng một ảnh
 
     for line in lines:
         clean_line = line.strip().replace('**', '').replace('###', '').replace('##', '').replace('#', '')
         
-        # 1. XỬ LÝ BIỂU BẢNG VÀ PHIẾU HỌC TẬP
         if line.strip().startswith('|') and line.strip().endswith('|'):
             if '---|' in line or ':---|' in line: continue
             in_table = True
@@ -67,7 +129,7 @@ def export_khbd_to_docx(markdown_content, images_list):
         else:
             if in_table and table_data:
                 num_rows = len(table_data)
-                num_cols = len(table_data[0]) if num_rows > 0 else 0
+                num_cols = len(table_data) if num_rows > 0 else 0
                 if num_cols > 0:
                     word_table = doc.add_table(rows=num_rows, cols=num_cols)
                     word_table.style = 'Table Grid'
@@ -76,9 +138,10 @@ def export_khbd_to_docx(markdown_content, images_list):
                             if c_idx < num_cols:
                                 cell = word_table.cell(r_idx, c_idx)
                                 cell.text = val
-                                for p in cell.paragraphs:
-                                    p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-                                    for r in p.runs:
+                                for para in cell.paragraphs:
+                                    set_paragraph_spacing(para, 2.0, 3.0)
+                                    para.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+                                    for r in para.runs:
                                         r.font.name = 'Times New Roman'
                                         r.font.size = Pt(14)
                                         r.font.color.rgb = MAU_DEN
@@ -87,12 +150,22 @@ def export_khbd_to_docx(markdown_content, images_list):
 
         if not clean_line: continue
 
-        p = doc.add_paragraph()
-        # Thừa kế căn lề đều 2 bên cho nội dung thông thường
-        p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+        # Xử lý chèn ảnh thông minh không lặp lại
+        if "[Hình ảnh minh họa]" in line and images_list:
+            if used_img_idx < len(images_list):
+                try:
+                    p = doc.add_paragraph()
+                    set_paragraph_spacing(p)
+                    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    img_stream = io.BytesIO(images_list[used_img_idx])
+                    doc.add_picture(img_stream, width=Inches(4.5))
+                    used_img_idx += 1 # Chuyển sang ảnh kế tiếp trong danh sách, tránh trùng ảnh
+                    continue
+                except: pass
 
-        # 2. ĐỊNH DẠNG TIÊU ĐỀ BÀI HỌC (IN HOA ĐẬM, CĂN GIỮA, CHỮ ĐỎ)
         if any(x in clean_line.upper() for x in ["MÔN HỌC:", "LỚP:", "BÀI:", "KẾ HOẠCH BÀI DẠY"]):
+            p = doc.add_paragraph()
+            set_paragraph_spacing(p, 4.0, 6.0)
             p.alignment = WD_ALIGN_PARAGRAPH.CENTER
             run = p.add_run(clean_line.upper())
             run.bold = True
@@ -100,8 +173,9 @@ def export_khbd_to_docx(markdown_content, images_list):
             run.font.size = Pt(14)
             run.font.color.rgb = MAU_DO
             
-        # 3. ĐỊNH DẠNG ĐỀ MỤC LỚN (IN ĐẬM, CĂN TRÁI, CHỮ XANH DƯƠNG)
         elif re.match(r'^(I|II|III|IV|V|VI)\.', clean_line) or re.match(r'^\d+\.', clean_line):
+            p = doc.add_paragraph()
+            set_paragraph_spacing(p, 4.0, 4.5)
             p.alignment = WD_ALIGN_PARAGRAPH.LEFT
             run = p.add_run(clean_line)
             run.bold = True
@@ -109,23 +183,8 @@ def export_khbd_to_docx(markdown_content, images_list):
             run.font.size = Pt(14)
             run.font.color.rgb = MAU_XANH_DUONG
 
-        # 4. ĐỊNH DẠNG NỘI DUNG THÔNG THƯỜNG (CHỮ ĐEN, CĂN ĐỀU CẢ 2 BÊN)
         else:
-            if "[Hình ảnh minh họa]" in line and images_list:
-                try:
-                    img_stream = io.BytesIO(images_list)
-                    doc.add_picture(img_stream, width=Inches(4.5))
-                    continue
-                except: pass
-            
-            parts = re.split(r'(\d+)', clean_line)
-            for part in parts:
-                run = p.add_run(part)
-                run.font.name = 'Times New Roman'
-                run.font.size = Pt(14)
-                run.font.color.rgb = MAU_DEN
-                if part.isdigit() and any(x in clean_line for x in ['H2O', 'CO2', 'Fe', 'O2', 'H2SO4', 'N2', 'CH4']):
-                    run.font.subscript = True
+            add_math_expression(doc, clean_line)
 
     bio = io.BytesIO()
     doc.save(bio)
@@ -139,7 +198,7 @@ def render_khbd_section(run_ai_prompt_safe_func):
     if "lich_su_khbd" not in st.session_state: st.session_state["lich_su_khbd"] = []
     if "kho_anh_trich_xuat" not in st.session_state: st.session_state["kho_anh_trich_xuat"] = []
 
-    # ==================== THẺ 1: XÂY DỰNG KẾ HOẠCH BÀI DẠY AI ====================
+    # ==================== THÈ 1: XÂY DỰNG KẾ HOẠCH BÀI DẠY AI ====================
     with tab_xay_dung:
         st.markdown("<h3 style='text-align: center; color: red;'>📖 CHỨC NĂNG XÂY DỰNG KẾ HOẠCH BÀI DẠY TỐI ƯU HÓA CAO</h3>", unsafe_allow_html=True)
         
@@ -162,7 +221,7 @@ def render_khbd_section(run_ai_prompt_safe_func):
         col_btn1, col_blank, col_btn2 = st.columns([2.0, 1.3, 1.7])
         
         st.markdown("**💬 Yêu cầu ràng buộc khác (Để AI làm căn cứ bổ sung khi soạn bài):**")
-        yeu_cau_khac = st.text_area("Nhập lưu ý...", placeholder="Ví dụ: Thiết kế bảng biểu so sánh rõ ràng, sử dụng ký tự unicode cho phương trình...", label_visibility="collapsed", height=100)
+        yeu_cau_khac = st.text_area("Nhập lưu ý...", placeholder="Ví dụ: Tạo bảng trắc nghiệm phân hóa học sinh ở hoạt động luyện tập...", label_visibility="collapsed", height=100)
         
         with col_btn2:
             st.write(""); st.write("")
@@ -191,20 +250,19 @@ def render_khbd_section(run_ai_prompt_safe_func):
                     I. MỤC TIÊU (Bắt buộc chia nhỏ thành đúng 4 đề mục con sau):
                        1. Kiến thức
                        2. Năng lực (Bao gồm Năng lực chung và Năng lực đặc thù của môn học)
-                       3. Năng lực số và AI (Thiết kế các mục tiêu về việc học sinh biết ứng dụng thiết bị công nghệ và công cụ AI vào bài học)
-                       4. Phẩm chất (Chuyển đổi từ mục số 3 cũ thành mục 4)
+                       3. Năng lực số và AI (Ghi rõ: Học sinh biết khai thác phần mềm mô phỏng, biết ứng dụng AI chatbot để phân tích số liệu học tập)
+                       4. Phẩm chất
                     II. THIẾT BỊ DẠY HỌC VÀ HỌC LIỆU
-                    III. TIẾN TRÌNH DẠY HỌC (Thiết kế phân bổ cho tổng số {thoi_luong}. Gồm đủ 4 Hoạt động: Hoạt động 1: Mở đầu; Hoạt động 2: Hình thành kiến thức mới; Hoạt động 3: Luyện tập; Hoạt động 4: Vận dụng).
-                       *Mỗi hoạt động phải trình bày đủ 4 mục nhỏ: a) Mục tiêu; b) Nội dung; c) Sản phẩm; d) Tổ chức thực hiện.
+                    III. TIẾN TRÌNH DẠY HỌC (Gồm đủ 4 Hoạt động: Hoạt động 1: Mở đầu; Hoạt động 2: Hình thành kiến thức mới; Hoạt động 3: Luyện tập; Hoạt động 4: Vận dụng).
+                       * TÍCH HỢP NĂNG LỰC SỐ THỰC TẾ: Trong phần d) Tổ chức thực hiện của ít nhất 2 hoạt động, phải thiết kế kịch bản chi tiết giáo viên hướng dẫn học sinh mở máy tính/điện thoại thông minh thao tác với công cụ số hoặc câu lệnh prompt AI cụ thể để thực hiện nhiệm vụ học tập.
                     
-                    YÊU CẦU ĐỊNH DẠNG VÀ CÚ PHÁP (Cực kỳ nghiêm ngặt):
-                    - BỎ TOÀN BỘ các ký tự dấu sao kép '**' ở đầu và cuối các từ hoặc các mục. Trả về văn bản sạch, không sử dụng định dạng chữ đậm dạng Markdown.
-                    - Toàn bộ các nội dung nhỏ, danh sách liệt kê bên trong bài KHÔNG ĐƯỢC DÙNG dấu sao '*' hoặc dấu chấm tròn, mà THỐNG NHẤT sử dụng duy nhất dấu gạch ngang '-' ở đầu dòng.
-                    - CÔNG THỨC TOÁN/HÓA HỌC: Trình bày rõ phương trình phản ứng cân bằng (ví dụ: viết rõ chỉ số dạng H2O, CO2, Fe2(SO4)3).
-                    - BIỂU BẢNG: Thiết kế phiếu học tập hoặc bảng so sánh bằng ký tự '|' của Markdown.
-                    - Bám sát hoàn toàn 100% nội dung kiến thức từ tài liệu nguồn dưới đây.
-                    
-                    CĂN CỨ BỔ SUNG KHÁC: {yeu_cau_khac}
+                    YÊU CẦU ĐỊNH DẠNG CÔNG THỨC TOÁN VÀ CÚ PHÁP:
+                    - BỔ BẮT BUỘC tất cả ký tự `**` dư thừa.
+                    - Toàn bộ danh sách dùng duy nhất ký tự gạch ngang `-` ở đầu dòng.
+                    - CÔNG THỨC TOÁN HỌC KHỐI ĐỨNG: Khi xuất hiện công thức phân số hoặc căn thức phức tạp, bạn BẮT BUỘC phải bọc trong thẻ định dạng sau để hệ thống biên dịch sang Word dạng khối đứng:
+                      + Phân số: bọc dạng [frac: tử_số/mẫu_số] (Ví dụ: [frac: 25/30] hoặc [frac: Quãng đường/Thời gian])
+                      + Căn thức: bọc dạng [root: bậc_căn|biểu_thức_dưới_căn] (Ví dụ: [root: 5|(3x - 5y)])
+                    - HÌNH ẢNH: Tại vị trí lý thuyết phù hợp, ghi duy nhất một dòng text cô đơn độc lập là "[Hình ảnh minh họa]".
                     
                     DỮ LIỆU FILE NGUỒN TÀI LIỆU THAM KHẢO:
                     {văn_bản_nguồn}
@@ -245,7 +303,7 @@ def render_khbd_section(run_ai_prompt_safe_func):
             for idx, item in enumerate(st.session_state["lich_su_khbd"]):
                 col_exp, col_del = st.columns([0.88, 0.12])
                 with col_exp:
-                    with st.expander(f"📚 {idx+1}. {item['Tên bài']} - Môn: {item['Môn']} (Lớp {item['Lớp']})"):
+                    with st.expander(f"📚 {idx+1}. {item['Tên bài']} - Lớp {item['Lớp']}"):
                         st.markdown(item["Nội dung"])
                         from khbd_manager import export_khbd_to_docx
                         saved_docx = export_khbd_to_docx(item["Nội dung"], item.get("Kho_anh", []))
