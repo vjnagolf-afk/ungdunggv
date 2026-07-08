@@ -16,6 +16,7 @@ from pypdf import PdfReader
 from exam_designer import render_exam_designer_section
 from grade_manager import render_grade_manager_section
 from timetable_manager import render_timetable_section
+from tkb_manager import render_tkb_manager
 # ==============================================================================
 # 1. CẤU HÌNH TRANG VÀ THIẾT LẬP SIÊU CSS ĐỊNH DẠNG THANH BÊN THEO BIỂU MẪU CHUẨN
 # ==============================================================================
