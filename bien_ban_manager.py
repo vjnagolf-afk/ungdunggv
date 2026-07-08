@@ -1,4 +1,4 @@
-import streamlit st
+import streamlit as st  # <-- ĐÃ VÁ LỖI CÚ PHÁP THÊM CHỮ "AS" TẠI ĐÂY
 import sqlite3
 import pandas as pd
 import io
@@ -42,6 +42,7 @@ def extract_text_from_minutes_upload(uploaded_file):
     except Exception as e:
         st.error(f"Lỗi bóc tách file: {e}")
     return text_content.strip()
+
 # --- HÀM ĐÓNG GÓI XUẤT FILE WORD BIÊN BẢN CHUẨN CĂN LỀ ---
 def export_minutes_to_docx(meeting_date, session_number, present_members, absent_members, content_text, resolution):
     import docx
