@@ -176,7 +176,7 @@ def render_grade_manager_section():
                     st.rerun()
                 except Exception as e:
                     st.error(f"Lỗi nhập liệu tệp đa sheet: {e}")
-    conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(DB_PATH)
     query = """
     SELECT s.student_code as [Mã HS], s.fullname as [Họ và tên], s.classroom as [Lớp],
            g.kttx1 as [TX1], g.kttx2 as [TX2], g.kttx3 as [TX3], g.kttx4 as [TX4],
@@ -197,10 +197,11 @@ def render_grade_manager_section():
     query += " ORDER BY s.classroom, s.student_code ASC"
     df_display = pd.read_sql_query(query, conn, params=params)
     
-    # Quét danh sách tất cả các lớp thực tế đang có trong DB để làm chức năng xuất file hàng loạt
+    # --- QUÉT VÀ ÉP MẢNG CHỮ CHUẨN XUẤT TÙY Ý NHIỀU LỚP ---
     cursor = conn.cursor()
     cursor.execute("SELECT DISTINCT classroom FROM students WHERE classroom IS NOT NULL ORDER BY classroom ASC")
-    all_db_classes = [row[0] for row in cursor.fetchall()]
+    # Ép dữ liệu từ Tuple ('6A',) thành chuỗi chữ thô '6A' để st.multiselect cho phép tích chọn tùy ý
+    all_db_classes = [str(row[0]).strip() for row in cursor.fetchall()]
     conn.close()
     
     if not df_display.empty:
@@ -271,19 +272,22 @@ def render_grade_manager_section():
             st.success("🎉 Đã cập nhật và lưu trữ điểm số thành công!")
             st.rerun()
             
-        # ==================== TÍNH NĂNG PHÁT TRIỂN CỘNG ĐIỂM: XUẤT FILE HÀNG LOẠT ĐA SHEET ====================
+        # ==================== CHỨC NĂNG TÍCH CHỌN TÙY Ý ĐA LỚP XUẤT FILE TỔNG HỢP ====================
         st.markdown("---")
-        st.markdown("📦 **TRÌNH XUẤT FILE EXCEL HÀNG LOẠT (MỖI LỚP 1 SHEET):**")
+        st.markdown("📦 **TRÌNH XUẤT FILE EXCEL TÙY CHỌN HÀNG LOẠT (MỖI LỚP 1 SHEET):**")
         
-        # Cho phép thầy tích chọn cùng lúc nhiều lớp muốn gom vào file Excel tải về
-        cac_lop_can_xuat = st.multiselect("Tích chọn các lớp muốn kết xuất dữ liệu:", choices=all_db_classes, default=[selected_class] if selected_class != "Tất cả lớp" else all_db_classes[:2])
+        # Hộp multiselect cho phép thầy gõ tìm kiếm hoặc click chọn TÙY Ý nhiều lớp cùng lúc
+        cac_lop_can_xuat = st.multiselect(
+            "Chọn/Bỏ chọn tùy ý các lớp muốn kết xuất dữ liệu vào chung 1 file Excel:", 
+            options=all_db_classes, 
+            default=[selected_class] if selected_class in all_db_classes else all_db_classes[:1]
+        )
         
         if cac_lop_can_xuat:
             output_bulk = io.BytesIO()
             with pd.ExcelWriter(output_bulk, engine='openpyxl') as writer:
                 conn = sqlite3.connect(DB_PATH)
                 for class_item in cac_lop_can_xuat:
-                    # Truy vấn lấy dữ liệu điểm của riêng lớp đang duyệt
                     q_bulk = """
                     SELECT s.student_code as [Mã học sinh], s.fullname as [Họ và tên],
                            g.kttx1 as [TX1], g.kttx2 as [TX2], g.kttx3 as [TX3], g.kttx4 as [TX4],
@@ -292,16 +296,21 @@ def render_grade_manager_section():
                     """
                     df_bulk = pd.read_sql_query(q_bulk, conn, params=[class_item])
                     if not df_bulk.empty:
-                        # Đẩy dữ liệu lớp vào một Sheet riêng có tên chính là tên lớp
-                        df_bulk.to_excel(writer, index=False, sheet_name=f"{class_item}")
+                        # Đẩy dữ liệu lớp đã chọn vào một Sheet độc lập
+                        df_bulk.to_excel(writer, index=False, sheet_name=f"Lớp {class_item}")
                 conn.close()
                 
             st.download_button(
-                label=f"📥 Tải xuống File Excel Tổng hợp ({len(cac_lop_can_xuat)} Lớp - Mỗi lớp 1 Sheet)", 
+                label=f"📥 Tải xuống File Excel Tổng hợp ({len(cac_lop_can_xuat)} Lớp Đã Chọn)", 
                 data=output_bulk.getvalue(), 
-                file_name=f"SMAS_Tong_Hop_BGD.xlsx", 
+                file_name=f"SMAS_Ket_Xuat_Hang_Loat.xlsx", 
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 use_container_width=True
             )
+        else:
+            st.warning("⚠️ Vui lòng chọn ít nhất một lớp để xuất dữ liệu Excel.")
+    else:
+        st.info("ℹ️ Chưa có dữ liệu học sinh trong hệ thống. Vui lòng nạp tệp Excel SMAS (.xlsx) ở đầu trang.")
+
     else:
         st.info("ℹ️ Chưa có dữ liệu học sinh trong hệ thống. Vui lòng nạp tệp Excel SMAS (.xlsx) ở đầu trang.")
