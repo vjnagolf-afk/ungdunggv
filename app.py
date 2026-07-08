@@ -332,29 +332,28 @@ if phan_he_lam_viec == " Trợ lý Giảng dạy (Giáo viên)":
 
     elif chuc_nang_chinh == "4. Quản lý điểm học sinh (SMAS)":
         render_grade_manager_section() # GỌI HÀM VẼ GIAO DIỆN QUẢN LÝ ĐIỂM
-
 else:
     # PHÂN HỆ QUẢN LÝ TỔ CHUYÊN MÔN
-    # Đảm bảo toàn bộ các dòng elif này nằm thẳng hàng (cùng mức thụt lề)
-if chuc_nang_chinh == "1. Hệ thống Quản lý và Phân công chuyên môn giảng dạy":
-    st.subheader("📋 HỆ THỐNG QUẢN LÝ VÀ PHÂN CÔNG CHUYÊN MÔN GIẢNG DẠY")
-    # ... (Các tab của thầy)
+    # Đảm bảo các dòng elif này thụt vào trong so với 'else:'
+    if chuc_nang_chinh == "1. Hệ thống Quản lý và Phân công chuyên môn giảng dạy":
+        st.subheader("📋 HỆ THỐNG QUẢN LÝ VÀ PHÂN CÔNG CHUYÊN MÔN GIẢNG DẠY")
+        # ... (các tab của thầy)
 
-elif chuc_nang_chinh == "2. Xây dựng Biên bản sinh hoạt tổ chuyên môn định kỳ":
-    st.subheader("📝 XÂY DỰNG BIÊN BẢN SINH HOẠT TỔ CHUYÊN MÔN")
-    # ... (Các code của thầy)
+    elif chuc_nang_chinh == "2. Xây dựng Biên bản sinh hoạt tổ chuyên môn định kỳ":
+        st.subheader("📝 XÂY DỰNG BIÊN BẢN SINH HOẠT TỔ CHUYÊN MÔN")
+        # ... (code của thầy)
 
-elif chuc_nang_chinh == "3. Xây dựng Kế hoạch Giáo dục cá nhân (Phụ lục III - Công văn 5512)":
-    st.header("📋 KẾ HOẠCH GIÁO DỤC CÁ NHÂN CỦA GIÁO VIÊN (Phụ lục III)")
-    # ... (Các code của thầy)
+    elif chuc_nang_chinh == "3. Xây dựng Kế hoạch Giáo dục cá nhân (Phụ lục III - Công văn 5512)":
+        st.header("📋 KẾ HOẠCH GIÁO DỤC CÁ NHÂN CỦA GIÁO VIÊN (Phụ lục III)")
+        # ... (code của thầy)
 
-elif chuc_nang_chinh == "4. Thống kê số liệu tổ":
-    st.header("📊 THỐNG KÊ GIÁO VIÊN TỔ")
-    tong_nhan_su = len(st.session_state["db_thanh_vien"])
-    st.metric("Tổng số thành viên tổ", f"{tong_nhan_su} Giáo viên")
-    df_tv_current = pd.DataFrame(st.session_state["db_thanh_vien"])
-    if "Phân môn chính" in df_tv_current.columns:
-        st.bar_chart(df_tv_current["Phân môn chính"].value_counts())
+    elif chuc_nang_chinh == "4. Thống kê số liệu tổ":
+        st.header("📊 THỐNG KÊ GIÁO VIÊN TỔ")
+        tong_nhan_su = len(st.session_state["db_thanh_vien"])
+        st.metric("Tổng số thành viên tổ", f"{tong_nhan_su} Giáo viên")
+        df_tv_current = pd.DataFrame(st.session_state["db_thanh_vien"])
+        if "Phân môn chính" in df_tv_current.columns:
+            st.bar_chart(df_tv_current["Phân môn chính"].value_counts())
 
-elif chuc_nang_chinh == "5. Quản lý Thời khóa biểu":
-    render_timetable_section()
+    elif chuc_nang_chinh == "5. Quản lý Thời khóa biểu":
+        render_timetable_section()
