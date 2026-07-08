@@ -26,7 +26,7 @@ def export_plan_to_docx(teacher_name, subject_name, markdown_content):
     r_title.font.size = Pt(14)
     r_title.font.color.rgb = RGBColor(255, 0, 0)
 
-    # Thông tin giáo viên
+    # Inform giáo viên
     p_info = doc.add_paragraph()
     p_info.add_run(f"Giáo viên thực hiện: {teacher_name}\nMôn học/Hoạt động giáo dục: {subject_name}\n")
 
@@ -58,21 +58,21 @@ def render_personal_plan():
 
     st.write("Nhập các thông số nền tảng để Trợ lý AI tự động lập cấu trúc khung kế hoạch giáo dục cá nhân chuẩn CV 5512.")
     
-    col_t, col_s = st.columns(2)
-    t_name = col_t.text_input("Họ và tên Giáo viên giảng dạy:", placeholder="Ví dụ: Thầy Lê Hồng Dưỡng", key="plan_txt_t_name")
-    s_name = col_s.selectbox("Môn học / Phân môn phụ trách:", ["Khoa học tự nhiên (Vật lý)", "Khoa học tự nhiên (Sinh học)", "Khoa học tự nhiên (Hóa học)", "Toán học", "Ngữ văn", "GDTC"], key="plan_sb_s_name")
-    
-    col_g, col_w = st.columns(2)
-    grade_target = col_g.text_input("Khối lớp phân công dạy:", placeholder="Ví dụ: Khối 7, Khối 8", key="plan_txt_grade_target")
-    week_count = col_w.text_input("Tổng số tuần thực hiện kế hoạch:", placeholder="Ví dụ: 35 Tuần", key="plan_txt_week_count")
-    
-    st.markdown("**💬 Các tiêu chí đặc thù hoặc lưu ý phân bổ tiết (Nếu có):**")
-    note_plan = st.text_area("Yêu cầu bổ sung cho AI:", placeholder="Ví dụ: Phân bổ chi tiết số tiết cho chương Tốc độ ở vật lý 7 học kỳ I...", label_visibility="collapsed", key="plan_ta_note")
-    
-    col_btn, _ = st.columns([1.5, 2.5])
-    with col_btn:
-        # Cố định khóa key tĩnh cho nút bấm kích hoạt AI sinh dữ liệu
-        run_ai_plan = st.button("🧠 Khởi tạo Kế hoạch bằng AI", type="primary", use_container_width=True, key="plan_btn_run_ai")
+    # 💥 BỌC TOÀN BỘ KHUNG GIAO DIỆN VÀO TRONG FORM ĐỂ CÔ LẬP TIÊU ĐIỂM, CHẶN ĐỨNG LỖI RADIO ĐỂ AI CHẠY NGẦM
+    with st.form("form_personal_plan_fixed_all", border=False):
+        col_t, col_s = st.columns(2)
+        t_name = col_t.text_input("Họ và tên Giáo viên giảng dạy:", placeholder="Ví dụ: Thầy Lê Hồng Dưỡng", key="plan_txt_t_name")
+        s_name = col_s.selectbox("Môn học / Phân môn phụ trách:", ["Khoa học tự nhiên (Vật lý)", "Khoa học tự nhiên (Sinh học)", "Khoa học tự nhiên (Hóa học)", "Toán học", "Ngữ văn", "GDTC"], key="plan_sb_s_name")
+        
+        col_g, col_w = st.columns(2)
+        grade_target = col_g.text_input("Khối lớp phân công dạy:", placeholder="Ví dụ: Khối 7, Khối 8", key="plan_txt_grade_target")
+        week_count = col_w.text_input("Tổng số tuần thực hiện kế hoạch:", placeholder="Ví dụ: 35 Tuần", key="plan_txt_week_count")
+        
+        st.markdown("**💬 Các tiêu chí đặc thù hoặc lưu ý phân bổ tiết (Nếu có):**")
+        note_plan = st.text_area("Yêu cầu bổ sung cho AI:", placeholder="Ví dụ: Phân bổ chi tiết số tiết cho chương Tốc độ ở vật lý 7 học kỳ I...", label_visibility="collapsed", key="plan_ta_note")
+        
+        # Nút bấm submit form kích hoạt AI
+        run_ai_plan = st.form_submit_button("🧠 Khởi tạo Kế hoạch bằng AI", type="primary", use_container_width=True)
         
     if run_ai_plan:
         if not t_name or not grade_target:
@@ -92,7 +92,6 @@ def render_personal_plan():
                 """
                 try:
                     from app import run_ai_prompt_safe
-                    # Đồng bộ chính xác khóa bảo mật hệ thống từ app.py truyền sang
                     api_key_system = st.secrets.get("GEMINI_API_KEY", "")
                     res_plan, _ = run_ai_prompt_safe(prompt_plan, api_key_system)
                     st.session_state["ai_plan_output"] = res_plan
@@ -106,7 +105,7 @@ def render_personal_plan():
         if st.session_state["ai_plan_output"]:
             st.markdown(st.session_state["ai_plan_output"])
             
-            # Nút tải file Word Phụ lục III chuẩn chỉ hành chính cố định mã khóa tĩnh
+            # Khóa mã key tĩnh độc lập hoàn toàn cho download button bên ngoài form
             word_plan_data = export_plan_to_docx(t_name, s_name, st.session_state["ai_plan_output"])
             st.download_button(
                 label="📥 Tải file Word (.docx) Phụ lục III chuẩn về máy",
@@ -114,7 +113,7 @@ def render_personal_plan():
                 file_name=f"Phu_Luc_III_{t_name.replace(' ', '_')}.docx",
                 mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                 use_container_width=True,
-                key="plan_btn_download_word_fixed"
+                key="plan_btn_download_word_isolated"
             )
         else:
             st.caption("Khung kế hoạch chi tiết sẽ xuất hiện tại đây sau khi thầy bấm nút khởi tạo...")
