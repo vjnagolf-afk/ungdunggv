@@ -95,7 +95,9 @@ def render_tkb_manager():
     st.markdown("##### 📁 Quản lý và Chọn đợt Thời khóa biểu tác nghiệp")
     col_select, col_delete = st.columns(2)
     with col_select:
-        dot_duoc_chon = st.selectbox("Chọn đợt TKB muốn tra cứu:", list_versions)
+        # Ép danh sách hiển thị về mảng chữ thô m mượt để selectbox hoạt động chuẩn
+        clean_versions_list = [str(v[0]).strip() for v in list_versions]
+        dot_duoc_chon = st.selectbox("Chọn đợt TKB muốn tra cứu:", clean_versions_list)
     with col_delete:
         st.write("")
         if st.button("🗑️ Xóa đợt TKB này", type="secondary", use_container_width=True):
@@ -110,6 +112,7 @@ def render_tkb_manager():
 
     # --- KHU VỰC 3: TRÍCH XUẤT VÀ DỰNG LẠI GIAO DIỆN THEO ĐỢT ĐÃ CHỌN ---
     conn = sqlite3.connect(DB_PATH)
+    # SỬA LỖI DATABASEERROR: Truyền trực tiếp chuỗi chữ thô dot_duoc_chon đã lọc từ selectbox
     df_db = pd.read_sql_query("SELECT thu, tiet, lop, noi_dung FROM tkb_data WHERE version_name = ?", conn, params=[dot_duoc_chon])
     conn.close()
     
@@ -120,18 +123,15 @@ def render_tkb_manager():
     class_columns = sorted(list(df_db["lop"].unique()))
     all_teachers = set()
     
-    # 💥 THUẬT TOÁN ĐẢO NGƯỢC NÂNG CAO: QUÉT SẠCH TÊN GV BỘ MÔN KỂ CẢ CÓ DẤU NGOẶC HOẶC VIẾT LIỀN
     for nd in df_db["noi_dung"].values:
         cell_str = str(nd).strip()
         if "-" in cell_str:
-            # Thuật toán tìm dấu gạch ngang cuối cùng trong ô để lấy trọn vẹn tên GV phía sau
             r_idx = cell_str.rfind("-")
             if r_idx != -1:
                 gv_name = cell_str[r_idx+1:].strip()
                 if gv_name and gv_name.lower() not in ["none", "nan", ""]:
                     all_teachers.add(gv_name)
                     
-    # Quét thêm giáo viên chủ nhiệm ở tiêu đề cột lớp đính kèm vào kho lưu trữ
     for col in class_columns:
         match_gvcn = re.search(r'\(([^)]+)\)', str(col))
         if match_gvcn:
@@ -179,9 +179,7 @@ def render_tkb_manager():
                         if "-" in cell_content:
                             r_idx = cell_content.rfind("-")
                             if r_idx != -1 and cell_content[r_idx+1:].strip() == selected_teacher:
-                                # Trích xuất phần môn học đứng trước dấu gạch ngang cuối cùng
                                 sub_name = cell_content[:r_idx].strip()
-                                # Lấy tên lớp thu gọn
                                 class_short = col_class.split("(").strip()
                                 cell_lessons.append(f"{sub_name} - {class_short}")
                                 
