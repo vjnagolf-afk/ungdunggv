@@ -51,12 +51,27 @@ def render_grade_manager_section():
     st.markdown("""
     <style>
     .tip-box { background-color: #FEF3C7; color: #92400E; padding: 10px; border-radius: 5px; font-weight: bold; border: 1px solid #F59E0B; margin-bottom: 15px;}
+    
+    /* CSS Ép nút LƯU trong Bảng thành màu Xanh dương nổi bật */
+    div[data-testid="stForm"] button[kind="primary"] {
+        background-color: #0284C7 !important; 
+        border-color: #0369A1 !important;
+        color: white !important;
+        font-weight: 900 !important;
+        font-size: 16px !important;
+        border-radius: 6px !important;
+        transition: all 0.3s ease !important;
+    }
+    div[data-testid="stForm"] button[kind="primary"]:hover {
+        background-color: #0369A1 !important;
+        box-shadow: 0 4px 15px rgba(2, 132, 199, 0.4) !important;
+        transform: translateY(-2px) !important;
+    }
     </style>
     <div class="tip-box">
     💡 CẨM NANG VÀO ĐIỂM (TỐC ĐỘ CAO NHƯ EXCEL):<br>
-    1. Chỉ <b>CLICK 1 LẦN</b> vào ô (hoặc dùng phím mũi tên đi tới).<br>
-    2. Gõ nhanh số (VD: 95, 10, 85) rồi <b>bấm phím ENTER</b>. Dấu nháy sẽ tự động tụt xuống ô dưới cực mượt.<br>
-    3. Gõ xong toàn bộ lớp, bấm nút LƯU ở cuối bảng để hệ thống tính TBM.
+    - <b>Bước 1:</b> Thầy gõ liên tục từ trên xuống dưới bằng phím Enter/Mũi tên. Trải nghiệm sẽ mượt như Excel.<br>
+    - <b>Bước 2:</b> Nhập xong, bấm nút <b>"💾 LƯU ĐIỂM & TÍNH TBM"</b> màu xanh ở ngay đầu (hoặc cuối) bảng. Hệ thống sẽ tự quy đổi 95 thành 9.5 và tính TBM cho toàn bộ.
     </div>
     """, unsafe_allow_html=True)
 
@@ -73,24 +88,25 @@ def render_grade_manager_section():
     }
     
     available_classes = []
-    
-    # CHỈ HIỂN THỊ LỚP KHI ĐÃ CHỌN CỤ THỂ KHỐI
-    if selected_grade != "Tất cả khối":
+    if selected_grade == "Tất cả khối":
+        for classes in class_config.values():
+            available_classes.extend(classes)
+    else:
         grade_num = "".join([c for c in selected_grade if c.isdigit()])
         if grade_num in class_config:
             available_classes = class_config[grade_num]
 
-        try:
-            conn = sqlite3.connect(DB_PATH)
-            cursor = conn.cursor()
-            cursor.execute("SELECT DISTINCT classroom FROM students WHERE classroom IS NOT NULL AND classroom LIKE ?", (f"%{grade_num}%",))
-            db_classes = [row[0] for row in cursor.fetchall()]
-            for dc in db_classes:
-                if dc not in available_classes:
-                    available_classes.append(dc)
-            conn.close()
-        except:
-            pass
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("SELECT DISTINCT classroom FROM students WHERE classroom IS NOT NULL")
+        db_classes = [row[0] for row in cursor.fetchall()]
+        for dc in db_classes:
+            if dc not in available_classes:
+                available_classes.append(dc)
+        conn.close()
+    except:
+        pass
 
     final_class_list = ["Tất cả lớp"] + sorted(list(set(available_classes)))
 
@@ -101,7 +117,7 @@ def render_grade_manager_section():
         uploaded_smas = st.file_uploader("📥 Nhập dữ liệu SMAS (.xlsx)", type=["xlsx", "xls"], label_visibility="collapsed")
 
     if uploaded_smas:
-        if st.button("🚀 Bắt đầu đồng bộ SMAS", type="primary"):
+        if st.button("🚀 Bắt đầu đồng bộ SMAS", type="secondary"):
             with st.spinner("Đang bóc tách dữ liệu và hút điểm..."):
                 try:
                     excel_file = pd.ExcelFile(uploaded_smas)
@@ -226,7 +242,13 @@ def render_grade_manager_section():
             "Nhận xét": st.column_config.TextColumn("Nhận xét", width="medium")
         }
 
+        # KHU VỰC NHẬP ĐIỂM BỌC TRONG FORM
         with st.form("grade_form", border=False):
+            # TẠO NÚT LƯU ĐẦU BẢNG VỚI NỀN XANH
+            col_save_top, col_empty = st.columns([4, 6])
+            with col_save_top:
+                submitted_top = st.form_submit_button("💾 LƯU ĐIỂM & TÍNH TBM (Bấm sau khi gõ)", type="primary", use_container_width=True)
+
             edited_df = st.data_editor(
                 df_display,
                 column_order=["STT", "Họ và tên", "TX1", "TX2", "TX3", "TX4", "Điểm GK", "Điểm CK", "TBM HK", "Nhận xét"],
@@ -238,9 +260,10 @@ def render_grade_manager_section():
             )
             
             st.markdown("<br>", unsafe_allow_html=True)
-            submitted = st.form_submit_button("💾 BẤM VÀO ĐÂY ĐỂ LƯU THAY ĐỔI & TÍNH TBM SAU KHI GÕ XONG", type="primary", use_container_width=True)
+            submitted_bottom = st.form_submit_button("💾 LƯU ĐIỂM & TÍNH TBM (Nút cuối bảng)", type="primary", use_container_width=True)
 
-            if submitted:
+            # XỬ LÝ LƯU KHI BẤM NÚT TRÊN HOẶC DƯỚI
+            if submitted_top or submitted_bottom:
                 conn = sqlite3.connect(DB_PATH)
                 cursor = conn.cursor()
                 for _, row in edited_df.iterrows():
@@ -271,6 +294,7 @@ def render_grade_manager_section():
                 st.success("✅ Đã tính TBM và quy đổi định dạng điểm thành công!")
                 st.rerun()
 
+        # Nút Xuất File (Nằm ngoài form)
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine='openpyxl') as writer:
             export_df = edited_df.drop(columns=["STT"]) 
