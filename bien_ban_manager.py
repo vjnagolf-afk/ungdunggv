@@ -74,32 +74,33 @@ def render_meeting_minutes():
 
     with tab_lap:
         st.markdown("**📁 Nạp file tài liệu thảo luận (Chèn tự động vào biên bản):**")
-        file_ke_hoach = st.file_uploader("Kéo thả file kế hoạch (.docx, .pdf, .txt):", type=["docx", "pdf", "txt"], key="file_min_up_isolated")
-        if file_ke_hoach and st.button("🧠 AI: Nghiên cứu file & Tóm tắt chèn vào diễn biến cuộc họp", type="secondary", use_container_width=True, key="btn_ai_extract_minutes_fixed"):
-            with st.spinner("AI đang xử lý học liệu số..."):
+        file_ke_hoach = st.file_uploader("Kéo thả file kế hoạch (.docx, .pdf, .txt):", type=["docx", "pdf", "txt"], key="file_min_up_isolated_v5")
+        
+        if file_ke_hoach and st.button("🧠 AI: Nghiên cứu file & Tóm tắt chèn vào diễn biến cuộc họp", type="secondary", use_container_width=True, key="btn_ai_extract_minutes_fixed_v5"):
+            with st.spinner("AI đang xử lý..."):
                 raw_text = extract_text_from_minutes_upload(file_ke_hoach)
                 if raw_text:
                     try:
                         from app import run_ai_prompt_safe
-                        res_text, _ = run_ai_prompt_safe(f"Hãy tóm tắt văn bản này thành diễn biến biên bản họp tổ chi tiết, dùng dấu gạch ngang '-', không dùng dấu **: {raw_text}", st.secrets.get("GEMINI_API_KEY", ""))
+                        # Gọi cấu trúc prompt rút gọn hành vi định lượng sạch sẽ
+                        res_text, _ = run_ai_prompt_safe(f"Hãy đọc tệp văn bản này và tóm tắt thành một nội dung biên bản cuộc họp tổ chuyên môn cực kỳ chi tiết, dùng dấu gạch ngang '-', không dùng dấu **: {raw_text}", st.secrets.get("GEMINI_API_KEY", ""))
                         st.session_state["minutes_content_draft"] = res_text
-                        st.success("✅ Đã chèn thành công vào diễn biến cuộc họp phía dưới!")
+                        st.success("✅ Đã chèn dữ liệu tự động thành công vào khung bên dưới!")
                         st.rerun()
                     except Exception as e: st.error(f"Lỗi: {e}")
 
-        # Cô lập hoàn toàn bộ máy nhập liệu bằng form tĩnh bảo vệ con trỏ chuột
-        with st.form("form_create_minutes_secure_v5", border=False):
+        # Khung biểu mẫu Form bảo vệ đứng yên nháy chuột
+        with st.form("form_create_minutes_secure_v5_clean", border=False):
             c1, c2 = st.columns(2)
-            m_date, m_num = c1.date_input("Ngày họp:"), c2.text_input("Số biên bản (Ký hiệu):", key="txt_m_num_fixed")
-            m_present = st.text_area("Thành phần tham dự:", key="txt_m_present_fixed")
-            m_absent = st.text_input("Vắng mặt:", key="txt_m_absent_fixed")
-            m_content = st.text_area("Nội dung cuộc họp:", value=st.session_state["minutes_content_draft"], height=180, key="txt_m_content_fixed")
+            m_date, m_num = c1.date_input("Ngày họp:"), c2.text_input("Số biên bản (Ký hiệu):", key="txt_m_num_fixed_v5")
+            m_present = st.text_area("Thành phần tham dự:", key="txt_m_present_fixed_v5")
+            m_absent = st.text_input("Vắng mặt:", key="txt_m_absent_fixed_v5")
+            m_content = st.text_area("Nội dung cuộc họp:", value=st.session_state["minutes_content_draft"], height=180, key="txt_m_content_fixed_v5")
             
-            # Nút bấm phụ trợ gọi AI sinh kết luận
             run_summary_ai = st.form_submit_button("🧠 AI: Tóm tắt Quyết nghị/Nghị quyết dựa trên diễn biến cuộc họp ở trên", type="secondary")
             if run_summary_ai:
                 if m_content:
-                    with st.spinner("AI đang đúc kết nghị quyết..."):
+                    with st.spinner("AI đang đúc kết..."):
                         try:
                             from app import run_ai_prompt_safe
                             res_ai, _ = run_ai_prompt_safe(f"Tóm tắt ngắn gọn nghị quyết cuộc họp từ diễn biến này, dùng dấu '-', không dùng **: {m_content}", st.secrets.get("GEMINI_API_KEY", ""))
@@ -108,8 +109,7 @@ def render_meeting_minutes():
                         except: pass
                 else: st.warning("⚠️ Vui lòng điền nội dung cuộc họp trước!")
 
-            m_resolution = st.text_area("Nghị quyết / Kết luận chung:", value=st.session_state["minutes_resolution_draft"], height=100, key="txt_m_resolution_fixed")
-            
+            m_resolution = st.text_area("Nghị quyết / Kết luận chung:", value=st.session_state["minutes_resolution_draft"], height=100, key="txt_m_resolution_fixed_v5")
             st.markdown("<br>", unsafe_allow_html=True)
             submit_save_minutes = st.form_submit_button("💾 KHÓA & LƯU BIÊN BẢN VÀO HỆ THỐNG", type="primary", use_container_width=True)
             
@@ -118,7 +118,7 @@ def render_meeting_minutes():
                 conn = sqlite3.connect(DB_PATH)
                 conn.execute("INSERT OR REPLACE INTO org_minutes (meeting_date, session_number, present_members, absent_members, content_text, resolution) VALUES (?, ?, ?, ?, ?, ?)", (str(m_date), m_num.strip(), m_present.strip(), m_absent.strip(), m_content.strip(), m_resolution.strip()))
                 conn.commit(); conn.close()
-                st.success("🎉 Biên bản số {} đã được lưu trữ vĩnh viễn thành công!".format(m_num))
+                st.success(f"🎉 Biên bản số **{m_num}** đã được lưu trữ vĩnh viễn thành công!")
                 st.session_state["minutes_content_draft"] = ""
                 st.session_state["minutes_resolution_draft"] = ""
                 st.rerun()
