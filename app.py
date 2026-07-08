@@ -332,6 +332,8 @@ if phan_he_lam_viec == " Trợ lý Giảng dạy (Giáo viên)":
 
     elif chuc_nang_chinh == "4. Quản lý điểm học sinh (SMAS)":
         render_grade_manager_section() # GỌI HÀM VẼ GIAO DIỆN QUẢN LÝ ĐIỂM
+    elif chuc_nang_chinh == "5. Quản lý Thời khóa biểu":
+        render_timetable_section()
 else:
     # PHÂN HỆ QUẢN LÝ TỔ CHUYÊN MÔN
     if chuc_nang_chinh == "1. Hệ thống Quản lý và Phân công chuyên môn giảng dạy":
