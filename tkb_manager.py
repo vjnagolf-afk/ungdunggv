@@ -36,7 +36,7 @@ def render_tkb_manager():
     with col_file:
         uploaded_tkb = st.file_uploader("Tải lên file TKB (.xlsx)", type=["xlsx"], key="tkb_uploader_main")
     with col_name:
-        ten_dot_tkb = st.text_input("Đặt tên cho đợt TKB này:", placeholder="Ví dụ: Áp dụng từ 05/10")
+        ten_dot_tkb = st.text_input("Đặt tên cho đợt TKB này:", placeholder="Ví dụ: Áp dụng từ đợt Học kỳ I")
         
     if uploaded_tkb and ten_dot_tkb:
         if st.button("🚀 Lưu và kích hoạt đợt TKB này", type="primary", use_container_width=True):
@@ -85,7 +85,7 @@ def render_tkb_manager():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("SELECT version_name FROM tkb_versions ORDER BY created_at DESC")
-    list_versions = [row[0] for row in cursor.fetchall()]
+    list_versions = [row for row in cursor.fetchall()]
     conn.close()
     
     if not list_versions:
@@ -120,25 +120,23 @@ def render_tkb_manager():
     class_columns = sorted(list(df_db["lop"].unique()))
     all_teachers = set()
     
-    # 💥 THUẬT TOÁN NÂNG CAO: DÙNG REGEX QUÉT SẠCH MỌI ĐỊNH DẠNG TÊN GIÁO VIÊN KHÔNG BỎ SÓT
+    # 💥 THUẬT TOÁN ĐẢO NGƯỢC NÂNG CAO: QUÉT SẠCH TÊN GV BỘ MÔN KỂ CẢ CÓ DẤU NGOẶC HOẶC VIẾT LIỀN
     for nd in df_db["noi_dung"].values:
         cell_str = str(nd).strip()
         if "-" in cell_str:
-            # Tách chuỗi theo dấu gạch ngang, lấy tất cả các phần tử đứng sau
-            parts = cell_str.split("-")
-            if len(parts) >= 2:
-                # Dùng strip() làm sạch khoảng trắng thừa, nhặt chính xác tên chữ có dấu
-                gv_name = parts[1].strip()
-                if gv_name and gv_name.lower() != "none" and gv_name.lower() != "nan":
+            # Thuật toán tìm dấu gạch ngang cuối cùng trong ô để lấy trọn vẹn tên GV phía sau
+            r_idx = cell_str.rfind("-")
+            if r_idx != -1:
+                gv_name = cell_str[r_idx+1:].strip()
+                if gv_name and gv_name.lower() not in ["none", "nan", ""]:
                     all_teachers.add(gv_name)
                     
-    # Quét thêm tên giáo viên chủ nhiệm bọc trong dấu ngoặc đơn ở tiêu đề cột lớp để đồng bộ
+    # Quét thêm giáo viên chủ nhiệm ở tiêu đề cột lớp đính kèm vào kho lưu trữ
     for col in class_columns:
         match_gvcn = re.search(r'\(([^)]+)\)', str(col))
         if match_gvcn:
             all_teachers.add(match_gvcn.group(1).strip())
 
-    # Đồng bộ dựng lại bảng TKB tổng thể cho Tab 1
     slots_list = ["1", "2", "3", "4", "5"]
     days_list = ["2", "3", "4", "5", "6", "7"]
     rows_master = []
@@ -147,11 +145,11 @@ def render_tkb_manager():
             row_dict = {"THỨ": d, "TIẾT": s}
             for c in class_columns:
                 val_o = df_db[(df_db["thu"]==d) & (df_db["tiet"]==s) & (df_db["lop"]==c)]["noi_dung"].values
-                row_dict[c] = val_o[0] if len(val_o) > 0 else ""
+                row_dict[c] = val_o if len(val_o) > 0 else ""
             rows_master.append(row_dict)
     df_master_view = pd.DataFrame(rows_master)
 
-    # --- ĐIỀU HƯỚNG GIAO DIỆN TABS NGANG (ẨN BIẾN TOÀN TRƯỜNG Ở TAB 2) ---
+    # --- ĐIỀU HƯỚNG GIAO DIỆN TABS ---
     tab1, tab2 = st.tabs(["📊 Thời khóa biểu chung", "👤 TKB theo giáo viên"])
     
     with tab1:
@@ -162,9 +160,8 @@ def render_tkb_manager():
         if not all_teachers:
             st.error("Không tìm thấy danh sách giáo viên bộ môn trong dữ liệu đợt này.")
         else:
-            selected_teacher = st.selectbox("👤 Chọn tên Giáo viên bộ môn cần tra cứu:", sorted(list(all_teachers)), key="gv_select_box_smas")
+            selected_teacher = st.selectbox("👤 Chọn tên Giáo viên cần xem thời khóa biểu cá nhân:", sorted(list(all_teachers)), key="gv_select_box_v3")
             
-            # Khởi tạo ma trận lưới TKB cầm tay rỗng
             days_grid = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"]
             matrix_data = {day: ["" for _ in slots_list] for day in days_grid}
             
@@ -180,10 +177,13 @@ def render_tkb_manager():
                     for col_class in class_columns:
                         cell_content = str(row[col_class]).strip()
                         if "-" in cell_content:
-                            parts = cell_content.split("-")
-                            if len(parts) >= 2 and parts[1].strip() == selected_teacher:
-                                # Dựng cấu trúc 'Môn - Lớp' hiển thị trực quan (Ví dụ: T.Anh - 6A)
-                                cell_lessons.append(f"{parts[0].strip()} - {col_class.split('(')[0].strip()}")
+                            r_idx = cell_content.rfind("-")
+                            if r_idx != -1 and cell_content[r_idx+1:].strip() == selected_teacher:
+                                # Trích xuất phần môn học đứng trước dấu gạch ngang cuối cùng
+                                sub_name = cell_content[:r_idx].strip()
+                                # Lấy tên lớp thu gọn
+                                class_short = col_class.split("(").strip()
+                                cell_lessons.append(f"{sub_name} - {class_short}")
                                 
                     if cell_lessons:
                         matrix_data[thu_clean][tiet_idx] = " / ".join(cell_lessons)
@@ -196,7 +196,7 @@ def render_tkb_manager():
             
             output_personal = io.BytesIO()
             with pd.ExcelWriter(output_personal, engine='openpyxl') as writer:
-                df_matrix.to_excel(writer, index=False, sheet_name=f"TKB_{selected_teacher}")
+                df_matrix.to_excel(writer, index=False, sheet_name=f"TKB_{selected_teacher[:20]}")
             st.write("")
             st.download_button(
                 label=f"📥 Tải lịch dạy đợt [{dot_duoc_chon}] về máy (.xlsx)",
