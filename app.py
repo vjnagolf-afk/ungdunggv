@@ -338,13 +338,26 @@ if phan_he_lam_viec == " Trợ lý Giảng dạy (Giáo viên)":
         render_timetable_section()
 
 else:
+   else:
     # PHÂN HỆ QUẢN LÝ TỔ CHUYÊN MÔN
     if chuc_nang_chinh == "1. Hệ thống Quản lý và Phân công chuyên môn giảng dạy":
         st.subheader("📋 HỆ THỐNG QUẢN LÝ VÀ PHÂN CÔNG CHUYÊN MÔN GIẢNG DẠY")
+        # Phục hồi các tab cũ
+        tab1, tab2, tab3 = st.tabs(["👥 Danh sách thành viên", "📊 Phân công giảng dạy", "🏆 Thành tích & Thi đua"])
+        with tab1:
+            st.write("Quản lý danh sách thành viên tổ...")
+            st.dataframe(st.session_state["db_thanh_vien"], use_container_width=True)
+        with tab2:
+            st.write("Quản lý phân công giảng dạy...")
+            st.dataframe(st.session_state["db_phan_cong_hien_tai"], use_container_width=True)
+
     elif chuc_nang_chinh == "2. Xây dựng Biên bản sinh hoạt tổ chuyên môn định kỳ":
         st.subheader("📝 XÂY DỰNG BIÊN BẢN SINH HOẠT TỔ CHUYÊN MÔN")
+        # Thêm lại logic biên bản nếu thầy cần
+
     elif chuc_nang_chinh == "3. Xây dựng Kế hoạch Giáo dục cá nhân (Phụ lục III - Công văn 5512)":
         st.header("📋 KẾ HOẠCH GIÁO DỤC CÁ NHÂN CỦA GIÁO VIÊN (Phụ lục III)")
+
     elif chuc_nang_chinh == "4. Thống kê số liệu tổ":
         st.header("📊 THỐNG KÊ GIÁO VIÊN TỔ")
         tong_nhan_su = len(st.session_state["db_thanh_vien"])
@@ -352,6 +365,6 @@ else:
         df_tv_current = pd.DataFrame(st.session_state["db_thanh_vien"])
         if "Phân môn chính" in df_tv_current.columns:
             st.bar_chart(df_tv_current["Phân môn chính"].value_counts())
+
     elif chuc_nang_chinh == "5. Quản lý Thời khóa biểu":
-        # Chức năng này được thêm vào cả phía Tổ chuyên môn
         render_timetable_section()
