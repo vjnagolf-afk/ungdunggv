@@ -9,6 +9,8 @@ from tkb_manager import render_tkb_manager
 from khbd_manager import render_khbd_section
 from org_manager import render_org_section, render_meeting_minutes, render_personal_plan
 from danh_gia_manager import render_assessment_section
+from org_manager import render_org_section, render_personal_plan
+from bien_ban_manager import render_meeting_minutes
 
 # --- 2. CẤU HÌNH ĐỌC API KEY TỰ ĐỘNG TỪ TRONG SECRETS ---
 # Thử đọc key hệ thống, nếu chưa có thì gán chuỗi rỗng
