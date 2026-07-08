@@ -176,7 +176,7 @@ def render_grade_manager_section():
                     st.rerun()
                 except Exception as e:
                     st.error(f"Lỗi nhập liệu tệp đa sheet: {e}")
-        conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH)
     query = """
     SELECT s.student_code as [Mã HS], s.fullname as [Họ và tên], s.classroom as [Lớp],
            g.kttx1 as [TX1], g.kttx2 as [TX2], g.kttx3 as [TX3], g.kttx4 as [TX4],
