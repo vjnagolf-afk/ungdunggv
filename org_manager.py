@@ -23,11 +23,11 @@ def setup_org_database():
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS org_assignments (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        fullname TEXT UNIQUE, subject_class TEXT, homeroom TEXT, concurrent TEXT, total_periods INTEGER DEFAULT 0
+        fullname TEXT UNIQUE, subject_class TEXT, homeroom TEXT, concurrent TEXT, total_periods TEXT DEFAULT '0'
     )
     """)
     
-    # Bảng lưu thi đua thành tích phân tách theo năm học (Thẻ 3 độc lập)
+    # Bảng lưu thi đua thành tích phân tách theo năm học (Thẻ 3)
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS org_emulation_years (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -57,6 +57,7 @@ def setup_org_database():
         ]
         for row in danh_sach_goc:
             cursor.execute("INSERT OR IGNORE INTO org_members (fullname, position, main_subject, email, phone, note) VALUES (?, ?, ?, ?, ?, ?)", row)
+            cursor.execute("INSERT OR IGNORE INTO org_assignments (fullname, subject_class, homeroom, concurrent, total_periods) VALUES (?, '-', '-', '-', '0')", (row[0],))
             
     conn.commit()
     conn.close()
@@ -108,13 +109,45 @@ def render_org_section():
         df_members = pd.read_sql_query("SELECT fullname as [Họ và tên], position as [Chức vụ], main_subject as [Phân môn chính], email as [Email], phone as [Số điện thoại], note as [Ghi chú] FROM org_members", conn)
         conn.close()
 
+        # Khử chữ nan sang dấu gạch ngang sạch sẽ
+        df_members = df_members.fillna("-")
+        for col in df_members.columns:
+            df_members[col] = df_members[col].apply(lambda x: "-" if str(x).strip().lower() in ["nan", "none", ""] else str(x).strip())
+
         if not df_members.empty:
             df_members.insert(0, "STT", range(1, len(df_members) + 1))
-            st.dataframe(df_members, use_container_width=True, hide_index=True)
-            st.session_state["db_thanh_vien"] = df_members.to_dict(orient="records")
+            
+            # 💥 CẤU HÌNH ĐỘ RỘNG MỚI: CO THU NHỎ CÁC CỘT VỪA KHÍT NỘI DUNG Ở THẺ 1
+            col_cfg_members = {
+                "STT": st.column_config.NumberColumn("STT", width="small", disabled=True),
+                "Họ và tên": st.column_config.TextColumn("Họ và tên", width="medium", disabled=True),
+                "Chức vụ": st.column_config.TextColumn("Chức vụ", width="small", disabled=not is_admin),
+                "Phân môn chính": st.column_config.TextColumn("Phân môn chính", width="medium", disabled=not is_admin),
+                "Email": st.column_config.TextColumn("Email", width="medium", disabled=not is_admin),
+                "Số điện thoại": st.column_config.TextColumn("Số điện thoại", width="small", disabled=not is_admin),
+                "Ghi chú": st.column_config.TextColumn("Ghi chú", width="small", disabled=not is_admin)
+            }
+            
+            # Dựng form chỉnh sửa trực tiếp không mất dấu nháy cho Admin ở Thẻ 1
+            with st.form("form_realtime_members", border=False):
+                edited_m_df = st.data_editor(df_members, use_container_width=True, hide_index=True, column_config=col_cfg_members, key="stable_member_editor")
+                save_m = st.form_submit_button("💾 XÁC NHẬN LƯU THAY ĐỔI DANH SÁCH GIÁO VIÊN", type="primary", use_container_width=True, disabled=not is_admin)
+                
+            if save_m and is_admin:
+                conn = sqlite3.connect(DB_PATH)
+                cursor = conn.cursor()
+                for _, r in edited_m_df.iterrows():
+                    cursor.execute("""
+                    INSERT OR REPLACE INTO org_members (fullname, position, main_subject, email, phone, note)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    """, (str(r["Họ và tên"]), str(r["Chức vụ"]), str(r["Phân môn chính"]), str(r["Email"]), str(r["Số điện thoại"]), str(r["Ghi chú"])))
+                conn.commit()
+                conn.close()
+                st.success("🎉 Đã lưu trữ trực tiếp các thay đổi danh sách nhân sự!")
+                st.rerun()
             
             out_m = io.BytesIO()
-            with pd.ExcelWriter(out_m, engine='openpyxl') as w: df_members.to_excel(w, index=False, sheet_name="Danh_Sach_GV")
+            with pd.ExcelWriter(out_m, engine='openpyxl') as w: edited_m_df.to_excel(w, index=False, sheet_name="Danh_Sach_GV")
             st.download_button(label="📥 Tải file Excel danh sách giáo viên về máy", data=out_m.getvalue(), file_name="Danh_Sach_Thanh_Vien_To.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True)
         else:
             st.caption("Chưa có dữ liệu thành viên tổ.")
@@ -131,11 +164,10 @@ def render_org_section():
                     conn = sqlite3.connect(DB_PATH)
                     cursor = conn.cursor()
                     for _, r in df_up_a.iterrows():
-                        t_periods = int(float(r.get("Tổng số tiết", 0))) if str(r.get("Tổng số tiết", 0)).replace('.','').isdigit() else 0
                         cursor.execute("""
                         INSERT OR REPLACE INTO org_assignments (fullname, subject_class, homeroom, concurrent, total_periods)
                         VALUES (?, ?, ?, ?, ?)
-                        """, (str(r.get("Họ tên GV", "")), str(r.get("Môn-Lớp", "")), str(r.get("Chủ nhiệm", "")), str(r.get("Kiêm nhiệm", "")), t_periods))
+                        """, (str(r.get("Họ tên GV", "")), str(r.get("Môn-Lớp", "-")), str(r.get("Chủ nhiệm", "-")), str(r.get("Kiêm nhiệm", "-")), str(r.get("Tổng số tiết", "0"))))
                     conn.commit()
                     conn.close()
                     st.success("🎉 Đã lưu sơ đồ phân công giảng dạy từ file Excel thành công!")
@@ -145,22 +177,53 @@ def render_org_section():
         conn = sqlite3.connect(DB_PATH)
         df_assign = pd.read_sql_query("""
             SELECT m.fullname as [Họ tên GV], 
-                   ifnull(a.subject_class, '') as [Môn-Lớp], 
-                   ifnull(a.homeroom, '') as [Chủ nhiệm], 
-                   ifnull(a.concurrent, '') as [Kiêm nhiệm], 
-                   ifnull(a.total_periods, 0) as [Tổng số tiết]
+                   ifnull(a.subject_class, '-') as [Môn-Lớp], 
+                   ifnull(a.homeroom, '-') as [Chủ nhiệm], 
+                   ifnull(a.concurrent, '-') as [Kiêm nhiệm], 
+                   ifnull(a.total_periods, '0') as [Tổng số tiết]
             FROM org_members m LEFT JOIN org_assignments a ON m.fullname = a.fullname
         """, conn)
         conn.close()
         
+        df_assign = df_assign.fillna("-")
+        for col in df_assign.columns:
+            df_assign[col] = df_assign[col].apply(lambda x: "-" if str(x).strip().lower() in ["nan", "none", ""] else str(x).strip())
+        
         if not df_assign.empty:
             df_assign.insert(0, "STT", range(1, len(df_assign) + 1))
-            st.dataframe(df_assign, use_container_width=True, hide_index=True)
+            
+            # 💥 CẤU HÌNH CỐ ĐỊNH KÍCH THƯỚC ĐỘ RỘNG 7 CỘT KHÍT CHUẨN THEO ẢNH MẪU CỦA THẦY Ở THẺ 2
+            col_cfg_assign = {
+                "STT": st.column_config.NumberColumn("STT", width="small", disabled=True),
+                "Họ tên GV": st.column_config.TextColumn("Họ tên GV", width="medium", disabled=True),
+                "Môn-Lớp": st.column_config.TextColumn("Môn-Lớp", width="medium", disabled=not is_admin),
+                "Chủ nhiệm": st.column_config.TextColumn("Chủ nhiệm", width="small", disabled=not is_admin),
+                "Kiêm nhiệm": st.column_config.TextColumn("Kiêm nhiệm", width="small", disabled=not is_admin),
+                "Tổng số tiết": st.column_config.TextColumn("Tổng số tiết", width="small", disabled=not is_admin)
+            }
+            
+            # 🛠️ TRÌNH CHỈNH SỬA TRỰC TIẾP FORM CHO THẺ 2
+            with st.form("form_realtime_assign", border=False):
+                edited_a_df = st.data_editor(df_assign, use_container_width=True, hide_index=True, column_config=col_cfg_assign, key="stable_assign_editor")
+                save_a = st.form_submit_button("💾 XÁC NHẬN LƯU THAY ĐỔI SƠ ĐỒ PHÂN CÔNG DẠY", type="primary", use_container_width=True, disabled=not is_admin)
+                
+            if save_a and is_admin:
+                conn = sqlite3.connect(DB_PATH)
+                cursor = conn.cursor()
+                for _, r in edited_a_df.iterrows():
+                    cursor.execute("""
+                    INSERT OR REPLACE INTO org_assignments (fullname, subject_class, homeroom, concurrent, total_periods)
+                    VALUES (?, ?, ?, ?, ?)
+                    """, (str(r["Họ tên GV"]), str(r["Môn-Lớp"]), str(r["Chủ nhiệm"]), str(r["Kiêm nhiệm"]), str(r["Tổng số tiết"])))
+                conn.commit()
+                conn.close()
+                st.success("🎉 Đã cập nhật vĩnh viễn sơ đồ phân công giảng dạy thực tế!")
+                st.rerun()
             
             out_a = io.BytesIO()
-            with pd.ExcelWriter(out_a, engine='openpyxl') as w: df_assign.to_excel(w, index=False, sheet_name="Phan_Cong")
+            with pd.ExcelWriter(out_a, engine='openpyxl') as w: edited_a_df.to_excel(w, index=False, sheet_name="Phan_Cong")
             st.download_button(label="📥 Tải file Excel phân công giảng dạy về máy", data=out_a.getvalue(), file_name="So_Do_Phan_Cong_Giang_Day.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True)
-    # ==================== THÈ 3: THÀNH TÍCH VÀ THI ĐUA ĐỘC LẬP ====================
+    # ==================== THÈ 3: THÀNH TÍCH VÀ THI ĐUA ====================
     with tab3:
         st.markdown("#### 🏆 Sổ theo dõi Thành tích & Thi đua qua các năm học")
         
@@ -187,7 +250,6 @@ def render_org_section():
                     st.rerun()
                 except Exception as e: st.error(f"Lỗi đọc file thi đua: {e}")
 
-        # Đọc dữ liệu thi đua thô từ SQLite3
         conn = sqlite3.connect(DB_PATH)
         df_emulation = pd.read_sql_query("""
             SELECT fullname as [Họ và tên], dg_vien_chuc as [Đánh giá viên chức], bd_hsg as [BD HSG],
@@ -197,7 +259,6 @@ def render_org_section():
         """, conn, params=[selected_year])
         conn.close()
 
-        # 💥 THUẬT TOÁN KHỬ LỖI NAN: Thay thế toàn bộ chữ rác nan hệ thống bằng dấu gạch ngang "-"
         df_emulation = df_emulation.fillna("-")
         for col in df_emulation.columns:
             df_emulation[col] = df_emulation[col].apply(lambda x: "-" if str(x).strip().lower() in ["nan", "none", ""] else str(x).strip())
@@ -206,11 +267,10 @@ def render_org_section():
             df_emulation.insert(0, "Năm học", selected_year)
             df_emulation.insert(0, "STT", range(1, len(df_emulation) + 1))
             
-            # Cấu hình thuộc tính cho phép sửa đổi trực tiếp dữ liệu lưới đối với tài khoản Admin
             col_config_emu = {
                 "STT": st.column_config.NumberColumn("STT", disabled=True),
                 "Năm học": st.column_config.TextColumn("Năm học", disabled=True),
-                "Họ và tên": st.column_config.TextColumn("Họ và tên", disabled=True), # Khóa cột tên chống gõ lệch dòng
+                "Họ và tên": st.column_config.TextColumn("Họ và tên", disabled=True),
                 "Đánh giá viên chức": st.column_config.TextColumn("Đánh giá viên chức", disabled=not is_admin),
                 "BD HSG": st.column_config.TextColumn("BD HSG", disabled=not is_admin),
                 "NCKH": st.column_config.TextColumn("NCKH", disabled=not is_admin),
@@ -223,19 +283,8 @@ def render_org_section():
                 "Khác": st.column_config.TextColumn("Khác", disabled=not is_admin)
             }
             
-            # 🛠️ TÍCH HỢP TÍNH NĂNG CHỈNH SỬA TRỰC TIẾP TRÊN HỆ THỐNG QUA FORM ỔN ĐỊNH
             with st.form("form_realtime_emulation", border=False):
-                if is_admin:
-                    st.write("👉 *Mẹo dành cho Admin: Thầy có thể click đúp chuột vào bất kỳ ô nào bên dưới để sửa đổi trực tiếp số liệu thi đua, sau đó nhấn nút Cập nhật ở dưới bảng để chốt lưu.*")
-                
-                edited_df = st.data_editor(
-                    df_emulation,
-                    use_container_width=True,
-                    hide_index=True,
-                    column_config=col_config_emu,
-                    key="stable_emulation_editor"
-                )
-                
+                edited_df = st.data_editor(df_emulation, use_container_width=True, hide_index=True, column_config=col_config_emu, key="stable_emulation_editor")
                 submitted_emu = st.form_submit_button("💾 XÁC NHẬN CẬP NHẬT TOÀN BỘ SỔ THI ĐUA NĂM HỌC", type="primary", use_container_width=True, disabled=not is_admin)
                 
             if submitted_emu and is_admin:
@@ -252,14 +301,13 @@ def render_org_section():
                 st.success(f"🎉 Hệ thống đã cập nhật vĩnh viễn dữ liệu chỉnh sửa của niên khóa {selected_year}!")
                 st.rerun()
             
-            # KẾT XUẤT FILE EXCEL SAU KHI ĐÃ LÀM SẠCH CHỮ NAN
             out_e = io.BytesIO()
             with pd.ExcelWriter(out_e, engine='openpyxl') as w: edited_df.to_excel(w, index=False, sheet_name=f"Thi_Dua")
             st.download_button(label=f"📥 Kết xuất Báo cáo Thi đua năm học {selected_year} (.xlsx)", data=out_e.getvalue(), file_name=f"Bao_Cao_Thi_Dua_Nam_Hoc_{selected_year.replace(' ', '')}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True)
         else:
             st.info(f"ℹ️ Chưa có dữ liệu lưu trữ thi đua cho **{selected_year}**. Vui lòng chọn năm học và nạp tệp Excel thi đua tương ứng ở phía trên.")
 
-# --- CÁC HÀM QUẢN LÝ VỆ TINH PHỤ TRỢ ---
+# --- CÁC HÀM VỆ TINH ---
 def render_meeting_minutes():
     st.header("📝 BIÊN BẢN SINH HOẠT TỔ")
     st.write("Giao diện nhập biên bản họp chuyên môn định kỳ.")
