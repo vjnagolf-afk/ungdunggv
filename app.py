@@ -95,7 +95,7 @@ else:  # Phân hệ Quản lý tổ chuyên môn
     menu = st.sidebar.selectbox("Nội dung quản lý", ["1. Quản lý & Phân công chuyên môn", "2. Biên bản sinh hoạt", "3. Kế hoạch cá nhân", "4. Thống kê số liệu"], label_visibility="collapsed")
     
     if menu == "1. Quản lý & Phân công chuyên môn": render_org_section()
-elif menu == "2. Biên bản sinh hoạt": 
+    elif menu == "2. Biên bản sinh hoạt": 
     render_meeting_minutes(lambda p: run_ai_prompt_safe(p))
     elif menu == "3. Kế hoạch cá nhân": render_personal_plan()
     elif menu == "4. Thống kê số liệu": 
