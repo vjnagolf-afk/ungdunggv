@@ -16,7 +16,6 @@ from pypdf import PdfReader
 from exam_designer import render_exam_designer_section
 from grade_manager import render_grade_manager_section
 from timetable_manager import render_timetable_section
-from tkb_manager import render_tkb_manager
 # ==============================================================================
 # 1. CẤU HÌNH TRANG VÀ THIẾT LẬP SIÊU CSS ĐỊNH DẠNG THANH BÊN THEO BIỂU MẪU CHUẨN
 # ==============================================================================
@@ -320,43 +319,34 @@ if phan_he_lam_viec == " Trợ lý Giảng dạy (Giáo viên)":
     elif chuc_nang_chinh == "2. Thiết kế Đề KTĐG (Ma trận - Đặc tả)":
         # TÍCH HỢP TỪ MODULE ĐÃ TÁCH
         render_exam_designer_section(api_key_input, run_ai_prompt_safe)
-# ==============================================================================
-# GIAO DIỆN CHÍNH
-# ==============================================================================
-if phan_he_lam_viec == " Trợ lý Giảng dạy (Giáo viên)":
-    if chuc_nang_chinh == "1. Thiết kế KHBD thông minh":
-        st.header("📋 THIẾT KẾ KẾ HOẠCH BÀI DẠY (KHBD) TÍCH HỢP NĂNG LỰC SỐ")
-        # ... (giữ nguyên code của thầy)
-    elif chuc_nang_chinh == "2. Thiết kế Đề KTĐG (Ma trận - Đặc tả)":
-        render_exam_designer_section(api_key_input, run_ai_prompt_safe)
+
     elif chuc_nang_chinh == "3. Đánh giá học sinh":
         st.header("📋 BỘ CÔNG CỤ ĐÁNH GIÁ, NHẬN XÉT VÀ HỖ TRỢ HỌC SINH")
-        # ... (giữ nguyên code của thầy)
+        chu_de = st.text_input("Nội dung đánh giá:", value="Thầy/Cô điền tên bài học/Chủ đề cần xây dựng tiêu chí đánh giá vào đây")
+        if st.button("🚀 Sinh học liệu"):
+            with st.spinner("AI đang tạo..."):
+                try:
+                    res, _ = run_ai_prompt_safe(f"Tạo tiêu chí rubric cho chủ đề {chu_de}", api_key_input)
+                    st.markdown(res)
+                except Exception as error_rb: st.error(f"Lỗi: {error_rb}")
+
     elif chuc_nang_chinh == "4. Quản lý điểm học sinh (SMAS)":
-        render_grade_manager_section()
+        render_grade_manager_section() # GỌI HÀM VẼ GIAO DIỆN QUẢN LÝ ĐIỂM
     elif chuc_nang_chinh == "5. Quản lý Thời khóa biểu":
         render_timetable_section()
-
 else:
     # PHÂN HỆ QUẢN LÝ TỔ CHUYÊN MÔN
     if chuc_nang_chinh == "1. Hệ thống Quản lý và Phân công chuyên môn giảng dạy":
         st.subheader("📋 HỆ THỐNG QUẢN LÝ VÀ PHÂN CÔNG CHUYÊN MÔN GIẢNG DẠY")
-        tab1, tab2, tab3 = st.tabs(["👥 Danh sách thành viên", "📊 Phân công giảng dạy", "🏆 Thành tích & Thi đua"])
-        with tab1:
-            st.dataframe(st.session_state["db_thanh_vien"], use_container_width=True)
-        with tab2:
-            st.dataframe(st.session_state["db_phan_cong_hien_tai"], use_container_width=True)
-        with tab3:
-            st.write("Dữ liệu thành tích và thi đua của tổ...")
-            st.json(st.session_state["db_thanh_tich_da_nam"])
+        # ... (các tab của thầy)
 
     elif chuc_nang_chinh == "2. Xây dựng Biên bản sinh hoạt tổ chuyên môn định kỳ":
         st.subheader("📝 XÂY DỰNG BIÊN BẢN SINH HOẠT TỔ CHUYÊN MÔN")
-        st.info("Chức năng đang được cập nhật nội dung...")
+        # ... (code của thầy)
 
     elif chuc_nang_chinh == "3. Xây dựng Kế hoạch Giáo dục cá nhân (Phụ lục III - Công văn 5512)":
         st.header("📋 KẾ HOẠCH GIÁO DỤC CÁ NHÂN CỦA GIÁO VIÊN (Phụ lục III)")
-        st.info("Chức năng đang được cập nhật nội dung...")
+        # ... (code của thầy)
 
     elif chuc_nang_chinh == "4. Thống kê số liệu tổ":
         st.header("📊 THỐNG KÊ GIÁO VIÊN TỔ")
@@ -367,4 +357,4 @@ else:
             st.bar_chart(df_tv_current["Phân môn chính"].value_counts())
 
     elif chuc_nang_chinh == "5. Quản lý Thời khóa biểu":
-        render_tkb_manager()
+        render_timetable_section()
