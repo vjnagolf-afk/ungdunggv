@@ -80,7 +80,7 @@ def render_tkb_manager():
                     st.rerun()
                 except Exception as e:
                     st.error(f"Lỗi khi đọc file TKB: {e}")
-    # --- KHU VỰC 2: MENU XỔ XUỐNG GỌI ĐỢT TKB VÀ NÚT XÓA ---
+        # --- KHU VỰC 2: MENU XỔ XUỐNG GỌI ĐỢT TKB VÀ NÚT XÓA ---
     st.markdown("---")
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
@@ -95,7 +95,6 @@ def render_tkb_manager():
     st.markdown("##### 📁 Quản lý và Chọn đợt Thời khóa biểu tác nghiệp")
     col_select, col_delete = st.columns(2)
     with col_select:
-        # Ép danh sách hiển thị về mảng chữ thô m mượt để selectbox hoạt động chuẩn
         clean_versions_list = [str(v[0]).strip() for v in list_versions]
         dot_duoc_chon = st.selectbox("Chọn đợt TKB muốn tra cứu:", clean_versions_list)
     with col_delete:
@@ -112,7 +111,6 @@ def render_tkb_manager():
 
     # --- KHU VỰC 3: TRÍCH XUẤT VÀ DỰNG LẠI GIAO DIỆN THEO ĐỢT ĐÃ CHỌN ---
     conn = sqlite3.connect(DB_PATH)
-    # SỬA LỖI DATABASEERROR: Truyền trực tiếp chuỗi chữ thô dot_duoc_chon đã lọc từ selectbox
     df_db = pd.read_sql_query("SELECT thu, tiet, lop, noi_dung FROM tkb_data WHERE version_name = ?", conn, params=[dot_duoc_chon])
     conn.close()
     
@@ -145,9 +143,13 @@ def render_tkb_manager():
             row_dict = {"THỨ": d, "TIẾT": s}
             for c in class_columns:
                 val_o = df_db[(df_db["thu"]==d) & (df_db["tiet"]==s) & (df_db["lop"]==c)]["noi_dung"].values
-                row_dict[c] = val_o if len(val_o) > 0 else ""
+                # Sửa lỗi: Lấy chuỗi ký tự thô thay vì bọc mảng danh sách list
+                row_dict[c] = str(val_o[0]).strip() if len(val_o) > 0 else ""
             rows_master.append(row_dict)
+            
     df_master_view = pd.DataFrame(rows_master)
+    # KHẮC PHỤC TRIỆT ĐỂ LỖI PYARROW: Ép toàn bộ bảng tổng về định dạng văn bản String sạch
+    df_master_view = df_master_view.fillna("").astype(str)
 
     # --- ĐIỀU HƯỚNG GIAO DIỆN TABS ---
     tab1, tab2 = st.tabs(["📊 Thời khóa biểu chung", "👤 TKB theo giáo viên"])
@@ -180,13 +182,13 @@ def render_tkb_manager():
                             r_idx = cell_content.rfind("-")
                             if r_idx != -1 and cell_content[r_idx+1:].strip() == selected_teacher:
                                 sub_name = cell_content[:r_idx].strip()
-                                class_short = col_class.split("(").strip()
+                                class_short = col_class.split("(")[0].strip()
                                 cell_lessons.append(f"{sub_name} - {class_short}")
                                 
                     if cell_lessons:
                         matrix_data[thu_clean][tiet_idx] = " / ".join(cell_lessons)
                         
-            df_matrix = pd.DataFrame(matrix_data)
+            df_matrix = pd.DataFrame(matrix_data).fillna("").astype(str)
             df_matrix.insert(0, "TIẾT", slots_list)
             
             st.markdown(f"### 🗂️ Lịch dạy đợt **[{dot_duoc_chon}]** của Thầy/Cô: **{selected_teacher}**")
