@@ -338,8 +338,7 @@ if phan_he_lam_viec == " Trợ lý Giảng dạy (Giáo viên)":
         render_timetable_section()
 
 else:
-   else:
-    # PHÂN HỆ QUẢN LÝ TỔ CHUYÊN MÔN
+  # PHÂN HỆ QUẢN LÝ TỔ CHUYÊN MÔN
     if chuc_nang_chinh == "1. Hệ thống Quản lý và Phân công chuyên môn giảng dạy":
         st.subheader("📋 HỆ THỐNG QUẢN LÝ VÀ PHÂN CÔNG CHUYÊN MÔN GIẢNG DẠY")
         # Phục hồi các tab cũ
