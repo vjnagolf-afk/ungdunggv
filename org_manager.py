@@ -50,8 +50,13 @@ def render_org_section():
     st.sidebar.markdown("---")
     st.sidebar.markdown("### 🔒 CHỌN VAI TRÒ ĐĂNG NHẬP")
     
-    # KHÓA CHẶT KEY TĨNH: Sửa lỗi gốc rễ gây sập trang khi AI tải lại dữ liệu ngầm
-    vai_tro = st.sidebar.radio("Vai trò", ["Giáo viên bộ môn", "Tổ trưởng chuyên môn (Admin)", "Ban giám hiệu"], label_visibility="collapsed", key="vai_tro_org_sidebar_fixed_all")
+    # 💥 VÁ LỖI TRIỆT ĐỂ: Thêm khóa key độc lập tuyệt đối chống xung đột ID với phân hệ Biên bản họp tổ AI
+    vai_tro = st.sidebar.radio(
+        "Vai trò", 
+        ["Giáo viên bộ môn", "Tổ trưởng chuyên môn (Admin)", "Ban giám hiệu"], 
+        label_visibility="collapsed", 
+        key="vai_tro_org_sidebar_ultimate_key"
+    )
     
     is_admin = False
     if vai_tro == "Tổ trưởng chuyên môn (Admin)":
@@ -60,6 +65,7 @@ def render_org_section():
             st.sidebar.success("✅ Quyền Admin đã mở.")
             is_admin = True
         elif ma_pin != "": st.sidebar.error("❌ Mã PIN sai.")
+
 
     st.subheader("📋 HỆ THỐNG QUẢN LÝ VÀ PHÂN CÔNG CHUYÊN MÔN GIẢNG DẠY")
     tab1, tab2, tab3 = st.tabs(["👥 Danh sách thành viên", "📊 Phân công giảng dạy", "🏅 Thành tích & Thi đua"])
