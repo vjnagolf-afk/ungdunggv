@@ -7,6 +7,7 @@ from exam_designer import render_exam_designer_section
 from grade_manager import render_grade_manager_section
 from tkb_manager import render_tkb_manager
 from org_manager import render_org_section
+from khbd_manager import render_khbd_section
 
 # Khởi tạo dữ liệu mẫu nếu chưa có (Tránh lỗi session_state)
 if "db_thanh_vien" not in st.session_state: st.session_state["db_thanh_vien"] = []
