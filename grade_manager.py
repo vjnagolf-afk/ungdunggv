@@ -44,32 +44,6 @@ def parse_score_smart(val):
     except:
         return None
 
-def get_df_display(selected_class, selected_grade):
-    conn = sqlite3.connect(DB_PATH)
-    query = """
-        SELECT s.student_code as [Mã HS], s.fullname as [Họ và tên], 
-               g.kttx1 as [TX1], g.kttx2 as [TX2], g.kttx3 as [TX3], g.kttx4 as [TX4],
-               g.ktgk as [Điểm GK], g.ktck as [Điểm CK], g.tb as [TBM HK], g.comment_hk as [Nhận xét]
-        FROM students s LEFT JOIN grades g ON s.student_code = g.student_code
-    """
-    params = []
-    conditions = []
-    
-    if selected_class != "Tất cả lớp":
-        conditions.append("s.classroom = ?")
-        params.append(selected_class)
-    elif selected_grade != "Tất cả khối":
-        grade_num = "".join([c for c in selected_grade if c.isdigit()])
-        conditions.append("s.classroom LIKE ?")
-        params.append(f"%{grade_num}%")
-        
-    if conditions: query += " WHERE " + " AND ".join(conditions)
-    query += " ORDER BY s.classroom, s.student_code ASC"
-    
-    df = pd.read_sql_query(query, conn, params=params)
-    conn.close()
-    return df
-
 def render_grade_manager_section():
     setup_database_structure()
     st.header("📈 HỆ THỐNG QUẢN LÝ ĐIỂM HỌC SINH (SMAS)")
@@ -79,9 +53,10 @@ def render_grade_manager_section():
     .tip-box { background-color: #FEF3C7; color: #92400E; padding: 10px; border-radius: 5px; font-weight: bold; border: 1px solid #F59E0B; margin-bottom: 15px;}
     </style>
     <div class="tip-box">
-    💡 CẨM NANG VÀO ĐIỂM CHUẨN (Nhập liệu theo lô):<br>
-    - <b>Bước 1:</b> Thầy gõ liên tục từ trên xuống dưới (VD: gõ 95 -> bấm Enter để xuống dòng tiếp theo gõ tiếp). Trải nghiệm sẽ mượt như Excel, không bị giật chuột.<br>
-    - <b>Bước 2:</b> Nhập xong cả danh sách, thầy BẮT BUỘC bấm nút <b>"💾 Lưu thay đổi & Tính TBM"</b> bên dưới. Hệ thống sẽ tự quy đổi 95 thành 9.5 và tính TBM cho toàn bộ.
+    💡 CẨM NANG VÀO ĐIỂM (TỐC ĐỘ CAO NHƯ EXCEL):<br>
+    1. Chỉ <b>CLICK 1 LẦN</b> vào ô (hoặc dùng phím mũi tên đi tới).<br>
+    2. Gõ nhanh số (VD: 95, 10, 85) rồi <b>bấm phím ENTER</b>. Dấu nháy sẽ tự động tụt xuống ô dưới cực mượt.<br>
+    3. Gõ xong toàn bộ lớp, bấm nút LƯU ở cuối bảng để hệ thống tính TBM.
     </div>
     """, unsafe_allow_html=True)
 
@@ -199,13 +174,34 @@ def render_grade_manager_section():
 
                     conn.commit()
                     conn.close()
-                    if "grade_editor" in st.session_state: del st.session_state["grade_editor"]
                     st.success(f"✅ Đã đồng bộ thành công dữ liệu và điểm của các lớp: {', '.join(set(imported_classes))}")
                     st.rerun()
                 except Exception as e:
                     st.error(f"Lỗi nhập liệu: {e}")
 
-    df_display = get_df_display(selected_class, selected_grade)
+    conn = sqlite3.connect(DB_PATH)
+    query = """
+        SELECT s.student_code as [Mã HS], s.fullname as [Họ và tên], 
+               g.kttx1 as [TX1], g.kttx2 as [TX2], g.kttx3 as [TX3], g.kttx4 as [TX4],
+               g.ktgk as [Điểm GK], g.ktck as [Điểm CK], g.tb as [TBM HK], g.comment_hk as [Nhận xét]
+        FROM students s LEFT JOIN grades g ON s.student_code = g.student_code
+    """
+    params = []
+    conditions = []
+    
+    if selected_class != "Tất cả lớp":
+        conditions.append("s.classroom = ?")
+        params.append(selected_class)
+    elif selected_grade != "Tất cả khối":
+        grade_num = "".join([c for c in selected_grade if c.isdigit()])
+        conditions.append("s.classroom LIKE ?")
+        params.append(f"%{grade_num}%")
+        
+    if conditions: query += " WHERE " + " AND ".join(conditions)
+    query += " ORDER BY s.classroom, s.student_code ASC"
+    
+    df_display = pd.read_sql_query(query, conn, params=params)
+    conn.close()
 
     if not df_display.empty:
         st.markdown(f"##### 📝 BẢNG VÀO ĐIỂM LỚP {selected_class.upper()}")
@@ -230,23 +226,23 @@ def render_grade_manager_section():
             "Nhận xét": st.column_config.TextColumn("Nhận xét", width="medium")
         }
 
-        # Bảng nhập liệu ổn định không bị giật
-        edited_df = st.data_editor(
-            df_display,
-            column_order=["STT", "Họ và tên", "TX1", "TX2", "TX3", "TX4", "Điểm GK", "Điểm CK", "TBM HK", "Nhận xét"],
-            use_container_width=True,
-            num_rows="fixed",
-            column_config=col_config,
-            hide_index=True,
-            height=700,
-            key="grade_editor"
-        )
+        # BỌC BẢNG ĐIỂM VÀO ST.FORM ĐỂ CHẶN RERUN -> GIÚP PHÍM ENTER / MŨI TÊN HOẠT ĐỘNG MƯỢT MÀ
+        with st.form("grade_form", border=False):
+            edited_df = st.data_editor(
+                df_display,
+                column_order=["STT", "Họ và tên", "TX1", "TX2", "TX3", "TX4", "Điểm GK", "Điểm CK", "TBM HK", "Nhận xét"],
+                use_container_width=True,
+                num_rows="fixed",
+                column_config=col_config,
+                hide_index=True,
+                height=700
+            )
+            
+            # Nút Lưu bây giờ là nút Submit của Form
+            st.markdown("<br>", unsafe_allow_html=True)
+            submitted = st.form_submit_button("💾 BẤM VÀO ĐÂY ĐỂ LƯU THAY ĐỔI & TÍNH TBM SAU KHI GÕ XONG", type="primary", use_container_width=True)
 
-        st.markdown("<br>", unsafe_allow_html=True)
-        
-        col_btn1, col_btn2 = st.columns([2, 8])
-        with col_btn1:
-            if st.button("💾 Lưu thay đổi & Tính TBM", type="primary", use_container_width=True):
+            if submitted:
                 conn = sqlite3.connect(DB_PATH)
                 cursor = conn.cursor()
                 for _, row in edited_df.iterrows():
@@ -274,23 +270,20 @@ def render_grade_manager_section():
                 
                 conn.commit()
                 conn.close()
-                
-                if "grade_editor" in st.session_state:
-                    del st.session_state["grade_editor"]
                 st.success("✅ Đã tính TBM và quy đổi định dạng điểm thành công!")
                 st.rerun()
 
-        with col_btn2:
-            output = io.BytesIO()
-            with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                export_df = edited_df.drop(columns=["STT"]) 
-                export_df.to_excel(writer, index=False, sheet_name=f"{selected_class}")
-            
-            st.download_button(
-                label="📤 Xuất File Điểm SMAS Hoàn Chỉnh", 
-                data=output.getvalue(), 
-                file_name=f"Diem_{selected_class}.xlsx", 
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
+        # Nút Xuất File (Nằm ngoài form)
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            export_df = edited_df.drop(columns=["STT"]) 
+            export_df.to_excel(writer, index=False, sheet_name=f"{selected_class}")
+        
+        st.download_button(
+            label="📤 Xuất File Điểm SMAS Hoàn Chỉnh", 
+            data=output.getvalue(), 
+            file_name=f"Diem_{selected_class}.xlsx", 
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
     else:
         st.info("💡 Chưa có dữ liệu học sinh. Vui lòng tải file SMAS (.xlsx) lên để đồng bộ.")
