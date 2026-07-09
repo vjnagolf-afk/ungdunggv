@@ -248,19 +248,20 @@ def render_exam_designer_section(api_key_input, run_ai_prompt_safe_func):
     with tab_thiet_ke:
         col_top1, col_top2 = st.columns(2)
         with col_top1:
-            c_lbl, c_sel = st.columns()
+            # ĐÃ SỬA LỖI: Điền tỷ lệ [1, 3] cho st.columns giúp nhãn và ô chọn hiển thị thẳng hàng cân đối
+            c_lbl, c_sel = st.columns([1, 3])
             c_lbl.markdown("<div style='margin-top: 8px;'>Hình thức đề:</div>", unsafe_allow_html=True)
             hinh_thuc = c_sel.selectbox("Hinh_thuc", ["Trắc nghiệm kết hợp tự luận", "100% Trắc nghiệm", "100% Tự luận"])
             
-            c_lbl2, c_txt2 = st.columns()
+            c_lbl2, c_txt2 = st.columns([1, 3])
             c_lbl2.markdown("<div style='margin-top: 8px;'>Môn học:</div>", unsafe_allow_html=True)
             mon_de = c_txt2.text_input("Mon", value="Khoa học tự nhiên")
             
-            c_lbl3, c_sel3 = st.columns()
+            c_lbl3, c_sel3 = st.columns([1, 3])
             c_lbl3.markdown("<div style='margin-top: 8px;'>Khối lớp:</div>", unsafe_allow_html=True)
             khoi_de = c_sel3.selectbox("Khoi", ["Lớp 6", "Lớp 7", "Lớp 8", "Lớp 9"], index=3)
             
-            c_lbl4, c_txt4 = st.columns()
+            c_lbl4, c_txt4 = st.columns([1, 3])
             c_lbl4.markdown("<div style='margin-top: 8px;'>Thời gian:</div>", unsafe_allow_html=True)
             thoi_gian_de = c_txt4.text_input("Thoi_gian", value="45 phút")
             
@@ -271,7 +272,6 @@ def render_exam_designer_section(api_key_input, run_ai_prompt_safe_func):
             st.markdown("<div style='margin-top: 10px; font-weight: bold; color: #B71C1C;'>2. TẢI FILE MA TRẬN & ĐẶC TẢ MẪU (Làm căn cứ bám sát cấu trúc):</div>", unsafe_allow_html=True)
             uploaded_matrix_file = st.file_uploader("Up_Matrix", type=["pdf", "docx"], accept_multiple_files=False, key="up_matrix_sample_key")
             
-            # Khung hiển thị trạng thái tải tệp
             if not uploaded_files_de and not uploaded_matrix_file:
                 st.markdown("*Chưa có tài liệu kiến thức hoặc tệp ma trận mẫu nào được tải lên.*")
             else:
@@ -281,14 +281,14 @@ def render_exam_designer_section(api_key_input, run_ai_prompt_safe_func):
                     st.info(f" Đã nhận tệp cấu trúc mẫu: {uploaded_matrix_file.name}")
                 
         st.markdown("<hr style='margin: 10px 0px;'>", unsafe_allow_html=True)
-        col_tn, spacer, col_tl = st.columns()
+        col_tn, spacer, col_tl = st.columns([10, 1, 10]) # Định hình tỷ lệ phân vùng lưới Trắc nghiệm - Tự luận
 # ==========================================
 # KHỐI 5A: LƯỚI ĐIỂM & TỶ LỆ NHẬN THỨC
 # ==========================================
         # (Tiếp nối nội dung cấu trúc lồng bên dưới tab_thiet_ke của Khối 4)
         with col_tn:
             st.markdown("<div class='header-pink'>PHẦN TRẮC NGHIỆM</div>", unsafe_allow_html=True)
-            c1, c2, c3, c4 = st.columns(4)
+            c1, c2, c3, c4 = st.columns(4) # ĐÃ SỬA LỖI ĐIỀN ĐỐ SỐ CỘT
             c1.markdown("<b style='color:#C62828; line-height:2.2;'>Tổng số câu TNKQ:</b>", unsafe_allow_html=True)
             ph_tong_so_tn = c2.empty() 
             c3.markdown("<b style='line-height:2.2;'>Tổng điểm TN:</b>", unsafe_allow_html=True)
