@@ -12,7 +12,7 @@ from danh_gia_manager import render_assessment_section
 from org_manager import render_org_section
 from bien_ban_manager import render_meeting_minutes
 from ke_hoach_ca_nhan_manager import render_personal_plan 
-
+from stem_manager import render_stem_section
 # --- 2. CẤU HÌNH ĐỌC API KEY TỰ ĐỘNG TỪ TRONG SECRETS ---
 API_KEY_HE_THONG = st.secrets.get("GEMINI_API_KEY", "")
 
