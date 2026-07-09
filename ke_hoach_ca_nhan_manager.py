@@ -1,4 +1,4 @@
-import streamlit as st  # <-- ĐÃ VÁ LỖI CÚ PHÁP THÊM CHỮ "AS" TẠI ĐÂY
+import streamlit as st  
 import docx
 from docx.shared import Inches, Pt, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
@@ -39,7 +39,8 @@ def export_plan_to_docx(teacher_name, subject_name, markdown_content):
     doc.save(bio)
     return bio.getvalue()
 
-def render_personal_plan():
+# Nhận hàm run_ai_handler truyền từ file app.py tổng sang
+def render_personal_plan(run_ai_handler=None):
     st.markdown("<h3 style='text-align: left; color: #1E3A8A;'>🗓️ TRỢ LÝ XÂY DỰNG KẾ HOẠCH GIÁO DỤC CÁ NHÂN (PHỤ LỤC III)</h3>", unsafe_allow_html=True)
     
     # --- KHU VỰC PHÂN QUYỀN MẬT KHẨU ADMIN TẠI SIDEBAR ---
@@ -47,21 +48,20 @@ def render_personal_plan():
     st.sidebar.markdown("### 🔒 CHỌN VAI TRÒ ĐĂNG NHẬP")
     vai_tro = st.sidebar.radio("Vai trò", ["Giáo viên bộ môn", "Tổ trưởng chuyên môn (Admin)", "Ban giám hiệu"], label_visibility="collapsed", key="vai_tro_plan_sidebar_fixed_v8")
     
-    # Giữ lại xác thực mã PIN cho vai trò Tổ trưởng/BGH nếu các tính năng khác trong hệ sinh thái của bạn cần dùng
+    is_admin = False
     if vai_tro == "Tổ trưởng chuyên môn (Admin)":
         ma_pin = st.sidebar.text_input("Nhập mã pin quản lý Admin:", type="password", value="", key="pin_admin_plan_v8")
         if ma_pin == "123456":
             st.sidebar.success("✅ Quyền Admin đã mở.")
+            is_admin = True
         elif ma_pin != "": 
             st.sidebar.error("❌ Mã PIN sai.")
+            st.info("ℹ️ Chế độ Giáo viên bộ môn chỉ được quyền Xem lịch, hãy đăng nhập Admin để lập kế hoạch.")
             return
 
     if "ai_plan_output" not in st.session_state:
         st.session_state["ai_plan_output"] = ""
 
-    # Hộp chứa giao diện tĩnh đứng im trên màn hình chống lag widget
-    container_output = st.empty()
-    
     with st.form("form_personal_plan_fixed_final_v8", border=False):
         col_t, col_s = st.columns(2)
         t_name = col_t.text_input("Họ và tên Giáo viên giảng dạy:", placeholder="Ví dụ: Thầy Lê Hồng Dưỡng", key="plan_txt_t_name_v8")
@@ -72,35 +72,30 @@ def render_personal_plan():
         st.markdown("**💬 Các tiêu chí đặc thù hoặc lưu ý phân bổ tiết (Nếu có):**")
         note_plan = st.text_area("Yêu cầu bổ sung cho AI:", placeholder="Ví dụ: Phân bổ chi tiết số tiết cho chương Tốc độ ở vật lý 7 học kỳ I...", label_visibility="collapsed", key="plan_ta_note_v8")
         
-        # Nút bấm khởi tạo được mở cho toàn bộ giáo viên
-        run_ai_plan = st.form_submit_button("🚀 Khởi tạo Kế hoạch bằng AI", type="primary", use_container_width=True)
+        # Nút bấm chỉ kích hoạt tác lệnh khi có quyền Admin
+        run_ai_plan = st.form_submit_button(" Khởi tạo Kế hoạch bằng AI", type="primary", use_container_width=True)
         
-    # --- ĐOẠN CODE ĐÃ ĐƯỢC MỞ KHÓA CHO TẤT CẢ GIÁO VIÊN ---
-    if run_ai_plan:
+    if not is_admin:
+        st.warning("⚠️ Chức năng Lập kế hoạch tự động bằng AI yêu cầu quyền tài khoản Tổ trưởng chuyên môn (Admin). Vui lòng xác thực mã PIN ở thanh bên (Sidebar).")
+        
+    if run_ai_plan and is_admin:
         if not t_name or not grade_target:
             st.warning("⚠️ Vui lòng điền Họ tên giáo viên và Khối lớp để AI lập kế hoạch!")
         else:
-            ai_success = False
             with st.spinner("Trợ lý AI đang lập tiến trình phân bổ tiết Phụ lục III..."):
                 prompt_plan = f"Hãy soạn thảo một bản Kế hoạch giáo dục của giáo viên (Phụ lục III - Công văn 5512) chi tiết cho giáo viên: {t_name}, môn: {s_name}, khối lớp: {grade_target} trong {week_count}. Cấu trúc gồm mục I. KẾ HOẠCH DẠY HỌC PHÂN PHỐI CHƯƠNG TRÌNH và mục II. CÁC NHIỆM VỤ KHÁC ĐƯỢC GIAO. Văn bản viết chi tiết đầy đủ chữ, chia dòng gạch ngang '-', không dùng dấu sao kép '**'."
-                try:
-                    from app import run_ai_prompt_safe
-                    api_key_system = st.secrets.get("GEMINI_API_KEY", "")
+                
+                if run_ai_handler is not None:
+                    # Gọi hàm AI tập trung từ app.py truyền qua lambda
+                    res_plan, status = run_ai_handler(prompt_plan)
                     
-                    if not api_key_system:
-                        st.error("🔑 Thiếu cấu hình GEMINI_API_KEY trong Secrets!")
-                        st.stop()
-
-                    res_plan, status = run_ai_prompt_safe(prompt_plan, api_key_system)
-                    st.session_state["ai_plan_output"] = res_plan
-                    ai_success = True
-                    
-                except Exception as ai_error:
-                    st.error(f"❌ Máy chủ AI hoặc mã nguồn kết nối phản hồi lỗi: {str(ai_error)}")
-                    st.info("Vui lòng kiểm tra lại hạn ngạch API Gemini hoặc cấu hình mạng máy chủ.")
-            
-            if ai_success:
-                st.rerun()
+                    if status == "error":
+                        st.error(f"❌ Hệ thống kết nối AI gặp sự cố kỹ thuật: {res_plan}")
+                    else:
+                        st.session_state["ai_plan_output"] = res_plan
+                        st.success(f"🎉 Khởi tạo kế hoạch thành công bằng mô hình {status}!")
+                else:
+                    st.error("❌ Lỗi cấu hình hệ thống: Không tìm thấy trình điều khiển AI tập trung.")
 
     st.markdown("---")
     st.markdown("### 📊 Nội dung Kế hoạch Giáo dục sinh bởi AI:")
@@ -110,4 +105,4 @@ def render_personal_plan():
             word_plan_data = export_plan_to_docx(t_name, s_name, st.session_state["ai_plan_output"])
             st.download_button(label="📥 Tải file Word (.docx) Phụ lục III chuẩn về máy", data=word_plan_data, file_name=f"Phu_Luc_III_{t_name.replace(' ', '_')}.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document", use_container_width=True, key="download_fixed_v8")
         else:
-            st.caption("Khung kế hoạch chi tiết sẽ xuất hiện tại đây sau khi Tổ trưởng hoặc Giáo viên bấm nút khởi tạo...")
+            st.caption("Khung kế hoạch chi tiết sẽ xuất hiện tại đây sau khi Tổ trưởng bấm nút khởi tạo...")
