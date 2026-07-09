@@ -82,11 +82,11 @@ def export_plan_to_docx_with_table(teacher_name, subject_name, content_data):
     if isinstance(content_data, list):
         for idx, item in enumerate(content_data, 1):
             row_cells = table.add_row().cells
-            row_cells[0].text = str(idx)
-            row_cells[1].text = str(item.get("Tuan", ""))
-            row_cells[2].text = str(item.get("BaiHoc", ""))
-            row_cells[3].text = str(item.get("SoTiet", ""))
-            row_cells[4].text = str(item.get("ThietBi", "-"))
+            row_cells.text = str(idx)
+            row_cells.text = str(item.get("Tuan", ""))
+            row_cells.text = str(item.get("BaiHoc", ""))
+            row_cells.text = str(item.get("SoTiet", ""))
+            row_cells.text = str(item.get("ThietBi", "-"))
             
             # Định dạng lại phông chữ căn chỉnh ô dòng dữ liệu
             for cell in row_cells:
@@ -121,17 +121,16 @@ def render_personal_plan(run_ai_handler=None):
     if "db_ke_hoach_da_luu" not in st.session_state:
         st.session_state["db_ke_hoach_da_luu"] = {}
         
-    # --- KHU VỰC PHÂN QUYỀN MẬT KHẨU ADMIN TẠI SIDEBAR ---
+    # --- KHU VỰC CHỌN VAI TRÒ TẠI SIDEBAR ---
     st.sidebar.markdown("---")
     st.sidebar.markdown("### 🔒 CHỌN VAI TRÒ ĐĂNG NHẬP")
     vai_tro = st.sidebar.radio("Vai trò", ["Giáo viên bộ môn", "Tổ trưởng chuyên môn (Admin)", "Ban giám hiệu"], label_visibility="collapsed", key="vai_tro_plan_sidebar_fixed_v8")
     
-    is_admin = False
+    # Giữ lại ô nhập mã PIN cho mục đích quản lý nếu cần, nhưng không chặn quyền tạo form nữa
     if vai_tro == "Tổ trưởng chuyên môn (Admin)":
         ma_pin = st.sidebar.text_input("Nhập mã pin quản lý Admin:", type="password", value="", key="pin_admin_plan_v8")
         if ma_pin == "123456":
             st.sidebar.success("✅ Quyền Admin đã mở.")
-            is_admin = True
         elif ma_pin != "": 
             st.sidebar.error("❌ Mã PIN sai.")
             return
@@ -141,6 +140,7 @@ def render_personal_plan(run_ai_handler=None):
     if "current_teacher_active" not in st.session_state: st.session_state["current_teacher_active"] = ""
     if "current_subject_active" not in st.session_state: st.session_state["current_subject_active"] = ""
 
+    # Form nhập liệu tự do hoạt động không bị chặn quyền
     with st.form("form_personal_plan_fixed_final_v8", border=False):
         col_t, col_s = st.columns(2)
         t_name = col_t.text_input("Họ và tên Giáo viên giảng dạy:", placeholder="Ví dụ: Thầy Lê Hồng Dưỡng", key="plan_txt_t_name_v8")
@@ -151,17 +151,13 @@ def render_personal_plan(run_ai_handler=None):
         st.markdown("**💬 Các tiêu chí đặc thù hoặc lưu ý phân bổ tiết (Nếu có):**")
         note_plan = st.text_area("Yêu cầu bổ sung cho AI:", placeholder="Ví dụ: Phân bổ chi tiết số tiết cho chương Tốc độ ở vật lý 7 học kỳ I...", label_visibility="collapsed", key="plan_ta_note_v8")
         
-        if not is_admin:
-            st.warning("⚠️ Chức năng Lập kế hoạch tự động bằng AI yêu cầu quyền tài khoản Tổ trưởng chuyên môn (Admin). Vui lòng xác thực mã PIN ở thanh bên (Sidebar).")
-            run_ai_plan = st.form_submit_button(" Khởi tạo Kế hoạch bằng AI", type="primary", use_container_width=True, disabled=True)
-        else:
-            run_ai_plan = st.form_submit_button(" Khởi tạo Kế hoạch bằng AI", type="primary", use_container_width=True, disabled=False)
-    if run_ai_plan and is_admin:
+        # Nút bấm mở hoàn toàn cho tất cả mọi người dùng
+        run_ai_plan = st.form_submit_button("🚀 Khởi tạo Kế hoạch bằng AI", type="primary", use_container_width=True)
+    if run_ai_plan:
         if not t_name or not grade_target:
             st.warning("⚠️ Vui lòng điền Họ tên giáo viên và Khối lớp để AI lập kế hoạch!")
         else:
             with st.spinner("Trợ lý AI đang lập tiến trình và phân tách dữ liệu bảng biểu Phụ lục III..."):
-                # Ép cấu trúc đầu ra JSON để dựng bảng Word không bao giờ bị lệch dòng kẻ gãy cột
                 prompt_plan = (
                     f"Hãy soạn thảo phân bổ tiến trình dạy học cho giáo viên: {t_name}, môn: {s_name}, khối: {grade_target} trong {week_count}. "
                     f"Yêu cầu bổ sung: {note_plan}. Trả về kết quả dưới dạng cấu trúc mảng JSON thuần túy gồm danh sách các đối tượng, "
@@ -175,16 +171,15 @@ def render_personal_plan(run_ai_handler=None):
                         st.error(f"❌ Hệ thống kết nối AI gặp sự cố kỹ thuật: {res_plan}")
                     else:
                         try:
-                            # Làm sạch đầu ra chuỗi json thừa nếu có
                             clean_json = res_plan.replace("```json", "").replace("```", "").strip()
                             parsed_data = json.loads(clean_json)
                             
-                            # Lưu vào kho lưu trữ tạm thời của phiên chạy hiện tại
+                            # Cập nhật màn hình làm việc hiện hành
                             st.session_state["current_ai_output_raw"] = parsed_data
                             st.session_state["current_teacher_active"] = t_name
                             st.session_state["current_subject_active"] = s_name
                             
-                            # Tự động đồng bộ lưu trữ vào Cơ sở dữ liệu trường học (Hệ thống nhớ của app)
+                            # Đẩy vào bộ nhớ lưu trữ lịch sử hệ sinh thái trường học
                             record_id = f"{t_name.replace(' ', '_')}_{s_name.replace(' ', '_')}"
                             st.session_state["db_ke_hoach_da_luu"][record_id] = {
                                 "teacher": t_name,
@@ -193,7 +188,7 @@ def render_personal_plan(run_ai_handler=None):
                                 "weeks": week_count,
                                 "data": parsed_data
                             }
-                            st.success("🎉 Khởi tạo và Lưu trữ kế hoạch thành công!")
+                            st.success("🎉 Khởi tạo và Lưu trữ kế hoạch vào hệ thống trường học thành công!")
                         except Exception as parse_err:
                             st.error("⚠️ AI phản hồi cấu hình không chuẩn bảng. Vui lòng bấm thử lại.")
                 else:
@@ -204,12 +199,10 @@ def render_personal_plan(run_ai_handler=None):
     st.markdown("### 📊 Nội dung Kế hoạch Giáo dục sinh bởi AI:")
     
     if st.session_state["current_ai_output_raw"]:
-        # Tạo bảng Streamlit hiển thị trực quan dữ liệu ngăn nắp ngay trên web
         df_display = pd.DataFrame(st.session_state["current_ai_output_raw"])
         df_display.index = df_display.index + 1
         st.dataframe(df_display, use_container_width=True)
         
-        # Gọi hàm xuất Word lưới kẻ bảng chuẩn chỉ
         word_plan_data = export_plan_to_docx_with_table(
             st.session_state["current_teacher_active"], 
             st.session_state["current_subject_active"], 
@@ -223,7 +216,7 @@ def render_personal_plan(run_ai_handler=None):
             use_container_width=True
         )
     else:
-        st.caption("Khung kế hoạch chi tiết dạng bảng biểu sẽ xuất hiện tại đây sau khi Tổ trưởng bấm nút khởi tạo...")
+        st.caption("Khung kế hoạch chi tiết dạng bảng biểu sẽ xuất hiện tại đây sau khi Giáo viên bấm nút khởi tạo...")
 
     # --- KHU VỰC QUẢN LÝ LỊCH SỬ KẾ HOẠCH ĐÃ LƯU TRONG TOÀN HỆ THỐNG ---
     if st.session_state["db_ke_hoach_da_luu"]:
@@ -235,7 +228,6 @@ def render_personal_plan(run_ai_handler=None):
                 df_history = pd.DataFrame(info['data'])
                 st.dataframe(df_history, use_container_width=True)
                 
-                # Nút tải lại Word riêng cho từng bản ghi cũ trong lịch sử lưu trữ
                 word_history_data = export_plan_to_docx_with_table(info['teacher'], info['subject'], info['data'])
                 st.download_button(
                     label=f"📥 Tải file Word của GV {info['teacher']}", 
