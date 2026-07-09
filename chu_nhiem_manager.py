@@ -114,16 +114,16 @@ def render_thang_tab(run_ai_prompt_safe=None):
     if st.button("🚀 Khởi tạo Kế hoạch bằng AI", type="primary", key="btn_chu_nhiem_ai"):
         if run_ai_prompt_safe is not None:
             with st.spinner(f"AI đang thiết lập kế hoạch {selected_thang}..."):
-                # Cập nhật Prompt để ép AI dùng đúng thuật ngữ và định dạng
+                # Cập nhật Prompt ép cấu trúc Dấu đầu dòng lùi lề
                 prompt_he_thong = f"""
                 Bạn là trợ lý AI cho giáo viên chủ nhiệm THCS Việt Nam. Hãy lập bản kế hoạch công tác chủ nhiệm chi tiết cho lớp {selected_lop} trong {selected_thang}.
                 
-                LƯU Ý QUAN TRỌNG VỀ THUẬT NGỮ VÀ ĐỊNH DẠNG:
+                LƯU Ý QUAN TRỌNG VỀ THUẬT NGỮ VÀ ĐỊNH DẠNG (BẮT BUỘC TUÂN THỦ):
                 1. TUYỆT ĐỐI KHÔNG dùng từ "Học lực", phải dùng từ "Kết quả học tập".
                 2. TUYỆT ĐỐI KHÔNG dùng từ "Hạnh kiểm", phải dùng từ "Rèn luyện".
-                3. Trình bày rõ ràng. KHÔNG dùng ký tự ** để in đậm. KHÔNG dùng dấu gạch ngang (-) hoặc dấu sao (*) ở đầu các dòng tiêu đề của Tuần.
+                3. KHÔNG dùng ký tự ** để in đậm. 
                 
-                YÊU CẦU ĐẦU RA THEO CẤU TRÚC SAU:
+                YÊU CẦU ĐẦU RA THEO ĐÚNG CẤU TRÚC VÀ DẤU ĐẦU DÒNG SAU (Copy y hệt format này):
                 KẾ HOẠCH THÁNG {selected_thang.replace('Tháng ', '')}
                 1. Chủ điểm: [Tên chủ điểm giáo dục tương ứng tháng]
                 [Nhiệm vụ thi đua]
@@ -132,9 +132,13 @@ def render_thang_tab(run_ai_prompt_safe=None):
                 [Đầu việc lớn]
                 
                 KẾ HOẠCH TỪNG TUẦN:
-                TUẦN 1: (Ghi nội dung chi tiết)
-                Nề nếp, sĩ số:
-                Hoạt động cụ thể:
+                TUẦN 1: (Từ ngày/tháng - ngày/tháng)
+                * Nề nếp, sĩ số:
+                   - [Nội dung chi tiết 1]
+                   - [Nội dung chi tiết 2]
+                * Hoạt động cụ thể:
+                   - [Nội dung chi tiết 1]
+                   - [Nội dung chi tiết 2]
                 
                 Ghi chú từ GV: {ghi_chu_them}
                 """
@@ -161,17 +165,19 @@ def render_thang_tab(run_ai_prompt_safe=None):
                     final_text = final_text.replace("\\n", "\n")
                     
                     # BỘ LỌC HẬU KỲ XỬ LÝ TEXT:
-                    # 1. Quét và thay thế các từ cấm (phòng ngừa AI quên lệnh)
+                    # 1. Quét và thay thế các từ cấm
                     final_text = final_text.replace("Học lực", "Kết quả học tập").replace("học lực", "kết quả học tập")
                     final_text = final_text.replace("Hạnh kiểm", "Rèn luyện").replace("hạnh kiểm", "rèn luyện")
                     
                     # 2. Xóa tất cả các dấu sao in đậm
                     final_text = final_text.replace("**", "")
                     
-                    # 3. Dọn dẹp sạch sẽ các ký tự thừa (- hoặc *) ở đầu dòng chữ TUẦN, Nề nếp, Hoạt động
+                    # 3. Ép định dạng các đầu mục chính:
+                    # Chữ TUẦN: Xóa mọi dấu - hoặc * ở đầu
                     final_text = re.sub(r'^[\-\*\s]+TUẦN', 'TUẦN', final_text, flags=re.MULTILINE)
-                    final_text = re.sub(r'^[\-\*\s]+Nề nếp', 'Nề nếp', final_text, flags=re.MULTILINE)
-                    final_text = re.sub(r'^[\-\*\s]+Hoạt động', 'Hoạt động', final_text, flags=re.MULTILINE)
+                    # Chữ Nề nếp và Hoạt động: Ép phải có * ở đầu
+                    final_text = re.sub(r'^[\-\*\s]*Nề nếp', '* Nề nếp', final_text, flags=re.MULTILINE)
+                    final_text = re.sub(r'^[\-\*\s]*Hoạt động', '* Hoạt động', final_text, flags=re.MULTILINE)
                     
                 st.session_state["ta_main_editor"] = final_text.strip()
         else:
