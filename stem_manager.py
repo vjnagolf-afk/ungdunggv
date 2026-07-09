@@ -3,7 +3,7 @@ import gspread
 from google.oauth2.service_account import Credentials
 from datetime import datetime
 
-SHEET_ID = '1QhX2fP520f9xXoP2p3W5i2123456789' # Hãy đảm bảo ID này đúng
+SHEET_ID = '1C6642jk_oQ0g9UC2By2qsNxxfQVR0MrZYj52tRdWDlY' # Hãy đảm bảo ID này đúng
 
 def get_sheet():
     # 1. Lấy dict trực tiếp từ secrets
