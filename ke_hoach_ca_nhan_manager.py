@@ -59,7 +59,7 @@ def export_plan_to_docx_with_table(teacher_name, subject_name, content_data):
     table = doc.add_table(rows=1, cols=8)
     table.style = 'Table Grid'
     
-    hdr_cells = table.rows[0].cells
+    hdr_cells = table.rows.cells
     for i, header_text in enumerate(headers):
         hdr_cells[i].text = header_text
         set_cell_margins(hdr_cells[i])
@@ -73,14 +73,14 @@ def export_plan_to_docx_with_table(teacher_name, subject_name, content_data):
     if isinstance(content_data, list):
         for idx, item in enumerate(content_data, 1):
             row_cells = table.add_row().cells
-            row_cells[0].text = str(idx)
-            row_cells[1].text = str(item.get("TietCT", idx))
-            row_cells[2].text = str(item.get("BaiHoc", ""))
-            row_cells[3].text = str(item.get("SoTiet", ""))
-            row_cells[4].text = str(item.get("ThoiDiem", ""))
-            row_cells[5].text = str(item.get("YeuCauCanDat", "-"))
-            row_cells[6].text = str(item.get("ThietBi", "-"))
-            row_cells[7].text = str(item.get("DiaDiem", "Lớp học"))
+            row_cells.text = str(idx)
+            row_cells.text = str(item.get("TietCT", idx))
+            row_cells.text = str(item.get("BaiHoc", ""))
+            row_cells.text = str(item.get("SoTiet", ""))
+            row_cells.text = str(item.get("ThoiDiem", ""))
+            row_cells.text = str(item.get("YeuCauCanDat", "-"))
+            row_cells.text = str(item.get("ThietBi", "-"))
+            row_cells.text = str(item.get("DiaDiem", "Lớp học"))
             
             for cell in row_cells:
                 set_cell_margins(cell)
@@ -133,7 +133,7 @@ def export_plan_to_excel(teacher_name, subject_name, content_data):
             worksheet.column_dimensions[col_letter].width = max(max_len + 3, 12)
     return output.getvalue()
 
-# --- HÀM TRÍCH XUẤT CHỮ (NÂNG CẤP ĐỌC ĐƯỢC CẢ FILE EXCEL TẢI LÊN) ---
+# --- HÀM TRÍCH XUẤT CHỮ TỪ FILE TÀI LIỆU TẢI LÊN ---
 def extract_text_from_file(uploaded_file):
     if uploaded_file is None:
         return ""
@@ -145,7 +145,6 @@ def extract_text_from_file(uploaded_file):
             doc = docx.Document(uploaded_file)
             return "\n".join([p.text for p in doc.paragraphs])
         elif file_name.endswith(".xlsx") or file_name.endswith(".xls"):
-            # Đọc file Excel cấu trúc cũ của giáo viên làm ngữ cảnh
             df = pd.read_excel(uploaded_file)
             return f"Nội dung file Excel kế hoạch cũ ({file_name}):\n" + df.to_string()
         elif file_name.endswith(".pdf"):
@@ -174,19 +173,36 @@ def render_personal_plan(run_ai_handler=None):
     with st.form("form_personal_plan_fixed_final_v8", border=False):
         col_t, col_s = st.columns(2)
         t_name = col_t.text_input("Họ và tên Giáo viên giảng dạy:", placeholder="Ví dụ: Thầy Lê Hồng Dưỡng", key="plan_txt_t_name_v8")
-        s_name = col_s.selectbox("Môn học / Phân môn phụ trách:", ["Khoa học tự nhiên (Vật lý)", "Khoa học tự nhiên (Sinh học)", "Khoa học tự nhiên (Hóa học)", "Toán học", "Ngữ văn", "GDTC"], key="plan_sb_s_name_v8")
         
-        # Thiết kế 3 cột để thêm trường Tổng số tiết trong năm học
+        # 🌟 CẬP NHẬT TÍNH NĂNG MỚI: Tích hợp đầy đủ danh mục môn học Chương trình GDPT 2018
+        danh_sach_mon_hoc = [
+            "Toán học", 
+            "Ngữ văn", 
+            "Tiếng Anh", 
+            "Giáo dục công dân", 
+            "Khoa học tự nhiên (Phân môn Vật lí)", 
+            "Khoa học tự nhiên (Phân môn Hóa học)", 
+            "Khoa học tự nhiên (Phân môn Sinh học)", 
+            "Lịch sử và Địa lí (Phân môn Lịch sử)", 
+            "Lịch sử và Địa lí (Phân môn Địa lý)", 
+            "Công nghệ", 
+            "Tin học", 
+            "Giáo dục thể chất", 
+            "Nghệ thuật (Âm nhạc)", 
+            "Nghệ thuật (Mĩ thuật)", 
+            "Hoạt động trải nghiệm, hướng nghiệp", 
+            "Giáo dục địa phương"
+        ]
+        s_name = col_s.selectbox("Môn học / Phân môn phụ trách:", danh_sach_mon_hoc, key="plan_sb_s_name_v8")
+        
         col_g, col_w, col_total = st.columns(3)
         grade_target = col_g.text_input("Khối lớp phân công dạy:", placeholder="Ví dụ: Khối 9, Khối 7", key="plan_txt_grade_target_v8")
         week_count = col_w.text_input("Tổng số tuần thực hiện kế hoạch:", placeholder="35 Tuần", value="35 Tuần", key="plan_txt_week_count_v8")
-        # 🌟 TÍNH NĂNG MỚI: Thêm ô nhập tổng số tiết năm học
         total_lessons = col_total.number_input("Tổng số tiết trong năm học:", min_value=1, max_value=300, value=70, step=1, key="plan_num_total_lessons_v8")
         
         st.markdown("**💬 Các tiêu chí đặc thù hoặc lưu ý phân bổ tiết (Nếu có):**")
         note_plan = st.text_area("Yêu cầu bổ sung cho AI:", placeholder="Ví dụ: Cần chia nhỏ phân phối chương trình thành từng tiết đơn lẻ 1, 2, 3...", label_visibility="collapsed", key="plan_ta_note_v8")
         
-        # 🌟 TÍNH NĂNG MỚI: Cho phép tải lên nhiều file cùng lúc (Excel + PDF)
         st.markdown("    **📚 Đính kèm tài liệu tham khảo (File SGK dạng PDF/Word và File Excel kế hoạch đã có sẵn nếu có):**")
         uploaded_files = st.file_uploader("Tải tệp lên hệ thống (Chấp nhận nhiều file cùng lúc)", type=["txt", "docx", "pdf", "xlsx", "xls"], accept_multiple_files=True, label_visibility="collapsed", key="sgk_file_uploader_v8")
         
@@ -196,19 +212,17 @@ def render_personal_plan(run_ai_handler=None):
             st.warning("⚠️ Vui lòng điền Họ tên giáo viên và Khối lớp để AI lập kế hoạch!")
         else:
             with st.spinner("Trợ lý AI đang tổng hợp các file tài liệu và phân bổ đều số tiết dạy..."):
-                # Gom nội dung từ tất cả các file giáo viên đã tải lên
                 combined_context = ""
                 if uploaded_files:
                     for f in uploaded_files:
                         combined_context += extract_text_from_file(f) + "\n\n"
                 
-                # Ra lệnh chi tiết: Ép phân rải đều số tiết CT chạy lũy tiến đến đúng tổng số tiết đã nhập
                 prompt_plan = (
                     f"Hãy soạn thảo phân bổ chương trình dạy học chi tiết bám sát định hướng Chương trình GDPT 2018 cho giáo viên: {t_name}, môn: {s_name}, khối: {grade_target} trong {week_count}. "
                     f"Tổng số tiết bắt buộc phải rải đều trong năm học là: {total_lessons} tiết.\n"
                     f"Yêu cầu bổ sung kỹ thuật: {note_plan}. "
                     f"Nhiệm vụ của bạn là phải phân tích, bám sát và kế thừa tối đa từ các tài liệu đính kèm (nội dung bài học từ file SGK hoặc cấu trúc phân bổ từ file Excel kế hoạch có sẵn) dưới đây:\n"
-                    f"[DỮ LIỆU THAM KHẢO TỪ CÁC FILE TẢI LÊN]:\n{combined_context}\n\n"
+                    f"[DỮ LIỆU THAM KHẢO TỪ CÁC FILE TÀI LIỆU]:\n{combined_context}\n\n"
                     f"Quy tắc chia dòng: Danh sách kết quả phải chạy lũy tiến từ Tiết CT số 1 cho đến tiết số {total_lessons}. Mỗi hàng ứng với 1 tiết duy nhất, số tiết ghi rõ là 1. "
                     f"Trả về mảng JSON thuần túy gồm danh sách các đối tượng, không kèm markdown thô nào ngoài thẻ mở/đóng json. "
                     f"Mỗi đối tượng bắt buộc phải chứa đúng cấu trúc 8 khóa sau không được sai lệch: "
@@ -238,13 +252,13 @@ def render_personal_plan(run_ai_handler=None):
                                 "weeks": week_count,
                                 "data": parsed_data
                             }
-                            st.success("🎉 Khởi tạo kế hoạch đồng bộ đa tài liệu thành công!")
+                            st.success("🎉 Khởi tạo và lưu trữ phân phối chương trình thành công!")
                         except Exception as parse_err:
                             st.error("⚠️ AI phản hồi cấu hình phân tách hàng chưa đồng bộ. Vui lòng bấm thử lại để làm mới.")
                 else:
                     st.error("❌ Lỗi cấu hình hệ thống: Không tìm thấy trình điều khiển AI tập trung.")
 
-    # --- KHU VỰC HIỂN THỊ KẾT QUẢ VÀ SONG HÀNH HAI NÚT TẢI XUẤT ---
+    # --- KHU VỰC HIỂN THỊ KẾT QUẢ VÀ SONG HÀNH CÁC NÚT TÁC VỤ ---
     st.markdown("---")
     st.markdown("### 📊 Nội dung Kế hoạch Giáo dục sinh bởi AI:")
     
@@ -252,7 +266,8 @@ def render_personal_plan(run_ai_handler=None):
         df_display = pd.DataFrame(st.session_state["current_ai_output_raw"])
         st.dataframe(df_display, use_container_width=True, hide_index=True)
         
-        btn_col1, btn_col2 = st.columns(2)
+        # Chia thành 3 cột để xếp nút Tải Word, Tải Excel và nút Xóa file hiện hành nằm ngang hàng
+        btn_col1, btn_col2, btn_col3 = st.columns(3)
         
         word_plan_data = export_plan_to_docx_with_table(
             st.session_state["current_teacher_active"], 
@@ -260,7 +275,7 @@ def render_personal_plan(run_ai_handler=None):
             st.session_state["current_ai_output_raw"]
         )
         btn_col1.download_button(
-            label="📥 Tải file Word (.docx) Phụ lục III chuẩn", 
+            label="📥 Tải file Word (.docx) Phụ lục III", 
             data=word_plan_data, 
             file_name=f"Phu_Luc_III_{st.session_state['current_teacher_active'].replace(' ', '_')}.docx", 
             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document", 
@@ -273,30 +288,40 @@ def render_personal_plan(run_ai_handler=None):
             st.session_state["current_ai_output_raw"]
         )
         btn_col2.download_button(
-            label="📊 Tải file Excel (.xlsx) Phân phối chương trình chi tiết", 
+            label="📊 Tải file Excel (.xlsx) Phân phối chương trình", 
             data=excel_plan_data, 
             file_name=f"Phan_Phoi_Chuong_Trinh_{st.session_state['current_teacher_active'].replace(' ', '_')}.xlsx", 
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", 
             use_container_width=True
         )
+        
+        # 🌟 TÍNH NĂNG MỚI: Thêm nút xóa nhanh file vừa khởi tạo
+        if btn_col3.button("🗑️ Xóa bản kế hoạch hiện tại", type="secondary", use_container_width=True, key="btn_clear_current_active_v8"):
+            st.session_state["current_ai_output_raw"] = None
+            st.success("💥 Đã xóa bảng hiển thị hiện hành.")
+            st.rerun()
     else:
         st.caption("Khung kế hoạch chi tiết dạng bảng biểu 8 cột sẽ xuất hiện tại đây sau khi bấm nút khởi tạo...")
 
-    # --- KHU VỰC LỊCH SỬ KẾ HOẠCH ĐÃ LƯU ---
+    # --- KHU VỰC LỊCH SỬ KẾ HOẠCH ĐÃ LƯU TRONG TOÀN HỆ THỐNG ---
     if st.session_state["db_ke_hoach_da_luu"]:
         st.markdown("---")
         st.markdown("### 🗂️ Danh sách Kế hoạch Giáo dục đã lưu trên Hệ thống:")
+        
+        # Cực kỳ thông minh: Cho phép xóa phần tử cũ trong lịch sử thông qua vòng lặp an toàn
+        keys_to_delete = []
         for key_id, info in st.session_state["db_ke_hoach_da_luu"].items():
             with st.expander(f"📋 Bản kế hoạch môn {info['subject']} - GV: {info['teacher']} (Khối {info['grade']})"):
                 st.write(f"**Tổng số tuần**: {info['weeks']}")
                 df_history = pd.DataFrame(info['data'])
                 st.dataframe(df_history, use_container_width=True, hide_index=True)
                 
-                h_col1, h_col2 = st.columns(2)
+                # Sắp xếp hàng ngang gồm 3 nút chức năng (Tải Word, Tải Excel, Xóa kho lịch sử)
+                h_col1, h_col2, h_col3 = st.columns(3)
                 
                 word_history_data = export_plan_to_docx_with_table(info['teacher'], info['subject'], info['data'])
                 h_col1.download_button(
-                    label=f"📥 Tải file Word của GV {info['teacher']}", 
+                    label="📥 Tải file Word", 
                     data=word_history_data, 
                     file_name=f"Phu_Luc_III_{info['teacher'].replace(' ', '_')}.docx", 
                     key=f"dl_word_hist_{key_id}",
@@ -305,9 +330,20 @@ def render_personal_plan(run_ai_handler=None):
                 
                 excel_history_data = export_plan_to_excel(info['teacher'], info['subject'], info['data'])
                 h_col2.download_button(
-                    label=f"📊 Tải file Excel của GV {info['teacher']}", 
+                    label="📊 Tải file Excel", 
                     data=excel_history_data, 
                     file_name=f"Phan_Phoi_Chuong_Trinh_{info['teacher'].replace(' ', '_')}.xlsx", 
                     key=f"dl_excel_hist_{key_id}",
                     use_container_width=True
                 )
+                
+                # 🌟 TÍNH NĂNG MỚI: Nút xóa file đã tạo lưu trữ trong danh sách kho dữ liệu lịch sử
+                if h_col3.button("❌ Xóa bản ghi lịch sử", type="secondary", use_container_width=True, key=f"del_hist_rec_{key_id}"):
+                    keys_to_delete.append(key_id)
+                    
+        # Thực hiện tác vụ xóa bản ghi cũ ngoài vòng lặp để tránh lỗi lặp phần tử bộ nhớ của Python
+        if keys_to_delete:
+            for k in keys_to_delete:
+                del st.session_state["db_ke_hoach_da_luu"][k]
+            st.success("🗑️ Hệ thống đã dọn dẹp và xóa vĩnh viễn tệp bản ghi được chỉ định!")
+            st.rerun()
