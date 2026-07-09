@@ -11,3 +11,4 @@ matplotlib
 numpy
 gspread
 google-auth
+streamlit-quill
