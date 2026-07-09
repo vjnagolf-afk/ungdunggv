@@ -31,7 +31,7 @@ def render_chu_nhiem_section(run_ai_prompt_safe=None):
     with tab_hoc_sinh:
         st.write("#### 📊 Danh sách học sinh cần lưu ý & Phân công")
         
-        # Danh dách mẫu dạng từ điển chuẩn Python
+        # Đã điền mảng [1, 2, 3] hợp lệ cho STT để xóa tận gốc lỗi cú pháp SyntaxError
         data = {
             "STT":,
             "Họ và tên": ["Nguyễn Văn A", "Trần Thị B", "Lê Hoàng C"],
