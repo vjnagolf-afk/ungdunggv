@@ -32,25 +32,64 @@ def render_stem_section():
     ])
 
     # =========================================================
-    # THẺ 1: CÁC SẢN PHẨM STEM
+    # THẺ 1: CÁC SẢN PHẨM STEM (ĐÃ NÂNG CẤP BỘ LỌC AI)
     # =========================================================
     with tab1:
-        st.subheader("Danh sách & Gợi ý Chủ đề STEM từ AI")
+        st.subheader("⚙️ Bộ lọc tùy chỉnh yêu cầu AI gợi ý")
         
+        # Tạo 3 cột cho 3 Menu
+        col_m1, col_m2, col_m3 = st.columns(3)
+        with col_m1:
+            chon_khoi = st.selectbox("1. Chọn khối lớp:", ["Khối 9", "Khối 8", "Khối 7", "Khối 6"], index=0)
+        with col_m2:
+            chon_mon = st.selectbox("2. Môn học chủ đạo:", ["Khoa học tự nhiên", "Toán học", "Công nghệ", "Tin học"], index=0)
+        with col_m3:
+            chon_chu_de = st.selectbox("3. Chọn Chủ đề:", [
+                "Tiết kiệm năng lượng", 
+                "Bảo vệ môi trường", 
+                "Nông nghiệp thông minh", 
+                "Nhà thông minh (Smart Home)", 
+                "Chăm sóc sức khỏe", 
+                "Chủ đề tự do"
+            ])
+            
+        st.markdown("**Các lĩnh vực và yêu cầu tích hợp bổ sung:**")
+        
+        # Menu dạng tag cho phép chọn nhiều môn học tích hợp
+        mon_tich_hop = st.multiselect(
+            "Các môn học cần tích hợp (Mô hình STEM/STEAM):", 
+            ["Toán học (Math)", "Khoa học (Science)", "Công nghệ (Technology)", "Kỹ thuật (Engineering)", "Nghệ thuật (Art)"]
+        )
+        
+        # Các hộp kiểm (Checkboxes)
+        tich_hop_ai = st.checkbox("🔌 Tích hợp ứng dụng AI hoặc Vi điều khiển (Ví dụ: Arduino, ESP8266)", value=True)
+        tich_hop_khuyet_tat = st.checkbox("🤝 Phân hóa hoạt động và câu hỏi dành cho học sinh khuyết tật", value=True)
+        
+        st.markdown("---")
+        
+        # Nút gọi AI
         if st.button("Trợ lý AI nghiên cứu và gợi ý chủ đề mới", use_container_width=True):
-            with st.spinner("AI đang tổng hợp dữ liệu..."):
-                # Nội dung AI trả về
-                st.session_state.stem_ai_suggestions = """
-                ### 📌 Các dự án STEM phổ biến:
-                1. **Mô hình nhà kính nông nghiệp thông minh** (KHTN, Công nghệ)
-                2. **Hệ thống cảnh báo rò rỉ khí gas tự động** (KHTN, Tin học)
+            with st.spinner("AI đang phân tích các tiêu chí và tổng hợp dữ liệu..."):
                 
-                ### ✨ Đề xuất chủ đề mới (Tối ưu cho KHTN Lớp 9):
-                *   **Dự án 1: Hệ thống tiết kiệm năng lượng thông minh:** Sử dụng vi điều khiển ESP8266 và cảm biến để thiết kế hệ thống tự động ngắt điện, giảm thiểu lãng phí điện năng trong lớp học.
-                *   **Dự án 2: Công cụ học tập hòa nhập:** Ứng dụng STEM chế tạo các thiết bị vật lý trực quan hỗ trợ học sinh có nhu cầu giáo dục đặc biệt trong môn Khoa học tự nhiên.
+                # Biến cờ (flag) để hiển thị chữ Có/Không trong mô phỏng kết quả
+                str_ai = "Có" if tich_hop_ai else "Không"
+                str_ht = "Có" if tich_hop_khuyet_tat else "Không"
+                str_mon = ", ".join(mon_tich_hop) if mon_tich_hop else "Không yêu cầu"
+                
+                # Nội dung mô phỏng AI trả về dựa trên các tùy chọn của thầy
+                st.session_state.stem_ai_suggestions = f"""
+                ### 📌 Danh sách dự án STEM đề xuất cho {chon_khoi} - Môn {chon_mon}
+                *(Chủ đề: {chon_chu_de} | Tích hợp: {str_mon})*
+                
+                **1. Hệ thống giám sát và điều khiển {chon_chu_de.lower()} tự động**
+                *   **Mô tả:** Sử dụng vi điều khiển ESP8266 kết nối cảm biến để thu thập dữ liệu môi trường, tự động điều chỉnh thiết bị nhằm tối ưu hóa hiệu suất.
+                *   **Giáo dục hòa nhập:** Cung cấp sơ đồ mạch điện in nổi, các khối lệnh lập trình kéo thả màu sắc tương phản cao, phân công vai trò giám sát dữ liệu phù hợp với từng nhu cầu của học sinh.
+                
+                **2. Mô hình trực quan ứng dụng AI trong {chon_chu_de.lower()}**
+                *   **Mô tả:** Xây dựng mô hình vật lý kết hợp camera AI để nhận diện và phân loại, giúp học sinh nắm bắt thực tiễn của Khoa học Tự nhiên.
                 """
         
-        # Hiển thị kết quả
+        # Hiển thị kết quả gợi ý
         if st.session_state.stem_ai_suggestions:
             with st.container(border=True):
                 st.markdown(st.session_state.stem_ai_suggestions)
@@ -65,17 +104,14 @@ def render_stem_section():
         
         col1, col2 = st.columns(2)
         with col1:
-            # Mặc định là KHTN
-            mon_chu_dao = st.selectbox("Môn học chủ đạo:", ["Khoa học tự nhiên", "Toán học", "Công nghệ", "Tin học"], index=0)
-            # Mặc định là Lớp 9
-            lop_hoc = st.selectbox("Lớp:", ["Lớp 9", "Lớp 8", "Lớp 7", "Lớp 6"], index=0)
+            mon_chu_dao_t2 = st.selectbox("Môn học chủ đạo (Thẻ 2):", ["Khoa học tự nhiên", "Toán học", "Công nghệ", "Tin học"], index=0)
+            lop_hoc_t2 = st.selectbox("Lớp (Thẻ 2):", ["Lớp 9", "Lớp 8", "Lớp 7", "Lớp 6"], index=0)
         with col2:
             thoi_luong = st.text_input("Thời lượng thực hiện:", placeholder="Ví dụ: 3 Tiết")
         
         st.subheader("2. Yêu cầu tích hợp & Phân hóa")
-        # Tick sẵn các tùy chọn công nghệ và hòa nhập
-        tich_hop_ai_iot = st.checkbox("🔌 Tích hợp ứng dụng AI hoặc Vi điều khiển (Ví dụ: Arduino, ESP8266)", value=True)
-        tich_hop_hoa_nhap = st.checkbox("🤝 Phân hóa hoạt động và câu hỏi dành cho học sinh khuyết tật", value=True)
+        tich_hop_ai_iot_t2 = st.checkbox("🔌 Tích hợp ứng dụng AI hoặc Vi điều khiển (Ví dụ: Arduino, ESP8266)", value=True, key="cb1_t2")
+        tich_hop_hoa_nhap_t2 = st.checkbox("🤝 Phân hóa hoạt động và câu hỏi dành cho học sinh khuyết tật", value=True, key="cb2_t2")
         
         st.subheader("3. Tài liệu tham khảo (Học liệu nguồn)")
         tai_lieu_nguon = st.file_uploader("Tải lên file bài học, tài liệu tham khảo (PDF, Word)", accept_multiple_files=True)
@@ -89,10 +125,10 @@ def render_stem_section():
                 with st.spinner("Hệ thống đang thiết kế..."):
                     noi_dung_ai = f"""
                     # GIÁO ÁN STEM: {ten_chu_de}
-                    **Môn học:** {mon_chu_dao} | **Đối tượng:** {lop_hoc} | **Thời lượng:** {thoi_luong}
+                    **Môn học:** {mon_chu_dao_t2} | **Đối tượng:** {lop_hoc_t2} | **Thời lượng:** {thoi_luong}
                     
                     ## BƯỚC 1: XÁC ĐỊNH VẤN ĐỀ
-                    Học sinh xác định bài toán lãng phí điện năng...
+                    Học sinh xác định bài toán thực tiễn...
                     
                     ## BƯỚC 2: NGHIÊN CỨU KIẾN THỨC NỀN
                     Nghiên cứu nguyên lý vi điều khiển và mạch điện...
@@ -100,7 +136,6 @@ def render_stem_section():
                     st.session_state.stem_generated_content = noi_dung_ai
                     st.success("Thiết kế thành công!")
 
-        # Khu vực hiển thị và lưu
         if st.session_state.stem_generated_content != "":
             st.markdown("### 📖 KẾT QUẢ THIẾT KẾ")
             with st.container(border=True):
@@ -117,7 +152,6 @@ def render_stem_section():
                     use_container_width=True
                 )
             with col_save:
-                # Nút này sẽ đẩy dự án sang thẻ 3
                 if st.button("💾 Lưu dự án vào hệ thống", use_container_width=True):
                     st.session_state.stem_saved_projects[ten_chu_de] = st.session_state.stem_generated_content
                     st.toast("Đã lưu thành công! Hãy kiểm tra ở Thẻ 3.", icon="✅")
