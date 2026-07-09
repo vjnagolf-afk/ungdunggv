@@ -1,22 +1,15 @@
 import streamlit as st
 import io
 from docx import Document
-from st_quill import st_quill
 
-def export_to_word(title, content_html):
-    """Hàm xử lý chuyển đổi văn bản sang file Word (.docx)"""
+def export_to_word(title, content_text):
+    """Hàm xử lý tạo và tải file Word (.docx) sạch sẽ từ nội dung text"""
     doc = Document()
     doc.add_heading(title, level=1)
     
-    # Loại bỏ các thẻ HTML cơ bản từ Quill để đưa văn bản sạch vào file Word
-    clean_text = content_html.replace("<p>", "").replace("</p>", "\n")
-    clean_text = clean_text.replace("<strong>", "").replace("</strong>", "")
-    clean_text = clean_text.replace("<br>", "\n").replace("<br/>", "\n")
-    
-    # Chia nhỏ văn bản theo dòng và ghi vào file Word
-    for line in clean_text.split("\n"):
-        if line.strip():
-            doc.add_paragraph(line)
+    # Ghi từng dòng văn bản vào file Word
+    for line in content_text.split("\n"):
+        doc.add_paragraph(line)
             
     bio = io.BytesIO()
     doc.save(bio)
@@ -54,7 +47,7 @@ def render_chu_nhiem_section(run_ai_prompt_safe=None):
             st.success("Đã cập nhật và lưu trữ kế hoạch năm học thành công!")
 
     # =========================================================================
-    # THÈ 2: KẾ HOẠCH CÔNG TÁC THEO THÁNG - ĐỊNH DẠNG RICH TEXT & XUẤT WORD
+    # THÈ 2: KẾ HOẠCH CÔNG TÁC THEO THÁNG - HIỂN THỊ ĐỊNH DẠNG DỌC & TẢI WORD
     # =========================================================================
     with tab_hang_thang:
         st.write("#### 🛠 CẤU HÌNH THÔNG TIN CHỦ NHIỆM")
@@ -70,58 +63,67 @@ def render_chu_nhiem_section(run_ai_prompt_safe=None):
             selected_thang = st.selectbox("Chọn Tháng công tác:", thang_options, key="sb_thang_cong_tac")
             
         st.write("---")
-        ghi_chu_them = st.text_input("Yêu cầu bổ sung đặc biệt cho tháng này (nếu có):", placeholder="Ví dụ: Chuẩn bị đại hội Chi đội, phụ đạo học sinh yếu...", key="txt_ghi_chu_them")
+        ghi_chu_them = st.text_input("Yêu cầu bổ sung đặc biệt cho tháng này (nếu có):", placeholder="Ví dụ: Chuẩn bị văn nghệ, uốn nắn học sinh cá biệt...", key="txt_ghi_chu_them")
         
-        # Khởi tạo giá trị ban đầu trong session_state để lưu trữ kế hoạch tránh bị mất khi rerun
-        if "id_ke_hoach_content" not in st.session_state:
-            st.session_state["id_ke_hoach_content"] = "<p><i>Kế hoạch trống. Vui lòng nhấn nút Khởi tạo bên dưới để AI tự động biên soạn nội dung...</i></p>"
+        # Khởi tạo vùng lưu trữ nội dung trong phiên làm việc (session state)
+        if "content_ke_hoach_thang" not in st.session_state:
+            st.session_state["content_ke_hoach_thang"] = ""
             
-        # Nút bấm kích hoạt AI lập kế hoạch chủ động
+        # Nút bấm ra lệnh cho AI soạn thảo tự động
         if st.button("🚀 Khởi tạo Kế hoạch bằng AI", type="primary", key="btn_chu_nhiem_ai"):
             if run_ai_prompt_safe is not None:
                 with st.spinner(f"AI đang thiết lập kế hoạch {selected_thang}..."):
                     prompt_he_thong = f"""
-                    Bạn là trợ lý AI cho giáo viên chủ nhiệm THCS Việt Nam. Hãy lập bản kế hoạch công tác cho lớp {selected_lop} trong {selected_thang}.
-                    Đầu ra CỦA BẠN PHẢI sử dụng mã HTML cơ bản (thẻ <p>, <strong>, <br/>) để hiển thị chính xác cấu trúc xuống dòng đẹp mắt:
+                    Bạn là trợ lý AI cho giáo viên chủ nhiệm THCS Việt Nam. Hãy lập một bản kế hoạch công tác chủ nhiệm cực kỳ chi tiết cho lớp {selected_lop} trong {selected_thang}.
                     
-                    <strong>KẾ HOẠCH CÔNG TÁC CHỦ NHIỆM LỚP {selected_lop} - {selected_thang.upper()}</strong><br/><br/>
-                    <strong>1. Chủ điểm:</strong> [Xác định chủ điểm giáo dục tương ứng tháng, ví dụ Tháng 2 là 'Mừng Đảng - Mừng Xuân']<br/>
-                    - [Nhiệm vụ 1]<br/>
-                    - [Nhiệm vụ 2]<br/><br/>
-                    <strong>2. Nội dung hoạt động:</strong><br/>
-                    - [Các dòng việc lớn cần triển khai, kiểm tra nề nếp, duy trì sĩ số trước sau tết, chăm sóc CTMN...]<br/><br/>
-                    <strong>* KẾ HOẠCH TỪNG TUẦN:</strong><br/>
-                    - <strong>TUẦN 22:</strong> [Nhiệm vụ cụ thể từng mục nề nếp, sĩ số, sinh hoạt đầu giờ, tổng hợp sổ đầu bài...]<br/>
-                    - <strong>TUẦN 23:</strong> [Nhiệm vụ cụ thể...]<br/>
+                    YÊU CẦU ĐẦU RA PHẢI ĐƯỢC PHÂN TÁCH DÒNG RÕ RÀNG THEO ĐÚNG ĐỊNH DẠNG CẤU TRÚC SAU:
+                    
+                    KẾ HOẠCH THÁNG {selected_thang.split('/')[0].replace('Tháng ', '')}/{selected_thang.split('/')[-1]}
+                    1. Chủ điểm: [Tên chủ điểm tương ứng, ví dụ Tháng 2 là 'Mừng Đảng - Mừng Xuân']
+                    - [Nhiệm vụ thi đua 1]
+                    - [Nhiệm vụ thi đua 2]
+                    
+                    2. Nội dung hoạt động:
+                    - [Đầu việc lớn 1: Duy trì sĩ số học sinh, nề nếp...]
+                    - [Đầu việc lớn 2: Vệ sinh cảnh quan trường lớp, công trình măng non...]
+                    - [Đầu việc lớn 3: Phong trào thi đua tại liên đội...]
+                    
+                    * KẾ HOẠCH TỪNG TUẦN:
+                    - TUẦN 22: (Ổn định nề nếp, sinh hoạt 15 phút đầu giờ thường xuyên theo đúng chủ đề, nhắc nhở giờ giấc học tập, học bài và làm bài đầy đủ, tổng hợp sổ đầu bài vào thứ 7...)
+                    - TUẦN 23: (...)
+                    - TUẦN 24: (...)
+                    
+                    Yêu cầu bổ sung từ giáo viên (nếu có): {ghi_chu_them}
+                    Cấm viết tất cả văn bản trên cùng một dòng ngang. Hãy dùng dấu xuống dòng liên tục giữa các mục để tạo cấu trúc dọc đẹp mắt.
                     """
                     response = run_ai_prompt_safe(prompt_he_thong)
-                    # Chuyển đổi các dấu xuống dòng thông thường thành thẻ <br/> để Quill đọc hiểu định dạng dọc
-                    st.session_state["id_ke_hoach_content"] = response.replace("\n", "<br/>")
+                    st.session_state["content_ke_hoach_thang"] = response
             else:
                 st.info("Hệ thống kết nối AI đang được đồng bộ...")
 
-        st.write("#### 📝 KHUNG SOẠN THẢO KẾ HOẠCH THÁNG (Có thể chỉnh sửa trực tiếp)")
+        # HIỂN THỊ KHUNG VĂN BẢN ĐỊNH DẠNG DỌC (Cho phép giáo viên chỉnh sửa trực tiếp)
+        st.write("#### 📝 KHUNG SOẠN THẢO KẾ HOẠCH THÁNG")
         
-        # BƯỚC ĐỘT PHÁ: Sử dụng st_quill để tạo khung soạn thảo văn bản giàu định dạng giống hệt như ảnh mẫu
-        edited_content = st_quill(
-            value=st.session_state["id_ke_hoach_content"],
-            html=True,
-            toolbar=["bold", "italic", "underline", "strike", {"list": "ordered"}, {"list": "bullet"}, {"align": []}, "color", "background", "font", "size"],
-            key="quill_editor"
+        edited_text = st.text_area(
+            label="Nội dung kế hoạch hiển thị theo cấu trúc dọc (Bấm vào để tự do sửa đổi):",
+            value=st.session_state["content_ke_hoach_thang"],
+            height=400,
+            key="ta_main_editor"
         )
         
-        # Cập nhật lại nội dung đã sửa đổi vào session state
-        st.session_state["id_ke_hoach_content"] = edited_content
+        # Cập nhật dữ liệu chỉnh sửa của giáo viên vào bộ nhớ tạm
+        st.session_state["content_ke_hoach_thang"] = edited_text
         
-        # CHỨC NĂNG XUẤT FILE WORD (.DOCX)
-        st.write("")
-        file_name_doc = f"Ke_hoach_chu_nhiem_{selected_lop.replace(' ', '_')}_{selected_thang.replace('/', '_')}.docx"
-        word_data = export_to_word(f"KẾ HOẠCH CHỦ NHIỆM LỚP {selected_lop} - {selected_thang.upper()}", edited_content)
-        
-        st.download_button(
-            label="📥 Tải xuống file Word (.docx)",
-            data=word_data,
-            file_name=file_name_doc,
-            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            key="btn_download_word"
-        )
+        # NÚT XUẤT FILE WORD (.DOCX) ĐÃ ĐƯỢC ĐỒNG BỘ
+        if st.session_state["content_ke_hoach_thang"].strip():
+            st.write("")
+            file_name_doc = f"Ke_hoach_chu_nhiem_{selected_lop}_{selected_thang.replace('/', '_')}.docx"
+            word_file_bytes = export_to_word(f"KẾ HOẠCH CHỦ NHIỆM LỚP {selected_lop} - {selected_thang.upper()}", edited_text)
+            
+            st.download_button(
+                label="📥 Tải xuống file Word (.docx)",
+                data=word_file_bytes,
+                file_name=file_name_doc,
+                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                key="btn_download_word"
+            )
