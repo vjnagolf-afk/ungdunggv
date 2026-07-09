@@ -18,13 +18,20 @@ TAB_NAME = "DE_KT"
 
 def sync_to_google_sheet(ten_de, mon, khoi, thoi_gian, noi_dung):
     """
-    Hàm tự động kết nối và ghi dữ liệu đề thi vào Google Sheets
+    Hàm kết nối Google Sheets có bổ sung cơ chế quét tìm key thông minh
     """
     try:
-        # Kết nối tới Google API bằng credentials trong Streamlit secrets
-        gc = gspread.service_account_from_dict(st.secrets["gspread_credentials"])
+        # Tự động quét tìm key bất kể thầy viết hoa hay viết thường trong Secrets
+        creds_dict = st.secrets.get("gspread_credentials", st.secrets.get("GSPREAD_CREDENTIALS", None))
         
-        # Mở Spreadsheet bằng ID chính xác của bạn
+        if creds_dict is None:
+            st.error("Không tìm thấy gspread_credentials trong hệ thống Secrets!")
+            return False
+            
+        # Kết nối tới Google API
+        gc = gspread.service_account_from_dict(creds_dict)
+        
+        # Mở Spreadsheet bằng ID chính xác của thầy
         sh = gc.open_by_key(SPREADSHEET_ID)
         
         # Mở tab chính xác tên DE_KT
@@ -38,7 +45,6 @@ def sync_to_google_sheet(ten_de, mon, khoi, thoi_gian, noi_dung):
         worksheet.append_row([ten_de, mon, khoi, thoi_gian, noi_dung])
         return True
     except Exception as e:
-        # Chỉ ghi nhận lỗi hệ thống ra log, không làm gián đoạn trải nghiệm người dùng
         st.warning(f"Không thể đồng bộ Google Sheet: {e}")
         return False
 # ==========================================
