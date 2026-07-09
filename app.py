@@ -8,11 +8,12 @@ from grade_manager import render_grade_manager_section
 from tkb_manager import render_tkb_manager  
 from khbd_manager import render_khbd_section  
 from danh_gia_manager import render_assessment_section
-from chu_nhiem_manager import render_tab_7
+
 from org_manager import render_org_section
 from bien_ban_manager import render_meeting_minutes
 from ke_hoach_ca_nhan_manager import render_personal_plan 
 from stem_manager import render_stem_section
+from chu_nhiem_manager import render_tab_7
 # --- 2. CẤU HÌNH ĐỌC API KEY TỰ ĐỘNG TỪ TRONG SECRETS ---
 API_KEY_HE_THONG = st.secrets.get("GEMINI_API_KEY", "")
 
