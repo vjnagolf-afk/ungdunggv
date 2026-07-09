@@ -56,14 +56,14 @@ st.markdown("---")
 
 # Tạo hộp thông tin Tác giả - Đơn vị bằng HTML/CSS để có thể tùy chỉnh màu sắc
 html_author_box = """
-<div style="background-color: white; padding: 12px; border-radius: 5px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-top: 20px; border: 1px solid #e6e6e6;">
-    <div style="margin-bottom: 10px; display: flex; align-items: center;">
-        <span style="color: red; font-weight: bold; font-size: 16px; width: 70px;">Tác giả:</span>
-        <span style="color: #0056b3; font-weight: bold; font-style: italic; font-size: 17px;">Lê Hồng Dưỡng</span>
+<div style="background-color: white; padding: 10px; border-radius: 5px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-top: 14px; border: 1px solid #e6e6e6;">
+    <div style="margin-bottom: 8px; display: flex; align-items: center;">
+        <span style="color: red; font-weight: bold; font-size: 12px; width: 50px;">Tác giả:</span>
+        <span style="color: #0056b3; font-weight: bold; font-style: italic; font-size: 12px;">Lê Hồng Dưỡng</span>
     </div>
     <div style="display: flex; align-items: center;">
-        <span style="color: red; font-weight: bold; font-size: 16px; width: 70px;">Đơn vị:</span>
-        <span style="color: #0056b3; font-weight: bold; font-style: italic; font-size: 17px;">THCS Nguyễn Chí Thanh</span>
+        <span style="color: red; font-weight: bold; font-size: 12px; width: 50px;">Đơn vị:</span>
+        <span style="color: #0056b3; font-weight: bold; font-style: italic; font-size: 12px;">THCS Nguyễn Chí Thanh</span>
     </div>
 </div>
 """
