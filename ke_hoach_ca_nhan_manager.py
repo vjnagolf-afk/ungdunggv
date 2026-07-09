@@ -174,26 +174,15 @@ def render_personal_plan(run_ai_handler=None):
         col_t, col_s = st.columns(2)
         t_name = col_t.text_input("Họ và tên Giáo viên giảng dạy:", placeholder="Ví dụ: Thầy Lê Hồng Dưỡng", key="plan_txt_t_name_v8")
         
-        # 🌟 NÂNG CẤP MENU MÔN HỌC: Bao gồm cả môn chung tích hợp và các phân môn con độc lập
         danh_sach_mon_hoc = [
-            "Toán học", 
-            "Ngữ văn", 
-            "Tiếng Anh", 
-            "Giáo dục công dân", 
-            "Khoa học tự nhiên (Xây dựng kế hoạch CHUNG)", # <-- Tùy chọn làm KHDH chung toàn môn
-            "Khoa học tự nhiên (Phân môn Vật lí)", 
-            "Khoa học tự nhiên (Phân môn Hóa học)", 
-            "Khoa học tự nhiên (Phân môn Sinh học)", 
-            "Lịch sử và Địa lí (Xây dựng kế hoạch CHUNG)", # <-- Tùy chọn làm KHDH chung toàn môn
-            "Lịch sử và Địa lí (Phân môn Lịch sử)", 
-            "Lịch sử và Địa lí (Phân môn Địa lí)", 
-            "Công nghệ", 
-            "Tin học", 
-            "Giáo dục thể chất", 
-            "Nghệ thuật (Âm nhạc)", 
-            "Nghệ thuật (Mĩ thuật)", 
-            "Hoạt động trải nghiệm, hướng nghiệp", 
-            "Giáo dục địa phương"
+            "Toán học", "Ngữ văn", "Tiếng Anh", "Giáo dục công dân", 
+            "Khoa học tự nhiên (Xây dựng kế hoạch CHUNG)", 
+            "Khoa học tự nhiên (Phân môn Vật lí)", "Khoa học tự nhiên (Phân môn Hóa học)", "Khoa học tự nhiên (Phân môn Sinh học)", 
+            "Lịch sử và Địa lí (Xây dựng kế hoạch CHUNG)", 
+            "Lịch sử và Địa lí (Phân môn Lịch sử)", "Lịch sử và Địa lí (Phân môn Địa lý)", 
+            "Công nghệ", "Tin học", "Giáo dục thể chất", 
+            "Nghệ thuật (Âm nhạc)", "Nghệ thuật (Mĩ thuật)", 
+            "Hoạt động trải nghiệm, hướng nghiệp", "Giáo dục địa phương"
         ]
         s_name = col_s.selectbox("Môn học / Phân môn phụ trách:", danh_sach_mon_hoc, key="plan_sb_s_name_v8")
         
@@ -202,6 +191,14 @@ def render_personal_plan(run_ai_handler=None):
         week_count = col_w.text_input("Tổng số tuần thực hiện kế hoạch:", placeholder="35 Tuần", value="35 Tuần", key="plan_txt_week_count_v8")
         total_lessons = col_total.number_input("Tổng số tiết trong năm học:", min_value=1, max_value=300, value=70, step=1, key="plan_num_total_lessons_v8")
         
+        # 🌟 TÍNH NĂNG MỚI: Khu vực cấu hình tuần kiểm tra định kỳ (HK I và HK II)
+        st.markdown("**📅 Cấu hình Tuần Kiểm tra định kỳ (8 tiết cố định):**")
+        w_col1, w_col2, w_col3, w_col4 = st.columns(4)
+        w_gk1 = w_col1.number_input("Giữa kỳ I (Tuần):", min_value=1, max_value=35, value=9, step=1, key="w_gk1_v8")
+        w_ck1 = w_col2.number_input("Cuối kỳ I (Tuần):", min_value=1, max_value=35, value=18, step=1, key="w_ck1_v8")
+        w_gk2 = w_col3.number_input("Giữa kỳ II (Tuần):", min_value=1, max_value=35, value=27, step=1, key="w_gk2_v8")
+        w_ck2 = w_col4.number_input("Cuối kỳ II (Tuần):", min_value=1, max_value=35, value=35, step=1, key="w_ck2_v8")
+
         st.markdown("**💬 Các tiêu chí đặc thù hoặc lưu ý phân bổ tiết (Nếu có):**")
         note_plan = st.text_area("Yêu cầu bổ sung cho AI:", placeholder="Ví dụ: Cần chia nhỏ phân phối chương trình thành từng tiết đơn lẻ 1, 2, 3...", label_visibility="collapsed", key="plan_ta_note_v8")
         
@@ -213,24 +210,29 @@ def render_personal_plan(run_ai_handler=None):
         if not t_name or not grade_target:
             st.warning("⚠️ Vui lòng điền Họ tên giáo viên và Khối lớp để AI lập kế hoạch!")
         else:
-            with st.spinner("Trợ lý AI đang tổng hợp các file tài liệu và phân bổ đều số tiết dạy..."):
+            with st.spinner("Trợ lý AI đang xử lý tài liệu và phân rải 8 tiết kiểm tra định kỳ..."):
                 combined_context = ""
                 if uploaded_files:
                     for f in uploaded_files:
                         combined_context += extract_text_from_file(f) + "\n\n"
                 
+                # CẢI TIẾN QUY TẮC PROMPT: Khóa chặt quy tắc kiểm tra định kỳ liên tiếp vào tuần chỉ định
                 prompt_plan = (
                     f"Hãy soạn thảo phân bổ chương trình dạy học chi tiết bám sát định hướng Chương trình GDPT 2018 cho giáo viên: {t_name}, môn: {s_name}, khối: {grade_target} trong {week_count}. "
                     f"Tổng số tiết bắt buộc phải rải đều trong năm học là: {total_lessons} tiết.\n"
                     f"Yêu cầu bổ sung kỹ thuật: {note_plan}. "
-                    f"Nhiệm vụ của bạn là phải phân tích, bám sát và kế thừa tối đa từ các tài liệu đính kèm (nội dung bài học từ file SGK hoặc cấu trúc phân bổ từ file Excel kế hoạch có sẵn) dưới đây:\n"
-                    f"[DỮ LIỆU THAM KHẢO TỪ CÁC FILE TÀI LIỆU]:\n{combined_context}\n\n"
-                    f"Quy tắc chia dòng: Danh sách kết quả phải chạy lũy tiến từ Tiết CT số 1 cho đến tiết số {total_lessons}. Mỗi hàng ứng với 1 tiết duy nhất, số tiết ghi rõ là 1. "
+                    f"Bạn phải phân tích và kế thừa tối đa nội dung từ các tài liệu tham khảo đính kèm sau đây:\n{combined_context}\n\n"
+                    f"🚨 QUY TẮC BẮT BUỘC VỀ KIỂM TRA ĐỊNH KỲ (Tổng cộng 8 tiết, mỗi tiết chiếm 1 hàng riêng biệt, số tiết ghi rõ là 1):\n"
+                    f"1. Tại Tuần {w_gk1}: Phải chèn 2 tiết liên tiếp có tên bài học là 'Kiểm tra, đánh giá giữa kì I'.\n"
+                    f"2. Tại Tuần {w_ck1}: Phải chèn 2 tiết liên tiếp có tên bài học là 'Kiểm tra, đánh giá cuối kì I'.\n"
+                    f"3. Tại Tuần {w_gk2}: Phải chèn 2 tiết liên tiếp có tên bài học là 'Kiểm tra, đánh giá giữa kì II'.\n"
+                    f"4. Tại Tuần {w_ck2}: Phải chèn 2 tiết liên tiếp có tên bài học là 'Kiểm tra, đánh giá cuối kì II'.\n"
+                    f"Các tuần còn lại, hãy rải đều các bài học chuyên môn sao cho chỉ số 'TietCT' tăng tiến liên tục từ 1 đến {total_lessons}.\n\n"
                     f"Trả về mảng JSON thuần túy gồm danh sách các đối tượng, không kèm markdown thô nào ngoài thẻ mở/đóng json. "
-                    f"Mỗi đối tượng bắt buộc phải chứa đúng cấu trúc 8 khóa sau không được sai lệch: "
-                    f'[{{"TietCT": "Số thứ tự tiết lũy tiến (từ 1 đến {total_lessons})", "BaiHoc": "Tên bài học cụ thể", '
-                    f'"SoTiet": "1", "ThoiDiem": "Tuần thực hiện (Phân bổ hợp lý trong {week_count})", '
-                    f'"YeuCauCanDat": "Yêu cầu cần đạt sinh tự động bám sát theo tài liệu", "ThietBi": "Thiết bị dạy học sử dụng cụ thể", "DiaDiem": "Địa điểm dạy học (Mặc định: Lớp học)"}}]'
+                    f"Mỗi đối tượng bắt buộc phải chứa đúng cấu trúc 8 khóa sau không được sai lệch:\n"
+                    f'[{{"TietCT": "Số thứ tự tiết lũy tiến (từ 1 đến {total_lessons})", "BaiHoc": "Tên bài học cụ thể hoặc tên bài kiểm tra định kỳ tương ứng", '
+                    f'"SoTiet": "1", "ThoiDiem": "Tuần thực hiện (Ví dụ: Tuần {w_gk1})", '
+                    f'"YeuCauCanDat": "Yêu cầu cần đạt sinh tự động (Đối với bài kiểm tra ghi rõ: Đánh giá năng lực học sinh theo ma trận đề)", "ThietBi": "Thiết bị dạy học sử dụng cụ thể (Đối với bài kiểm tra ghi rõ: Đề kiểm tra, giấy thi)", "DiaDiem": "Địa điểm dạy học (Mặc định: Lớp học)"}}]'
                 )
                 
                 if run_ai_handler is not None:
@@ -254,7 +256,7 @@ def render_personal_plan(run_ai_handler=None):
                                 "weeks": week_count,
                                 "data": parsed_data
                             }
-                            st.success("🎉 Khởi tạo và lưu trữ phân phối chương trình thành công!")
+                            st.success("🎉 Khởi tạo kế hoạch phân bổ tiết và bài kiểm tra định kỳ thành công!")
                         except Exception as parse_err:
                             st.error("⚠️ AI phản hồi cấu hình phân tách hàng chưa đồng bộ. Vui lòng bấm thử lại để làm mới.")
                 else:
@@ -268,7 +270,6 @@ def render_personal_plan(run_ai_handler=None):
         df_display = pd.DataFrame(st.session_state["current_ai_output_raw"])
         st.dataframe(df_display, use_container_width=True, hide_index=True)
         
-        # Chia thành 3 cột để xếp nút Tải Word, Tải Excel và nút Xóa file hiện hành nằm ngang hàng
         btn_col1, btn_col2, btn_col3 = st.columns(3)
         
         word_plan_data = export_plan_to_docx_with_table(
@@ -277,7 +278,7 @@ def render_personal_plan(run_ai_handler=None):
             st.session_state["current_ai_output_raw"]
         )
         btn_col1.download_button(
-            label="📥 Tải file Word (.docx) Phụ lục III", 
+            label="📥 Tải file Word (.docx) Phụ lục III chuẩn", 
             data=word_plan_data, 
             file_name=f"Phu_Luc_III_{st.session_state['current_teacher_active'].replace(' ', '_')}.docx", 
             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document", 
@@ -290,14 +291,13 @@ def render_personal_plan(run_ai_handler=None):
             st.session_state["current_ai_output_raw"]
         )
         btn_col2.download_button(
-            label="📊 Tải file Excel (.xlsx) Phân phối chương trình", 
+            label="📊 Tải file Excel (.xlsx) Phân phối chương trình chi tiết", 
             data=excel_plan_data, 
             file_name=f"Phan_Phoi_Chuong_Trinh_{st.session_state['current_teacher_active'].replace(' ', '_')}.xlsx", 
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", 
             use_container_width=True
         )
         
-        # 🌟 TÍNH NĂNG MỚI: Thêm nút xóa nhanh file vừa khởi tạo
         if btn_col3.button("🗑️ Xóa bản kế hoạch hiện tại", type="secondary", use_container_width=True, key="btn_clear_current_active_v8"):
             st.session_state["current_ai_output_raw"] = None
             st.success("💥 Đã xóa bảng hiển thị hiện hành.")
@@ -305,12 +305,10 @@ def render_personal_plan(run_ai_handler=None):
     else:
         st.caption("Khung kế hoạch chi tiết dạng bảng biểu 8 cột sẽ xuất hiện tại đây sau khi bấm nút khởi tạo...")
 
-    # --- KHU VỰC LỊCH SỬ KẾ HOẠCH ĐÃ LƯU TRONG TOÀN HỆ THỐNG ---
+    # --- KHU VỰC LỊCH SỬ KẾ HOẠCH ĐÃ LƯU ---
     if st.session_state["db_ke_hoach_da_luu"]:
         st.markdown("---")
         st.markdown("### 🗂️ Danh sách Kế hoạch Giáo dục đã lưu trên Hệ thống:")
-        
-        # Cực kỳ thông minh: Cho phép xóa phần tử cũ trong lịch sử thông qua vòng lặp an toàn
         keys_to_delete = []
         for key_id, info in st.session_state["db_ke_hoach_da_luu"].items():
             with st.expander(f"📋 Bản kế hoạch môn {info['subject']} - GV: {info['teacher']} (Khối {info['grade']})"):
@@ -318,7 +316,6 @@ def render_personal_plan(run_ai_handler=None):
                 df_history = pd.DataFrame(info['data'])
                 st.dataframe(df_history, use_container_width=True, hide_index=True)
                 
-                # Sắp xếp hàng ngang gồm 3 nút chức năng (Tải Word, Tải Excel, Xóa kho lịch sử)
                 h_col1, h_col2, h_col3 = st.columns(3)
                 
                 word_history_data = export_plan_to_docx_with_table(info['teacher'], info['subject'], info['data'])
@@ -339,11 +336,9 @@ def render_personal_plan(run_ai_handler=None):
                     use_container_width=True
                 )
                 
-                # 🌟 TÍNH NĂNG MỚI: Nút xóa file đã tạo lưu trữ trong danh sách kho dữ liệu lịch sử
                 if h_col3.button("❌ Xóa bản ghi lịch sử", type="secondary", use_container_width=True, key=f"del_hist_rec_{key_id}"):
                     keys_to_delete.append(key_id)
                     
-        # Thực hiện tác vụ xóa bản ghi cũ ngoài vòng lặp để tránh lỗi lặp phần tử bộ nhớ của Python
         if keys_to_delete:
             for k in keys_to_delete:
                 del st.session_state["db_ke_hoach_da_luu"][k]
