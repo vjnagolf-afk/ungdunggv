@@ -52,29 +52,14 @@ if "db_phan_cong_hien_tai" not in st.session_state:
 
 st.set_page_config(page_title="HỆ SINH THÁI SỐ GIÁO VIÊN", layout="wide")
 
-st.title("🔰 HỆ SINH THÁI SỐ - HỖ TRỢ GIÁO VIÊN")
-st.caption("Sản phẩm tham gia Cuộc thi AI for Life năm 2026, trường THCS Nguyễn Chí Thanh - Phường Tân Lập tỉnh Đắk Lắk")
+# --- 4. GIAO DIỆN PHẦN CHÍNH (CANH GIỮA, ĐỔI MÀU) ---
+st.markdown("<h1 style='text-align: center; color: darkred; font-weight: bold;'>🔰 HỆ SINH THÁI SỐ - HỖ TRỢ GIÁO VIÊN</h1>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; color: #0056b3; font-weight: bold; font-size: 16px;'>Sản phẩm tham gia Cuộc thi AI for Life năm 2026, trường THCS Nguyễn Chí Thanh - Phường Tân Lập tỉnh Đắk Lắk</p>", unsafe_allow_html=True)
 st.markdown("---")
 
-# Tạo hộp thông tin Tác giả - Đơn vị bằng HTML/CSS để có thể tùy chỉnh màu sắc
-html_author_box = """
-<div style="background-color: white; padding: 10px; border-radius: 5px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-top: 14px; border: 1px solid #e6e6e6;">
-    <div style="margin-bottom: 8px; display: flex; align-items: center;">
-        <span style="color: red; font-weight: bold; font-size: 12px; width: 50px;">Tác giả:</span>
-        <span style="color: #0056b3; font-weight: bold; font-style: italic; font-size: 12px;">Lê Hồng Dưỡng</span>
-    </div>
-    <div style="display: flex; align-items: center;">
-        <span style="color: red; font-weight: bold; font-size: 12px; width: 50px;">Đơn vị:</span>
-        <span style="color: #0056b3; font-weight: bold; font-style: italic; font-size: 12px;">THCS Nguyễn Chí Thanh</span>
-    </div>
-</div>
-"""
-
-# Hiển thị lên Sidebar
-st.sidebar.markdown(html_author_box, unsafe_allow_html=True)
 
 ## ==================================================================================
-# --- THANH ĐIỀU HƯỚNG TỔNG ---
+# --- THANH ĐIỀU HƯỚNG TỔNG (ĐẨY LÊN TRÊN CÙNG SIDEBAR) ---
 ## ==================================================================================
 st.sidebar.markdown("### MENU HỆ THỐNG")
 st.sidebar.caption("CHỌN PHÂN HỆ TÁC NGHIỆP")
@@ -106,7 +91,7 @@ if phan_he == "Trợ lý Giảng dạy (Giáo viên)":
     elif menu == "6. Thiết kế bài dạy STEM":
         render_stem_section()
     elif menu == "7. Kế hoạch công tác chủ nhiệm lớp":
-        render_chu_nhiem_section(lambda p: run_ai_prompt_safe(p))  # Chỉ giữ 1 dấu đóng ngoặc ở cuối
+        render_chu_nhiem_section(lambda p: run_ai_prompt_safe(p))
 
 else:  # Phân hệ Quản lý tổ chuyên môn
     st.sidebar.markdown("### 📂 QUẢN LÝ TỔ CHUYÊN MÔN")
@@ -218,4 +203,18 @@ else:  # Phân hệ Quản lý tổ chuyên môn
             st.markdown("### 🗂️ Danh sách trích xuất dữ liệu chi tiết")
             st.dataframe(df_tv, use_container_width=True, hide_index=True)
 
-
+# --- 6. HỘP THÔNG TIN TÁC GIẢ (ĐƯA XUỐNG DƯỚI CÙNG SIDEBAR, XÓA NỀN TRẮNG) ---
+# Dùng CSS trong suốt (transparent) và loại bỏ border/box-shadow
+html_author_box = """
+<div style="padding: 10px; margin-top: 50px;">
+    <div style="margin-bottom: 8px; display: flex; align-items: center;">
+        <span style="color: red; font-weight: bold; font-size: 13px; width: 60px;">Tác giả:</span>
+        <span style="color: #0056b3; font-weight: bold; font-style: italic; font-size: 13px;">Lê Hồng Dưỡng</span>
+    </div>
+    <div style="display: flex; align-items: center;">
+        <span style="color: red; font-weight: bold; font-size: 13px; width: 60px;">Đơn vị:</span>
+        <span style="color: #0056b3; font-weight: bold; font-style: italic; font-size: 13px;">THCS Nguyễn Chí Thanh</span>
+    </div>
+</div>
+"""
+st.sidebar.markdown(html_author_box, unsafe_allow_html=True)
