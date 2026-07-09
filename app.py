@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from google import genai
+from google.api_core import exceptions  # Thêm thư viện để nhận diện lỗi hệ thống AI chính xác
 
 # --- 1. PHÂN LUỒNG IMPORT CÁC MODULE ĐỘC LẬP ---
 from exam_designer import render_exam_designer_section
@@ -13,7 +14,7 @@ from org_manager import render_org_section
 from bien_ban_manager import render_meeting_minutes
 from ke_hoach_ca_nhan_manager import render_personal_plan 
 from stem_manager import render_stem_section
-from chu_nhiem_manager import render_chu_nhiem_section
+from chu_nhiem_section import render_chu_nhiem_section
 
 # --- 2. CẤU HÌNH ĐỌC API KEY TỰ ĐỘNG TỪ TRONG SECRETS ---
 API_KEY_HE_THONG = st.secrets.get("GEMINI_API_KEY", "")
@@ -22,27 +23,40 @@ def run_ai_prompt_safe(prompt_text):
     api_key = API_KEY_HE_THONG
     if not api_key:
         return "⚠️ Hệ thống chưa được cấu hình API Key trong mục Secrets. Vui lòng liên hệ Admin.", "error"
-    try:
-        client = genai.Client(api_key=api_key)
-        response = client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=prompt_text,
-        )
-        return response.text, "gemini-2.5-flash"
-    except Exception as main_error:
-        error_msg = str(main_error)
-        if "503" in error_msg or "UNAVAILABLE" in error_msg or "high demand" in error_msg:
-            try:
-                client = genai.Client(api_key=api_key)
-                response = client.models.generate_content(
-                    model='gemini-1.5-flash',
-                    contents=prompt_text,
-                )
-                return response.text, "gemini-1.5-flash (Kênh Dự phòng)"
-            except Exception as backup_error:
-                return f"Lỗi quá tải hệ thống trên diện rộng: {str(backup_error)}", "error"
-        else:
-            return f"Lỗi kết nối AI: {error_msg}", "error"
+    
+    # DANH SÁCH MÔ HÌNH DỰ PHÒNG THEO THỨ TỰ ƯU TIÊN (Chuẩn cú pháp SDK google-genai mới)
+    MODEL_FALLBACK_LIST = [
+        "gemini-2.5-flash",        # Ưu tiên 1: Mô hình Flash chuẩn của hệ thống hiện tại
+        "gemini-1.5-flash",        # Ưu tiên 2: Mô hình Flash đời cũ cực kỳ ổn định
+        "gemini-2.5-pro",          # Ưu tiên 3: Mô hình Pro cao cấp
+        "gemini-1.5-pro",          # Ưu tiên 4: Mô hình Pro thế hệ 1.5 (hạn mức 50 câu/ngày)
+        "gemini-3.1-flash-lite"    # Ưu tiên 5: Mô hình "chống cháy" tối ưu chi phí, hạn mức tự do cao
+    ]
+    
+    last_error_message = ""
+    client = genai.Client(api_key=api_key)
+    
+    # VÒNG LẶP TỰ ĐỘNG QUÉT VÀ THỬ NGHIỆM TỪNG MÔ HÌNH
+    for model_name in MODEL_FALLBACK_LIST:
+        try:
+            response = client.models.generate_content(
+                model=model_name,
+                contents=prompt_text,
+            )
+            # Nếu thành công, lập tức trả về nội dung đề và tên chính xác của mô hình đã xử lý
+            return response.text, model_name
+            
+        except (exceptions.ResourceExhausted, Exception) as error:
+            # Ghi nhận thông báo lỗi hiện tại
+            error_msg = str(error)
+            last_error_message = f"Mô hình {model_name} lỗi hoặc hết hạn mức (Quota). Đang lùi về mô hình tiếp theo..."
+            
+            # Đẩy thông báo nhỏ dạng Toast góc màn hình để thầy theo dõi tiến trình chuyển kênh tự động
+            st.toast(last_error_message, icon="⚠️")
+            continue  # Chuyển tiếp sang thử nghiệm cấu hình mô hình tiếp theo trong danh sách
+            
+    # TRƯỜNG HỢP TẤT CẢ CÁC MÔ HÌNH MIỄN PHÍ TRÊN HỆ THỐNG ĐỀU ĐÃ BỊ KHÓA
+    return f"Lỗi quá tải hệ thống trên diện rộng (Tất cả mô hình dự phòng đều cạn hạn mức). Lỗi cuối cùng: {last_error_message}", "error"
 
 # --- 3. KHỞI TẠO BỘ NHỚ TẠM ĐỒNG BỘ ---
 if "db_thanh_vien" not in st.session_state: 
@@ -56,7 +70,6 @@ st.set_page_config(page_title="HỆ SINH THÁI SỐ GIÁO VIÊN", layout="wide")
 st.markdown("<h1 style='text-align: center; color: darkred; font-weight: bold;'>🔰 HỆ SINH THÁI SỐ - HỖ TRỢ GIÁO VIÊN</h1>", unsafe_allow_html=True)
 st.markdown("<p style='text-align: center; color: #0056b3; font-weight: bold; font-size: 16px;'>Sản phẩm tham gia Cuộc thi AI for Life năm 2026, trường THCS Nguyễn Chí Thanh - Phường Tân Lập tỉnh Đắk Lắk</p>", unsafe_allow_html=True)
 st.markdown("---")
-
 
 ## ==================================================================================
 # --- THANH ĐIỀU HƯỚNG TỔNG (ĐẨY LÊN TRÊN CÙNG SIDEBAR) ---
@@ -160,61 +173,3 @@ else:  # Phân hệ Quản lý tổ chuyên môn
                     st.rerun()
                 except Exception as demo_err:
                     st.error(f"Không thể nạp dữ liệu mẫu: {demo_err}")
-                
-        # --- LUỒNG 2: ĐỒNG BỘ DỮ LIỆU THỰC TẾ THỜI GIAN THỰC TỪ SQLITE ---
-        else:
-            df_tv["Phân môn chính"] = df_tv["Phân môn chính"].fillna("Chưa phân môn").replace("", "Chưa phân môn")
-            df_tv["Họ và tên"] = df_tv["Họ và tên"].fillna("Giáo viên ẩn danh").replace("", "Giáo viên ẩn danh")
-            
-            # Ép kiểu dữ liệu số tiết sang số để tính toán
-            df_tv["Số tiết/Tuần"] = pd.to_numeric(df_tv["Số tiết/Tuần"], errors='coerce').fillna(0).astype(int)
-            
-            # Nếu số tiết bằng 0 hoặc chưa phân công, gán giá trị định mức mặc định để vẽ biểu đồ không bị bằng 0
-            df_tv.loc[df_tv["Số tiết/Tuần"] == 0, "Số tiết/Tuần"] = 14
-            
-            # Chỉ số tổng quan
-            st.markdown("### 📌 Chỉ số tổng quan tổ chuyên môn (Dữ liệu thực tế từ SQLite)")
-            m_col1, m_col2, m_col3 = st.columns(3)
-            
-            tong_so_gv = len(df_tv)
-            m_col1.metric(label="👥 Tổng số Giáo viên trong tổ", value=f"{tong_so_gv} Thầy/Cô")
-            
-            so_phan_mon = df_tv["Phân môn chính"].nunique()
-            m_col2.metric(label="📚 Số lượng Môn học/Phân môn", value=f"{so_phan_mon} Nhóm")
-            
-            tong_tiet = int(df_tv["Số tiết/Tuần"].sum())
-            m_col3.metric(label="⏱️ Tổng số tiết định mức / tuần", value=f"{tong_tiet} Tiết")
-                
-            st.markdown("---")
-            
-            chart_col1, chart_col2 = st.columns(2)
-            
-            with chart_col1:
-                st.markdown("##### 📈 Số lượng giáo viên theo Phân môn")
-                counts = df_tv["Phân môn chính"].value_counts()
-                st.bar_chart(counts, color="#1E3A8A")
-                
-            with chart_col2:
-                st.markdown("##### ⏳ Định mức Tiết dạy/Tuần của từng Giáo viên")
-                df_chart_tiet = df_tv.set_index("Họ và tên")[["Số tiết/Tuần"]]
-                st.bar_chart(df_chart_tiet, color="#EF4444")
-                    
-            st.markdown("---")
-            st.markdown("### 🗂️ Danh sách trích xuất dữ liệu chi tiết")
-            st.dataframe(df_tv, use_container_width=True, hide_index=True)
-
-# --- 6. HỘP THÔNG TIN TÁC GIẢ (ĐƯA XUỐNG DƯỚI CÙNG SIDEBAR, XÓA NỀN TRẮNG) ---
-# Dùng CSS trong suốt (transparent) và loại bỏ border/box-shadow
-html_author_box = """
-<div style="padding: 10px; margin-top: 50px;">
-    <div style="margin-bottom: 8px; display: flex; align-items: center;">
-        <span style="color: red; font-weight: bold; font-size: 13px; width: 60px;">Tác giả:</span>
-        <span style="color: #0056b3; font-weight: bold; font-style: italic; font-size: 13px;">Lê Hồng Dưỡng</span>
-    </div>
-    <div style="display: flex; align-items: center;">
-        <span style="color: red; font-weight: bold; font-size: 13px; width: 60px;">Đơn vị:</span>
-        <span style="color: #0056b3; font-weight: bold; font-style: italic; font-size: 13px;">THCS Nguyễn Chí Thanh</span>
-    </div>
-</div>
-"""
-st.sidebar.markdown(html_author_box, unsafe_allow_html=True)
