@@ -58,7 +58,8 @@ def export_plan_to_docx_with_table(teacher_name, subject_name, content_data):
     table = doc.add_table(rows=1, cols=8)
     table.style = 'Table Grid'
     
-    hdr_cells = table.rows.cells
+    # 🌟 VÁ LỖI CÚ PHÁP: Gọi chính xác hàng đầu tiên rows[0] để lấy cells tiêu đề
+    hdr_cells = table.rows[0].cells
     for i, header_text in enumerate(headers):
         hdr_cells[i].text = header_text
         set_cell_margins(hdr_cells[i])
@@ -72,14 +73,14 @@ def export_plan_to_docx_with_table(teacher_name, subject_name, content_data):
     if isinstance(content_data, list):
         for idx, item in enumerate(content_data, 1):
             row_cells = table.add_row().cells
-            row_cells.text = str(idx)
-            row_cells.text = str(item.get("TietCT", idx))
-            row_cells.text = str(item.get("BaiHoc", ""))
-            row_cells.text = str(item.get("SoTiet", ""))
-            row_cells.text = str(item.get("ThoiDiem", ""))
-            row_cells.text = str(item.get("YeuCauCanDat", "-"))
-            row_cells.text = str(item.get("ThietBi", "-"))
-            row_cells.text = str(item.get("DiaDiem", "Lớp học"))
+            row_cells[0].text = str(idx)
+            row_cells[1].text = str(item.get("TietCT", idx))
+            row_cells[2].text = str(item.get("BaiHoc", ""))
+            row_cells[3].text = str(item.get("SoTiet", ""))
+            row_cells[4].text = str(item.get("ThoiDiem", ""))
+            row_cells[5].text = str(item.get("YeuCauCanDat", "-"))
+            row_cells[6].text = str(item.get("ThietBi", "-"))
+            row_cells[7].text = str(item.get("DiaDiem", "Lớp học"))
             
             for cell in row_cells:
                 set_cell_margins(cell)
@@ -131,7 +132,7 @@ def export_plan_to_excel(teacher_name, subject_name, content_data):
             worksheet.column_dimensions[col_letter].width = max(max_len + 3, 12)
     return output.getvalue()
 
-# --- 🌟 HÀM MỚI: TRÍCH XUẤT CHỮ TỪ FILE TÀI LIỆU ĐỂ LÀM NỀN NGỮ CẢNH ---
+# --- HÀM TRÍCH XUẤT CHỮ TỪ FILE TÀI LIỆU ---
 def extract_text_from_file(uploaded_file):
     if uploaded_file is None:
         return ""
@@ -143,7 +144,6 @@ def extract_text_from_file(uploaded_file):
             doc = docx.Document(uploaded_file)
             return "\n".join([p.text for p in doc.paragraphs])
         elif file_name.endswith(".pdf"):
-            # Để tránh cài đặt thư viện nặng khi chấm thi, đọc chuỗi byte thô hoặc text thô từ luồng
             return "Nội dung tệp PDF đính kèm: " + str(uploaded_file.name)
     except Exception as e:
         return f"Không thể đọc file: {str(e)}"
