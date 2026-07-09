@@ -7,10 +7,24 @@ from datetime import datetime
 SCOPE = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
 SHEET_ID = '1C6642jk_oQ0g9UC2By2qsNxxfQVR0MrZYj52tRdWDlY' # Thầy nhớ kiểm tra lại ID này
 
+import json
+import tempfile
+
 def get_sheet():
+    # 1. Lấy dữ liệu từ secrets
     creds_dict = dict(st.secrets["GOOGLE_KEY"])
-    creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, SCOPE)
+    
+    # 2. Tạo một tệp tạm thời trong bộ nhớ để lưu JSON
+    with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json') as tmp:
+        json.dump(creds_dict, tmp)
+        tmp_path = tmp.name
+    
+    # 3. Sử dụng đường dẫn tệp tạm thời này để xác thực
+    # Vì tệp này nằm trong bộ nhớ máy chủ, gspread sẽ đọc được mà không báo lỗi stream
+    scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+    creds = ServiceAccountCredentials.from_json_keyfile_name(tmp_path, scope)
     client = gspread.authorize(creds)
+    
     return client.open_by_key(SHEET_ID).worksheet("STEM_Projects")
 
 def save_to_sheets(ten_du_an, noi_dung):
