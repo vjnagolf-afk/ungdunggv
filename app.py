@@ -75,7 +75,7 @@ if phan_he == "Trợ lý Giảng dạy (Giáo viên)":
     st.sidebar.success("🔑 Đã kết nối API Key hệ thống từ Manage App.")
     
     if menu == "1. Thiết kế KHBD": 
-        render_exam_designer_section(lambda p: run_ai_prompt_safe(p))
+        render_khbd_section(lambda p: run_ai_prompt_safe(p))
     elif menu == "2. Thiết kế Đề KT": 
         render_exam_designer_section(lambda p: run_ai_prompt_safe(p))
     elif menu == "3. Đánh giá HS": 
