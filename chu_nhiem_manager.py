@@ -80,7 +80,7 @@ def render_nam_hoc_tab():
 def export_to_word(title, content_text):
     doc = Document()
     doc.add_heading(title, level=1)
-    for line in content_text.split("\n"):
+    for line in str(content_text).split("\n"):
         doc.add_paragraph(line)
     bio = io.BytesIO()
     doc.save(bio)
@@ -130,7 +130,12 @@ def render_thang_tab(run_ai_prompt_safe=None):
                 Ghi chú từ GV: {ghi_chu_them}
                 """
                 response = run_ai_prompt_safe(prompt_he_thong)
-                st.session_state["ta_main_editor"] = response
+                
+                # ÉP KIỂU CHUỖI Ở ĐÂY ĐỂ TRÁNH LỖI TYPEERROR
+                if response is None:
+                    st.session_state["ta_main_editor"] = "Lỗi: Không nhận được phản hồi từ AI. Vui lòng kiểm tra lại kết nối mạng hoặc cấu hình API."
+                else:
+                    st.session_state["ta_main_editor"] = str(response)
         else:
             st.info("Hệ thống kết nối AI đang được đồng bộ...")
 
@@ -142,7 +147,8 @@ def render_thang_tab(run_ai_prompt_safe=None):
         key="ta_main_editor"
     )
     
-    if st.session_state["ta_main_editor"].strip():
+    # Kiểm tra biến editor phải là string và không trống
+    if isinstance(st.session_state["ta_main_editor"], str) and st.session_state["ta_main_editor"].strip():
         st.write("")
         file_name_doc = f"Ke_hoach_chu_nhiem_{selected_lop}_{selected_thang.replace('/', '_')}.docx"
         word_file_bytes = export_to_word(f"KẾ HOẠCH CHỦ NHIỆM LỚP {selected_lop} - {selected_thang.upper()}", edited_text)
