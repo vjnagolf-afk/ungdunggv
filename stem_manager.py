@@ -3,80 +3,41 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime
 
-# =========================================================
-# CẤU HÌNH GOOGLE SHEETS TỪ SECRETS (KHÔNG DÙNG FILE)
-# =========================================================
-SHEET_ID = '1C6642jk_oQ0g9UC2By2qsNxxfQVR0MrZYj52tRdWDlY' # Thầy điền lại ID của thầy vào đây nhé
+# Cấu hình scope
+SCOPE = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+SHEET_ID = '1QhX2fP520f9xXoP2p3W5i2123456789' # Thầy thay đúng ID của thầy vào đây
 
 def get_sheet():
-    # 1. Lấy dict từ secrets
-    creds_dict = st.secrets["GOOGLE_KEY"]
-    
-    # 2. Chuyển đổi dict thành dict chuẩn (phòng ngừa lỗi kiểu dữ liệu từ st.secrets)
-    creds_data = {
-        "type": creds_dict["type"],
-        "project_id": creds_dict["project_id"],
-        "private_key_id": creds_dict["private_key_id"],
-        "private_key": creds_dict["private_key"],
-        "client_email": creds_dict["client_email"],
-        "client_id": creds_dict["client_id"],
-        "auth_uri": creds_dict["auth_uri"],
-        "token_uri": creds_dict["token_uri"],
-        "auth_provider_x509_cert_url": creds_dict["auth_provider_x509_cert_url"],
-        "client_x509_cert_url": creds_dict["client_x509_cert_url"]
-    }
-    
-    # 3. Sử dụng from_service_account_info thay vì from_json_keyfile_dict 
-    # Cách này an toàn hơn và không gây lỗi "seekable bit stream"
-    scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
-    creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_data, scope)
+    creds_dict = dict(st.secrets["GOOGLE_KEY"])
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, SCOPE)
     client = gspread.authorize(creds)
-    
-    return client.open_by_key(SHEET_ID).worksheet("STEM_Projects"))
+    return client.open_by_key(SHEET_ID).worksheet("STEM_Projects")
 
-# =========================================================
-# HÀM LƯU DỮ LIỆU
-# =========================================================
 def save_to_sheets(ten_du_an, noi_dung):
     try:
         sheet = get_sheet()
         ngay_luu = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        
-        # Ép kiểu rõ ràng thành chuỗi (string) để gspread không hiểu lầm
-        row_data = [str(ten_du_an), str(noi_dung), str(ngay_luu)]
-        
-        # Ghi dữ liệu
-        sheet.append_row(row_data)
+        sheet.append_row([str(ten_du_an), str(noi_dung), str(ngay_luu)])
         return True
     except Exception as e:
-        # Xuất lỗi chi tiết hơn để kiểm tra
-        st.error(f"Lỗi lưu Sheets: {type(e).__name__} - {e}")
+        st.error(f"Lỗi: {e}")
         return False
 
-# =========================================================
-# GIAO DIỆN (ĐÃ KHỞI TẠO BIẾN TRÁNH LỖI ATTRIBUTE)
-# =========================================================
 def render_tab_2():
     st.success("🛠️ THẺ 2: Soạn KHBD.")
-    
-    # Khởi tạo biến nếu chưa có
     if "stem_generated_content" not in st.session_state:
         st.session_state.stem_generated_content = ""
-
-    ten_chu_de_t2 = st.text_input("Tên dự án:", key="ten_t2")
     
-    if st.button("🚀 KÍCH HOẠT AI BIÊN SOẠN KHBD"):
-        # Giả lập kết quả AI
-        st.session_state.stem_generated_content = "Nội dung bài dạy về hệ thống chống trộm..."
+    ten_chu_de_t2 = st.text_input("Tên dự án:", key="ten_t2")
+    if st.button("🚀 KÍCH HOẠT AI"):
+        st.session_state.stem_generated_content = "Nội dung dự án STEM của thầy..."
     
     if st.session_state.stem_generated_content:
-        st.markdown(st.session_state.stem_generated_content)
+        st.write(st.session_state.stem_generated_content)
         if st.button("💾 LƯU VÀO GOOGLE SHEETS"):
-            if save_to_sheets(ten_chu_de_t2, st.session_state.stem_generated_content):
-                st.toast("Đã lưu thành công!", icon="✅")
+            save_to_sheets(ten_chu_de_t2, st.session_state.stem_generated_content)
 
 def render_stem_section():
     st.markdown("## 🚀 HỆ SINH THÁI GIÁO DỤC STEM")
     tab1, tab2, tab3 = st.tabs(["💡 1. SẢN PHẨM", "🛠️ 2. XÂY DỰNG KHBD", "📁 3. KHBD ĐÃ LƯU"])
     with tab2: render_tab_2()
-    # Các tab 1, 3 thầy để nguyên như cũ
