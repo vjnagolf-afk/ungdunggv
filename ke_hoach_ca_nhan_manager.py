@@ -7,7 +7,7 @@ from docx.oxml.ns import qn
 import io
 import json
 import pandas as pd
-from openpyxl.utils import get_column_letter  # 🌟 SỬA TẬN GỐC: Thêm thư viện chuyển đổi chỉ số cột an toàn
+from openpyxl.utils import get_column_letter
 
 # --- HÀM TẠO LƯỚI VIỀN CHO BẢNG WORD ---
 def set_cell_margins(cell, top=100, bottom=100, left=150, right=150):
@@ -32,7 +32,7 @@ def export_plan_to_docx_with_table(teacher_name, subject_name, content_data):
         
     p_header = doc.add_paragraph()
     p_header.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    run_qg = p_header.add_run("CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM\nĐỘC LẬP - TỰ DO - HẠNH PHÚC\n")
+    run_qg = p_header.add_run("CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM\nĐỘC LẬP - TỰ DO - HẠNH PHÚC\n")
     run_qg.bold = True
     run_qg.font.name = 'Times New Roman'
     run_qg.font.size = Pt(13)
@@ -59,7 +59,7 @@ def export_plan_to_docx_with_table(teacher_name, subject_name, content_data):
     table = doc.add_table(rows=1, cols=8)
     table.style = 'Table Grid'
     
-    hdr_cells = table.rows[0].cells # Đã kiểm tra cú pháp chính xác
+    hdr_cells = table.rows[0].cells
     for i, header_text in enumerate(headers):
         hdr_cells[i].text = header_text
         set_cell_margins(hdr_cells[i])
@@ -70,12 +70,13 @@ def export_plan_to_docx_with_table(teacher_name, subject_name, content_data):
                 run.font.name = 'Times New Roman'
                 run.font.size = Pt(11)
 
+    # 🌟 VÁ LỖI TRIỆT ĐỂ: Gán chỉ mục [số ô] rõ ràng từ 0 đến 7 để đổ dữ liệu vào Word không bị lỗi mảng
     if isinstance(content_data, list):
         for idx, item in enumerate(content_data, 1):
             row_cells = table.add_row().cells
             row_cells[0].text = str(idx)
             row_cells[1].text = str(item.get("TietCT", idx))
-            row_cells.text = str(item.get("BaiHoc", ""))
+            row_cells[2].text = str(item.get("BaiHoc", ""))
             row_cells[3].text = str(item.get("SoTiet", ""))
             row_cells[4].text = str(item.get("ThoiDiem", ""))
             row_cells[5].text = str(item.get("YeuCauCanDat", "-"))
@@ -127,10 +128,9 @@ def export_plan_to_excel(teacher_name, subject_name, content_data):
         worksheet["A2"] = f"1. KHDH MÔN {subject_name.upper()}"
         df.to_excel(writer, sheet_name="Kế hoạch dạy học", startrow=3, index=False)
         
-        # 🌟 VÁ LỖI TRIỆT ĐỂ: Duyệt qua từng đối tượng cột để gán kích thước ô an toàn
         for col_idx, col in enumerate(worksheet.columns, 1):
             max_len = max(len(str(cell.value or '')) for cell in col)
-            col_letter = get_column_letter(col_idx) # Biến đổi trực tiếp từ số cột thành chuỗi ký tự chữ
+            col_letter = get_column_letter(col_idx)
             worksheet.column_dimensions[col_letter].width = max(max_len + 3, 12)
     return output.getvalue()
 
