@@ -233,6 +233,7 @@ def render_exam_designer_section(run_ai_prompt_safe_func=None):
         note_de = st.text_area("Yêu cầu bổ sung cho AI:", placeholder="Ví dụ: Đề thi giữa học kỳ II môn Vật lý 7, tập trung vào chương Ánh sáng và Tốc độ...", label_visibility="collapsed", key="note_de_area")
 
         run_exam_ai = st.button("✨ Tự động tạo ma trận & đề thi bằng AI", type="primary", use_container_width=True)
+                # --- ĐOẠN 3: LOGIC GỌI AI LAMBDA KHÔNG CẦN CHECK API_KEY THỦ CÔNG ---
         if run_exam_ai:
             # Thu thập văn bản nền từ file upload đính kèm nếu có
             context_text = ""
@@ -255,8 +256,9 @@ def render_exam_designer_section(run_ai_prompt_safe_func=None):
                 f"Nếu bài toán hình học hoặc đồ thị cần vẽ hình, hãy chèn thẻ mẫu dạng '[GRAPH: biểu_thức_toán_học]' (Ví dụ: [GRAPH: sin(x)] hoặc [GRAPH: x^2 - 4]) để hệ thống tự động vẽ đồ thị."
             )
 
+            # 🌟 ĐIỂM CHỐT VÁ LỖI: Bỏ qua biến check thủ công, gọi trực tiếp trình điều khiển từ app.py
             if run_ai_prompt_safe_func is not None:
-                with st.spinner("🚀 Trợ lý AI đang tổng hợp kiến thức và thiết kế ma trận, đề thi..."):
+                with st.spinner("🚀 Trợ lý AI đang liên kết API Key hệ thống và thiết kế đề thi..."):
                     res_text, status = run_ai_prompt_safe_func(prompt_exam)
                     
                     if status == "error":
@@ -274,6 +276,7 @@ def render_exam_designer_section(run_ai_prompt_safe_func=None):
                             "data": res_text
                         })
                         st.success(f"🎉 Khởi tạo đề kiểm tra thành công bằng mô hình {status}!")
+                        st.rerun()
             else:
                 st.error("❌ Lỗi luồng: Chưa kết nối được trình điều khiển AI tổng từ file app.py.")
 
