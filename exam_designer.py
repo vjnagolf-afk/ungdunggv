@@ -56,18 +56,18 @@ def export_to_docx_vietnam_standard(text_content, title_name, school_name="TRƯ�
     
     admin_table = doc.add_table(rows=1, cols=2)
     admin_table.autofit = False
-    admin_table.columns[0].width = Inches(3.2)
-    admin_table.columns[1].width = Inches(3.8)
+    admin_table.columns.width = Inches(3.2)
+    admin_table.columns.width = Inches(3.8)
     
-    cell_l = admin_table.rows[0].cells[0]
-    p_left = cell_l.paragraphs[0]
+    cell_l = admin_table.rows.cells
+    p_left = cell_l.paragraphs
     p_left.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p_left.add_run(f"{school_name.upper()}\n").bold = True
     p_left.add_run(f"{group_name.upper()}\n").bold = True
     p_left.add_run("Số: ..... /BB-TCM").font.size = Pt(11)
     
-    cell_r = admin_table.rows[0].cells[1]
-    p_right = cell_r.paragraphs[0]
+    cell_r = admin_table.rows.cells
+    p_right = cell_r.paragraphs
     p_right.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p_right.add_run("CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM\n").bold = True
     p_right.add_run("Độc lập - Tự do - Hạnh phúc\n").bold = True
@@ -102,14 +102,14 @@ def export_to_docx_vietnam_standard(text_content, title_name, school_name="TRƯ�
 
     def build_table():
         if not table_data: return
-        cols = len(table_data[0])
+        cols = len(table_data)
         table = doc.add_table(rows=len(table_data), cols=cols)
         table.style = 'Table Grid'
         for r_idx, row in enumerate(table_data):
             for c_idx, cell_val in enumerate(row):
                 if c_idx < cols:
                     cell = table.cell(r_idx, c_idx)
-                    p = cell.paragraphs[0]
+                    p = cell.paragraphs
                     p.text = "" 
                     process_runs(p, cell_val.strip())
         doc.add_paragraph() 
