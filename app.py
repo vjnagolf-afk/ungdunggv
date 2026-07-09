@@ -87,7 +87,7 @@ phan_he = st.sidebar.radio(
 # --- 5. XỬ LÝ ĐIỀU HƯỚNG ---
 if phan_he == "Trợ lý Giảng dạy (Giáo viên)":
     st.sidebar.markdown("### 🛠️ CHỨC NĂNG GIÁO VIÊN")
-    menu = st.sidebar.selectbox("Nội dung giảng dạy", ["1. Thiết kế KHBD", "2. Thiết kế Đề KT", "3. Đánh giá HS", "4. Quản lý điểm (SMAS)", "5. Quản lý TKB","6. Thiết kế bài dạy STEM"], label_visibility="collapsed", key="menu_gv_selectbox_v9")
+    menu = st.sidebar.selectbox("Nội dung giảng dạy", ["1. Thiết kế KHBD", "2. Thiết kế Đề KT", "3. Đánh giá HS", "4. Quản lý điểm (SMAS)", "5. Quản lý TKB","6. Thiết kế bài dạy STEM","7. Kế hoạch công tác chủ nhiệm lớp"], label_visibility="collapsed", key="menu_gv_selectbox_v9")
     
     st.sidebar.success("🔑 Đã kết nối API Key hệ thống từ Manage App.")
     
@@ -95,7 +95,7 @@ if phan_he == "Trợ lý Giảng dạy (Giáo viên)":
         render_khbd_section(lambda p: run_ai_prompt_safe(p))
     elif menu == "2. Thiết kế Đề KT": 
         render_exam_designer_section("", lambda p: run_ai_prompt_safe(p))
-    elif menu == "3. Đánh giá HS": 
+     menu == "3. Đánh giá HS": 
         render_assessment_section(lambda p: run_ai_prompt_safe(p))
     elif menu == "4. Quản lý điểm (SMAS)": 
         render_grade_manager_section()
@@ -103,6 +103,8 @@ if phan_he == "Trợ lý Giảng dạy (Giáo viên)":
         render_tkb_manager()
     elif menu == "6. Thiết kế bài dạy STEM":
         render_stem_section()
+    elif menu == "7. Kế hoạch công tác chủ nhiệm lớp":
+       render_chu_nhiem__section()
 else:  # Phân hệ Quản lý tổ chuyên môn
     st.sidebar.markdown("### 📂 QUẢN LÝ TỔ CHUYÊN MÔN")
     menu = st.sidebar.selectbox("Nội dung quản lý", ["1. Quản lý & Phân công chuyên môn", "2. Biên bản sinh hoạt", "3. Kế hoạch cá nhân", "4. Thống kê số liệu"], label_visibility="collapsed", key="menu_ql_selectbox_v9")
