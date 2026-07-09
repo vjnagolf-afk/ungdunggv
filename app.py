@@ -84,8 +84,9 @@ if phan_he == "Trợ lý Giảng dạy (Giáo viên)":
         render_grade_manager_section()
     elif menu == "5. Quản lý TKB": 
         render_tkb_manager()
-    elif menu == "6. Thiết kế bài dạy STEM":
-        render_stem_section()
+    # ... các if/elif hiện tại của hệ thống ...
+    elif chuc_nang_duoc_chon == "6. Thiết kế bài dạy STEM":  # Tên mục tương ứng trong menu của thầy
+    render_stem_section()
 else:  # Phân hệ Quản lý tổ chuyên môn
     st.sidebar.markdown("### 📂 QUẢN LÝ TỔ CHUYÊN MÔN")
     menu = st.sidebar.selectbox("Nội dung quản lý", ["1. Quản lý & Phân công chuyên môn", "2. Biên bản sinh hoạt", "3. Kế hoạch cá nhân", "4. Thống kê số liệu"], label_visibility="collapsed", key="menu_ql_selectbox_v9")
