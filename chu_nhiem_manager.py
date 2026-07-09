@@ -1,5 +1,10 @@
 import streamlit as st
+import io
+from docx import Document
 
+# ==========================================
+# PHẦN 1: KẾ HOẠCH NĂM HỌC
+# ==========================================
 def render_nam_hoc_tab():
     st.markdown("### 📌 I. ĐẶC ĐIỂM TÌNH HÌNH LỚP")
     col_tl, col_kk = st.columns(2)
@@ -68,10 +73,10 @@ def render_nam_hoc_tab():
         
     if st.button("💾 Lưu Toàn bộ Kế hoạch năm học", type="primary", key="btn_save_nam_hoc_full"):
         st.success("🎉 Đã lưu trữ thành công Kế hoạch năm học!")
-import streamlit as st
-import io
-from docx import Document
 
+# ==========================================
+# PHẦN 2: KẾ HOẠCH THÁNG (CÓ AI)
+# ==========================================
 def export_to_word(title, content_text):
     doc = Document()
     doc.add_heading(title, level=1)
@@ -110,7 +115,7 @@ def render_thang_tab(run_ai_prompt_safe=None):
             with st.spinner(f"AI đang thiết lập kế hoạch {selected_thang}..."):
                 prompt_he_thong = f"""
                 Bạn là trợ lý AI cho giáo viên chủ nhiệm THCS Việt Nam. Hãy lập bản kế hoạch công tác chủ nhiệm chi tiết cho lớp {selected_lop} trong {selected_thang}.
-                YÊU CẦU ĐẦU RA PHẢI PHÂN TÁCH DÒNG DỌC RÕ RÀNG THEO CẤU TRÚC SAU:
+                YÊU CẦU ĐẦU RA PHẢI PHÂN TÁCH DÒNG DỌC RÕ RÀNG THEO CẤU TRÚC:
                 
                 KẾ HOẠCH THÁNG {selected_thang.replace('Tháng ', '')}
                 1. Chủ điểm: [Tên chủ điểm giáo dục tương ứng tháng]
@@ -137,7 +142,7 @@ def render_thang_tab(run_ai_prompt_safe=None):
         key="ta_main_editor"
     )
     
-    if edited_text.strip():
+    if st.session_state["ta_main_editor"].strip():
         st.write("")
         file_name_doc = f"Ke_hoach_chu_nhiem_{selected_lop}_{selected_thang.replace('/', '_')}.docx"
         word_file_bytes = export_to_word(f"KẾ HOẠCH CHỦ NHIỆM LỚP {selected_lop} - {selected_thang.upper()}", edited_text)
@@ -149,10 +154,10 @@ def render_thang_tab(run_ai_prompt_safe=None):
             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             key="btn_download_word"
         )
-import streamlit as st
-from chu_nhiem_nam_hoc import render_nam_hoc_tab
-from chu_nhiem_thang import render_thang_tab
 
+# ==========================================
+# PHẦN 3: HÀM GỌI CHÍNH TỪ APP.PY
+# ==========================================
 def render_chu_nhiem_section(run_ai_prompt_safe=None):
     tab_tong_quan, tab_hang_thang = st.tabs([
         "📊 Đặc điểm tình hình & Kế hoạch năm học", 
