@@ -129,13 +129,33 @@ def render_thang_tab(run_ai_prompt_safe=None):
                 
                 Ghi chú từ GV: {ghi_chu_them}
                 """
-                response = run_ai_prompt_safe(prompt_he_thong)
                 
-                # ÉP KIỂU CHUỖI Ở ĐÂY ĐỂ TRÁNH LỖI TYPEERROR
-                if response is None:
-                    st.session_state["ta_main_editor"] = "Lỗi: Không nhận được phản hồi từ AI. Vui lòng kiểm tra lại kết nối mạng hoặc cấu hình API."
+                # Gọi AI
+                raw_response = run_ai_prompt_safe(prompt_he_thong)
+                
+                if raw_response is None:
+                    final_text = "Lỗi: Không nhận được phản hồi từ AI."
                 else:
-                    st.session_state["ta_main_editor"] = str(response)
+                    # Bóc tách text nếu bị kẹt trong Tuple
+                    if isinstance(raw_response, tuple):
+                        final_text = str(raw_response[0])
+                    elif hasattr(raw_response, 'text'):
+                        final_text = str(raw_response.text)
+                    else:
+                        final_text = str(raw_response)
+                        
+                    # Dọn dẹp dấu ngoặc Tuple thô nếu vô tình bị ép kiểu chuỗi ở app.py
+                    if final_text.startswith("('"):
+                        final_text = final_text[2:]
+                    if final_text.endswith("',)"):
+                        final_text = final_text[:-3]
+                    elif final_text.endswith("')"):
+                        final_text = final_text[:-2]
+                        
+                    # Thay thế \n ảo thành lệnh xuống dòng thực tế
+                    final_text = final_text.replace("\\n", "\n")
+                    
+                st.session_state["ta_main_editor"] = final_text.strip()
         else:
             st.info("Hệ thống kết nối AI đang được đồng bộ...")
 
@@ -147,7 +167,7 @@ def render_thang_tab(run_ai_prompt_safe=None):
         key="ta_main_editor"
     )
     
-    # Kiểm tra biến editor phải là string và không trống
+    # Kiểm tra để xuất file Word
     if isinstance(st.session_state["ta_main_editor"], str) and st.session_state["ta_main_editor"].strip():
         st.write("")
         file_name_doc = f"Ke_hoach_chu_nhiem_{selected_lop}_{selected_thang.replace('/', '_')}.docx"
