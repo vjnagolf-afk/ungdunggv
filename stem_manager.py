@@ -1,12 +1,21 @@
 import streamlit as st
 import io
+import re
 from docx import Document
+from google import genai
 
-# Hàm hỗ trợ tạo file Word từ nội dung văn bản
+# Hàm hỗ trợ dọn dẹp Markdown và tạo file Word
 def create_word_file(title, content):
     doc = Document()
     doc.add_heading(title, 0)
-    doc.add_paragraph(content)
+    
+    # Xử lý xóa các ký tự Markdown trước khi đưa vào file Word
+    clean_content = re.sub(r'^#+\s*', '', content, flags=re.MULTILINE) # Xóa dấu # ở đầu các dòng tiêu đề
+    clean_content = clean_content.replace('**', '') # Xóa ký tự in đậm **
+    clean_content = re.sub(r'^\*\s+', '- ', clean_content, flags=re.MULTILINE) # Đổi dấu * đầu dòng thành dấu gạch ngang
+    clean_content = clean_content.replace('*', '') # Xóa các dấu * in nghiêng còn sót lại
+    
+    doc.add_paragraph(clean_content)
     
     bio = io.BytesIO()
     doc.save(bio)
@@ -45,18 +54,36 @@ def render_tab_1():
     
     if st.button("✨ Kích hoạt AI gợi ý danh sách chủ đề (Thẻ 1)", use_container_width=True, key="btn_ai_t1"):
         with st.spinner("AI đang phân tích các tiêu chí và tổng hợp dữ liệu..."):
-            st.session_state.stem_ai_suggestions = f"""
-            ### 📌 Danh sách dự án STEM đề xuất cho {chon_khoi_t1} - Môn {chon_mon_t1}
-            *(Lĩnh vực: {chon_chu_de_t1})*
             
-            **1. Hệ thống giám sát và điều khiển {chon_chu_de_t1.lower()} tự động**
-            *   **Mô tả:** Sử dụng vi điều khiển ESP8266 kết nối cảm biến để thu thập dữ liệu môi trường.
-            *   **Tính hòa nhập:** Cung cấp sơ đồ mạch điện in nổi, phân công vai trò quan sát phù hợp với năng lực học sinh.
+            # Khởi tạo lệnh Prompt để gọi AI thật
+            yeu_cau_iot = "Có tích hợp AI hoặc vi điều khiển (như Arduino, ESP8266)." if tich_hop_ai_t1 else "Không bắt buộc tích hợp vi điều khiển."
+            mon_tich_hop = ", ".join(mon_tich_hop_t1) if mon_tich_hop_t1 else "Không yêu cầu thêm"
             
-            **2. Mô hình trực quan ứng dụng AI**
-            *   **Mô tả:** Xây dựng mô hình vật lý kết hợp camera để nhận diện, giúp học sinh nắm bắt thực tiễn.
+            prompt_goi_y = f"""
+            Đóng vai một chuyên gia giáo dục STEM. Hãy đề xuất 3 chủ đề dự án STEM bám sát chương trình phổ thông 2018 với các thông tin sau:
+            - Khối lớp: {chon_khoi_t1}
+            - Môn chủ đạo: {chon_mon_t1}
+            - Lĩnh vực: {chon_chu_de_t1}
+            - Môn tích hợp: {mon_tich_hop}
+            - Yêu cầu kỹ thuật: {yeu_cau_iot}
+            
+            Cấu trúc trả về cho mỗi chủ đề: 
+            1. Tên chủ đề.
+            2. Mô tả ngắn gọn cách hoạt động.
+            3. Ứng dụng thực tiễn.
             """
-    
+            
+            try:
+                # GỌI API THẬT
+                client = genai.Client() 
+                response = client.models.generate_content(
+                    model='gemini-2.5-flash',
+                    contents=prompt_goi_y
+                )
+                st.session_state.stem_ai_suggestions = response.text
+            except Exception as e:
+                st.error(f"Có lỗi khi gọi API: {e}")
+                
     if st.session_state.stem_ai_suggestions:
         with st.container(border=True):
             st.markdown(st.session_state.stem_ai_suggestions)
@@ -88,13 +115,13 @@ def render_tab_2():
         if not ten_chu_de_t2:
             st.warning("Vui lòng nhập tên chủ đề STEM!")
         else:
-            with st.spinner("Hệ thống đang phân tích sư phạm và thiết kế KHBD chi tiết. Quá trình này có thể mất ít phút..."):
+            with st.spinner("Hệ thống đang phân tích sư phạm và thiết kế KHBD chi tiết. Quá trình này có thể mất 10-20 giây..."):
                 yeu_cau_iot = "Có tích hợp ứng dụng AI hoặc Vi điều khiển (như ESP8266, Arduino) vào sản phẩm STEM." if tich_hop_ai_iot_t2 else "Không bắt buộc tích hợp Vi điều khiển."
                 yeu_cau_hoa_nhap = "Bắt buộc có các ghi chú phân hóa, điều chỉnh câu hỏi và hoạt động để hỗ trợ học sinh khuyết tật (giáo dục hòa nhập) trong từng bước tiến trình." if tich_hop_hoa_nhap_t2 else ""
 
                 prompt = f"""
-                Đóng vai là một chuyên gia giáo dục STEM và giáo viên cốt cán, hãy soạn một Kế hoạch bài dạy (KHBD) STEM thật chi tiết và chuẩn mực.
-                LƯU Ý QUAN TRỌNG: TUYỆT ĐỐI KHÔNG sử dụng từ "Giáo án", CHỈ SỬ DỤNG cụm từ "Kế hoạch bài dạy" hoặc "KHBD".
+                Đóng vai là một chuyên gia giáo dục STEM và giáo viên cốt cán, hãy soạn một Kế hoạch bài dạy (KHBD) STEM thật chi tiết, đầy đủ chuyên môn và chuẩn mực.
+                LƯU Ý QUAN TRỌNG: TUYỆT ĐỐI KHÔNG sử dụng từ "Giáo án", CHỈ SỬ DỤNG cụm từ "Kế hoạch bài dạy" hoặc "KHBD". Viết thật chi tiết từng hoạt động của giáo viên và học sinh, không được viết tắt hay sơ sài.
                 
                 THÔNG TIN BÀI DẠY:
                 - Tên chủ đề/dự án: {ten_chu_de_t2}
@@ -104,7 +131,7 @@ def render_tab_2():
                 - Yêu cầu kỹ thuật: {yeu_cau_iot}
                 - Yêu cầu sư phạm: {yeu_cau_hoa_nhap}
                 
-                YÊU CẦU CẤU TRÚC CHI TIẾT CỦA KHBD (Soạn đầy đủ các bước, không viết sơ sài, trình bày rõ ràng bằng Markdown):
+                YÊU CẦU CẤU TRÚC CHI TIẾT CỦA KHBD:
                 
                 I. MỤC TIÊU
                 1. Năng lực (Năng lực đặc thù môn học, Năng lực chung, Năng lực STEM).
@@ -114,38 +141,22 @@ def render_tab_2():
                 1. Giáo viên chuẩn bị.
                 2. Học sinh chuẩn bị.
                 
-                III. TIẾN TRÌNH DẠY HỌC (Trình bày chi tiết Hoạt động của GV, Hoạt động của HS, Sản phẩm dự kiến và Tiêu chí đánh giá cho từng hoạt động theo quy trình 5 bước):
-                Hoạt động 1: Xác định vấn đề / Nhu cầu thực tiễn.
-                Hoạt động 2: Nghiên cứu kiến thức nền và Đề xuất giải pháp.
-                Hoạt động 3: Lựa chọn giải pháp thiết kế (Bản vẽ/Sơ đồ).
-                Hoạt động 4: Chế tạo mô hình và Thử nghiệm (Chi tiết cách học sinh sử dụng thiết bị/vi điều khiển nếu có).
-                Hoạt động 5: Chia sẻ, Thảo luận và Đánh giá.
+                III. TIẾN TRÌNH DẠY HỌC (Trình bày cực kỳ chi tiết Hoạt động của GV, Hoạt động của HS, Sản phẩm dự kiến và Tiêu chí đánh giá cho từng hoạt động theo quy trình 5 bước):
+                - Hoạt động 1: Xác định vấn đề / Nhu cầu thực tiễn.
+                - Hoạt động 2: Nghiên cứu kiến thức nền và Đề xuất giải pháp.
+                - Hoạt động 3: Lựa chọn giải pháp thiết kế (Bản vẽ/Sơ đồ).
+                - Hoạt động 4: Chế tạo mô hình và Thử nghiệm.
+                - Hoạt động 5: Chia sẻ, Thảo luận và Đánh giá.
                 """
                 
                 try:
-                    # Giao diện tạm hiển thị trước khi thầy thay mã API
-                    noi_dung_ai = f"""# KẾ HOẠCH BÀI DẠY STEM: {ten_chu_de_t2.upper()}
-**Môn học chủ đạo:** {mon_chu_dao_t2} | **Đối tượng:** {lop_hoc_t2} | **Thời lượng:** {thoi_luong_t2}
-
-## I. MỤC TIÊU
-**1. Năng lực:**
-*   **Năng lực đặc thù:** Học sinh giải thích được nguyên lý hoạt động của mạch điện cơ bản...
-*   **Năng lực chung:** Năng lực giải quyết vấn đề và sáng tạo thông qua việc thiết kế...
-**2. Phẩm chất:** Chăm chỉ, trách nhiệm trong việc hoàn thiện sản phẩm nhóm...
-
-## II. THIẾT BỊ DẠY HỌC VÀ HỌC LIỆU
-*   **Giáo viên:** Bài trình chiếu, bộ linh kiện vi điều khiển mẫu, bảng tiêu chí đánh giá (Rubric).
-*   **Học sinh:** Bìa carton, kéo, keo dán, dây dẫn...
-
-## III. TIẾN TRÌNH DẠY HỌC
-### Hoạt động 1: Xác định vấn đề
-**a. Mục tiêu:** Kích thích sự tò mò của HS về hiện tượng lãng phí năng lượng...
-**b. Tổ chức thực hiện:**
-*   **Hoạt động của GV:** Đưa ra tình huống thực tế bằng video...
-*   **Hoạt động của HS:** Quan sát, ghi chép và đặt câu hỏi...
-*(Giáo dục hòa nhập: Cung cấp phiếu quan sát có hình ảnh cỡ lớn cho HS khiếm thị một phần...)*
-"""
-                    st.session_state.stem_generated_content = noi_dung_ai
+                    # GỌI API THẬT
+                    client = genai.Client()
+                    response = client.models.generate_content(
+                        model='gemini-2.5-flash',
+                        contents=prompt
+                    )
+                    st.session_state.stem_generated_content = response.text
                     st.success("Thiết kế Kế hoạch bài dạy thành công!")
                 except Exception as e:
                     st.error(f"Có lỗi xảy ra khi kết nối AI: {e}")
