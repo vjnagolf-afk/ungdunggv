@@ -147,14 +147,14 @@ def export_to_docx_vietnam_standard(text_content, title_name, school_name="TRƯ�
     bio = io.BytesIO()
     doc.save(bio)
     return bio.getvalue()
-def render_exam_designer_section(run_ai_prompt_safe_func=None):
-    # CSS cao cấp căn chỉnh giao diện ngay ngắn 100%, xóa bỏ hoàn toàn khung viền đỏ
+def render_exam_designer_section(api_key_input, run_ai_prompt_safe_func):
+    # CSS thiết kế các khối nhãn và tiêu đề ngay ngắn, tự nhiên, không chồng chữ
     st.markdown("""
     <style>
     .title-pink-header { background-color: #FCE4EC; color: #C2185B; padding: 10px; text-align: center; font-weight: bold; font-size: 17px; border-radius: 4px; border: 1px solid #F87171; margin-bottom: 15px;}
     .title-green-header { background-color: #E8F5E9; color: #1B5E20; padding: 10px; text-align: center; font-weight: bold; font-size: 17px; border-radius: 4px; border: 1px solid #4ADE80; margin-bottom: 15px;}
     
-    /* Ô hiển thị tổng số câu và tổng điểm xếp lề tự nhiên */
+    /* Ô hiển thị tổng số câu và tổng điểm tự động cập nhật */
     .row-summary-pink { display: flex; justify-content: space-between; align-items: center; border: 1px dashed #F87171; padding: 8px 12px; border-radius: 4px; font-weight: bold; color: #B91C1C; background-color: #FFF5F5; margin-bottom: 20px; }
     .row-summary-green { display: flex; justify-content: space-between; align-items: center; border: 1px solid #4ADE80; padding: 8px 12px; border-radius: 4px; font-weight: bold; color: #166534; background-color: #F0FDF4; margin-bottom: 20px; }
     .val-cell-box { background: white; padding: 4px 18px; border: 1px solid #D1D5DB; border-radius: 4px; margin-left: 8px; font-family: monospace; font-size: 14px; color: black; display: inline-block;}
@@ -163,7 +163,7 @@ def render_exam_designer_section(run_ai_prompt_safe_func=None):
     .text-italic-unit { font-size: 15px; font-style: italic; color: black; margin-top: 8px; }
     .footer-red { color: #D32F2F; font-weight: bold; font-style: italic; font-size: 14px; text-align: center; margin-top: 30px; padding-top: 10px; border-top: 1px solid #ccc;}
     
-    /* Gỡ nhãn Streamlit mặc định */
+    /* Khử nhãn mặc định Streamlit */
     div[data-testid="stNumberInput"] label { display: none !important; }
     div[data-testid="stSelectbox"] label { display: none !important; }
     div[data-testid="stTextInput"] label { display: none !important; }
@@ -176,7 +176,7 @@ def render_exam_designer_section(run_ai_prompt_safe_func=None):
     tab_thiet_ke, tab_kho_luu_tru = st.tabs(["📝 CHỨC NĂNG: TẠO ĐỀ KIỂM TRA AI", "📂 THƯ MỤC ĐỀ ĐÃ XÂY DỰNG"])
     
     with tab_thiet_ke:
-        # Thanh kéo thả tệp và cấu hình trên đầu
+        # Thanh điều khiển kéo thả tài liệu ở phía trên
         col_top_lbl, col_top_btn1, col_top_btn2 = st.columns([2.5, 1.3, 1.5])
         hinh_thuc = col_top_lbl.selectbox("Hình thức đề thi cấu hình:", ["Trắc nghiệm kết hợp tự luận", "100% Trắc nghiệm", "100% Tự luận"])
         col_top_btn1.markdown("<div style='margin-top:28px;'></div>", unsafe_allow_html=True)
@@ -195,79 +195,79 @@ def render_exam_designer_section(run_ai_prompt_safe_func=None):
         with col_main1:
             st.markdown("<div class='title-pink-header'>PHẦN TRẮC NGHIỆM</div>", unsafe_allow_html=True)
             
-            df_c1, df_p1 = 12, 3.0
-            df_c2, df_p2 = 2, 0.5
-            df_c3, df_p3 = 1, 0.25
-            df_c4, df_p4 = 1, 0.25
-            
-            # Khối hiển thị tổng số câu đứng cố định an toàn
-            st.markdown(
-                f"<div class='row-summary-pink'>"
-                f"<div>Tổng số câu TNKQ: <span class='val-cell-box'>{df_c1+df_c2+df_c3+df_c4}</span></div>"
-                f"<div>Tổng điểm TN: <span class='val-cell-box'>{(df_p1+df_p2+df_p3+df_p4):.1f}</span></div>"
-                f"</div>"
-                f"<div class='text-bold-label' style='text-decoration: underline; margin-bottom:15px;'>Trong đó:</div>", unsafe_allow_html=True
-            )
-            
+            # Khởi tạo các ô nhập số liệu thành phần của phần trắc nghiệm
             r1_l, r1_i, r1_u, r1_lbl, r1_sc = st.columns([1.5, 0.5, 0.4, 0.5, 0.6])
             r1_l.markdown("<div class='text-bold-label'>Câu nhiều lựa chọn:</div>", unsafe_allow_html=True)
-            c1 = r1_i.number_input("c1", min_value=0, max_value=50, value=df_c1, step=1)
+            c1 = r1_i.number_input("c1", min_value=0, max_value=50, value=12, step=1)
             r1_u.markdown("<div class='text-bold-label'>câu.</div>", unsafe_allow_html=True)
             r1_lbl.markdown("<div class='text-bold-label' style='text-align:right;'>Điểm</div>", unsafe_allow_html=True)
-            p1 = r1_sc.number_input("p1", min_value=0.0, max_value=10.0, value=df_p1, step=0.25)
+            p1 = r1_sc.number_input("p1", min_value=0.0, max_value=10.0, value=3.0, step=0.25)
             
             r2_l, r2_i, r2_u, r2_lbl, r2_sc = st.columns([1.5, 0.5, 0.4, 0.5, 0.6])
             r2_l.markdown("<div class='text-bold-label'>Câu đúng sai:</div>", unsafe_allow_html=True)
-            c2 = r2_i.number_input("c2", min_value=0, max_value=50, value=df_c2, step=1)
+            c2 = r2_i.number_input("c2", min_value=0, max_value=50, value=2, step=1)
             r2_u.markdown("<div class='text-bold-label'>câu.</div>", unsafe_allow_html=True)
             r2_lbl.markdown("<div class='text-bold-label' style='text-align:right;'>Điểm</div>", unsafe_allow_html=True)
-            p2 = r2_sc.number_input("p2", min_value=0.0, max_value=10.0, value=df_p2, step=0.25)
+            p2 = r2_sc.number_input("p2", min_value=0.0, max_value=10.0, value=0.5, step=0.25)
             
             r3_l, r3_i, r3_u, r3_lbl, r3_sc = st.columns([1.5, 0.5, 0.4, 0.5, 0.6])
             r3_l.markdown("<div class='text-bold-label'>Câu điền khuyết:</div>", unsafe_allow_html=True)
-            c3 = r3_i.number_input("c3", min_value=0, max_value=50, value=df_c3, step=1)
+            c3 = r3_i.number_input("c3", min_value=0, max_value=50, value=1, step=1)
             r3_u.markdown("<div class='text-bold-label'>câu.</div>", unsafe_allow_html=True)
             r3_lbl.markdown("<div class='text-bold-label' style='text-align:right;'>Điểm</div>", unsafe_allow_html=True)
-            p3 = r3_sc.number_input("p3", min_value=0.0, max_value=10.0, value=df_p3, step=0.25)
+            p3 = r3_sc.number_input("p3", min_value=0.0, max_value=10.0, value=0.25, step=0.25)
             
             r4_l, r4_i, r4_u, r4_lbl, r4_sc = st.columns([1.5, 0.5, 0.4, 0.5, 0.6])
             r4_l.markdown("<div class='text-bold-label'>Câu trả lời ngắn:</div>", unsafe_allow_html=True)
-            c4 = r4_i.number_input("c4", min_value=0, max_value=50, value=df_c4, step=1)
+            c4 = r4_i.number_input("c4", min_value=0, max_value=50, value=1, step=1)
             r4_u.markdown("<div class='text-bold-label'>câu.</div>", unsafe_allow_html=True)
             r4_lbl.markdown("<div class='text-bold-label' style='text-align:right;'>Điểm</div>", unsafe_allow_html=True)
-            p4 = r4_sc.number_input("p4", min_value=0.0, max_value=10.0, value=df_p4, step=0.25)
+            p4 = r4_sc.number_input("p4", min_value=0.0, max_value=10.0, value=0.25, step=0.25)
             
+            # Tính toán tổng câu và tổng điểm trắc nghiệm thời gian thực
             tong_cau_tn_real = c1 + c2 + c3 + c4
             tong_diem_tn_real = p1 + p2 + p3 + p4
+            
+            # Khối hiển thị tổng số câu đứng cố định an toàn ngay đầu cột hồng
+            st.markdown(
+                f"<div class='row-summary-pink'>"
+                f"<div>Tổng số câu TNKQ: <span class='val-cell-box'>{tong_cau_tn_real}</span></div>"
+                f"<div>Tổng điểm TN: <span class='val-cell-box'>{tong_diem_tn_real:.2f}</span></div>"
+                f"</div>"
+                f"<div class='text-bold-label' style='text-decoration: underline; margin-bottom:15px;'>Trong đó:</div>", unsafe_allow_html=True
+            )
 
-        # --- 💥 CỘT LỆCH PHẢI: PHẦN TỰ LUẬN ---
+        # --- 💥 CỘT LỆCH PHẢI: PHẦN TỰ LUẬN (MỞ KHÓA TOÀN DIỆN TỰ SINH VÀ ĐẾM ĐIỂM) ---
         with col_main2:
             st.markdown("<div class='title-green-header'>PHẦN TỰ LUẬN</div>", unsafe_allow_html=True)
             
-            default_num_tl = 4
-            
-            st.markdown(
-                f"<div class='row-summary-green'>"
-                f"<div>TỔNG SỐ CÂU TỰ LUẬN: <span class='val-cell-box'>{default_num_tl}</span></div>"
-                f"<div>ĐIỂM: <span class='val-cell-box'>6.0</span></div>"
-                f"</div>", unsafe_allow_html=True
-            )
-            
-            num_tl_input = st.number_input("TỔNG SỐ CÂU TỰ LUẬN:", min_value=0, max_value=20, value=default_num_tl, step=1, key="num_tl_v9")
+            # 🌟 MỞ KHÓA: Sử dụng st.number_input tự do thay đổi số câu tự luận, mặc định gợi ý là 4 câu
+            num_tl_input = st.number_input("TỔNG SỐ CÂU TỰ LUẬN:", min_value=0, max_value=20, value=4, step=1, key="num_tl_v10")
             
             tl_scores = []
             if num_tl_input > 0:
                 for i in range(num_tl_input):
                     rl_l, rl_i, rl_u = st.columns([1.2, 0.8, 1.7])
                     rl_l.markdown(f"<div class='text-bold-label' style='text-align:right; padding-right:20px;'>Câu {i+1}:</div>", unsafe_allow_html=True)
+                    # Điểm gợi ý ban đầu cho 4 câu đầu tiên theo phôi của thầy, các câu sinh thêm từ câu thứ 5 gán mặc định 1.0đ
                     init_score = 1.5 if i==0 or i==1 else (2.0 if i==2 else 1.0)
                     score_cell = rl_i.number_input(f"s_tl_{i}", min_value=0.0, max_value=10.0, value=init_score if i < 4 else 1.0, step=0.5)
                     rl_u.markdown("<div class='text-italic-unit'>điểm</div>", unsafe_allow_html=True)
                     tl_scores.append(score_cell)
                     
+            # Thuật toán cộng dồn động: Tính tổng điểm tự luận từ mảng điểm thực tế thầy nhập
             tong_diem_tl_real = sum(tl_scores)
             
+            # 🌟 ĐỒNG BỘ ĐỘNG: Đẩy dữ liệu tính toán thời gian thực lên ô tổng kết quả (Khử lỗi khóa ô cứng)
+            st.markdown(
+                f"<div class='row-summary-green' style='margin-top:-{num_tl_input*44 + 115}px; margin-bottom:{num_tl_input*44 + 75}px; position:relative; z-index:10; pointer-events:none;'>"
+                f"<div>TỔNG SỐ CÂU TỰ LUẬN: <span class='val-cell-box'>{num_tl_input}</span></div>"
+                f"<div>ĐIỂM: <span class='val-cell-box'>{tong_diem_tl_real:.1f}</span></div>"
+                f"</div>", unsafe_allow_html=True
+            )
+            
         st.markdown("<br>", unsafe_allow_html=True)
+
         # --- 🌟 VÁ LỖI CÚ PHÁP: Truyền chính xác số lượng cột phân bổ (2) vào hàm .columns ---
         st.markdown("**Tỷ lệ mức độ nhận thức (%):**")
         c_m1, c_m2, c_m3, c_m4 = st.columns(4)
