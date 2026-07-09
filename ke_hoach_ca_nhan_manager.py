@@ -38,6 +38,7 @@ def export_plan_to_docx(teacher_name, subject_name, markdown_content):
     bio = io.BytesIO()
     doc.save(bio)
     return bio.getvalue()
+
 def render_personal_plan():
     st.markdown("<h3 style='text-align: left; color: #1E3A8A;'>🗓️ TRỢ LÝ XÂY DỰNG KẾ HOẠCH GIÁO DỤC CÁ NHÂN (PHỤ LỤC III)</h3>", unsafe_allow_html=True)
     
@@ -85,29 +86,26 @@ def render_personal_plan():
         else:
             with st.spinner("Trợ lý AI đang lập tiến trình phân bổ tiết Phụ lục III..."):
                 prompt_plan = f"Hãy soạn thảo một bản Kế hoạch giáo dục của giáo viên (Phụ lục III - Công văn 5512) chi tiết cho giáo viên: {t_name}, môn: {s_name}, khối lớp: {grade_target} trong {week_count}. Cấu trúc gồm mục I. KẾ HOẠCH DẠY HỌC PHÂN PHỐI CHƯƠNG TRÌNH và mục II. CÁC NHIỆM VỤ KHÁC ĐƯỢC GIAO. Văn bản viết chi tiết đầy đủ chữ, chia dòng gạch ngang '-', không dùng dấu sao kép '**'."
-                            with st.spinner("Trợ lý AI đang lập tiến trình phân bổ tiết Phụ lục III..."):
-                prompt_plan = f"Hãy soạn thảo một bản Kế hoạch giáo dục của giáo viên (Phụ lục III - Công văn 5512) chi tiết cho giáo viên: {t_name}, môn: {s_name}, khối lớp: {grade_target} trong {week_count}. Cấu trúc gồm mục I. KẾ HOẠCH DẠY HỌC PHÂN PHỐI CHƯƠNG TRÌNH và mục II. CÁC NHIỆM VỤ KHÁC ĐƯỢC GIAO. Văn bản viết chi tiết đầy đủ chữ, chia dòng gạch ngang '-', không dùng dấu sao kép '**'."
                 try:
                     from app import run_ai_prompt_safe
                     api_key_system = st.secrets.get("GEMINI_API_KEY", "")
                     
-                    # Kiểm tra xem API Key đã cấu hình trong .streamlit/secrets.toml chưa
+                    # Kiểm tra cấu hình API Key
                     if not api_key_system:
                         st.error("🔑 Thiếu cấu hình GEMINI_API_KEY trong Secrets!")
                         st.stop()
 
                     res_plan, status = run_ai_prompt_safe(prompt_plan, api_key_system)
                     
-                    # Lưu vào session state và ép giao diện cập nhật
+                    # Lưu kết quả và làm tươi giao diện
                     st.session_state["ai_plan_output"] = res_plan
                     st.success("🎉 Khởi tạo kế hoạch thành công!")
                     st.rerun()
                     
                 except Exception as e:
-                    # In trực tiếp lỗi kỹ thuật ra màn hình để tác giả dễ sửa
+                    # Đã sửa lỗi căn lề thụt dòng (Indentation) tại đây
                     st.error(f"❌ Lỗi kết nối AI: {str(e)}") 
                     st.info("Vui lòng kiểm tra lại file app.py hoặc cấu hình API Key.")
-
 
     st.markdown("---")
     st.markdown("### 📊 Nội dung Kế hoạch Giáo dục sinh bởi AI:")
