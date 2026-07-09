@@ -87,12 +87,13 @@ else:  # Phân hệ Quản lý tổ chuyên môn
     st.sidebar.markdown("### 📂 QUẢN LÝ TỔ CHUYÊN MÔN")
     menu = st.sidebar.selectbox("Nội dung quản lý", ["1. Quản lý & Phân công chuyên môn", "2. Biên bản sinh hoạt", "3. Kế hoạch cá nhân", "4. Thống kê số liệu"], label_visibility="collapsed", key="menu_ql_selectbox_v9")
     
-    if menu == "1. Quản lý & Phân công chuyên môn": render_org_section()
-    elif menu == "2. Biên bản sinh hoạt": render_meeting_minutes(lambda p: run_ai_prompt_safe(p))
+    if menu == "1. Quản lý & Phân công chuyên môn": 
+        render_org_section()
+    elif menu == "2. Biên bản sinh hoạt": 
+        render_meeting_minutes(lambda p: run_ai_prompt_safe(p))
     elif menu == "3. Kế hoạch cá nhân": 
-        # ĐỒNG BỘ: Truyền hàm chạy AI an toàn vào file kế hoạch cá nhân
         render_personal_plan(lambda p: run_ai_prompt_safe(p))
-        elif menu == "4. Thống kê số liệu": 
+    elif menu == "4. Thống kê số liệu": 
         st.header("📊 THỐNG KÊ SỐ LIỆU TỔ CHUYÊN MÔN")
         
         # --- BỔ SUNG DỮ LIỆU MẪU ĐỂ ĐI THI KHÔNG BỊ TRỐNG BIỂU ĐỒ ---
@@ -124,9 +125,9 @@ else:  # Phân hệ Quản lý tổ chuyên môn
             
             if "Số tiết/Tuần" in df_tv.columns:
                 tong_tiet = df_tv["Số tiết/Tuần"].sum()
-                m_col3.metric(label="⏱️ Tổng số tiết định mức định kỳ / tuần", value=f"{tong_tiet} Tiết")
+                m_col3.metric(label="⏱️ Tổng số tiết định mức / tuần", value=f"{tong_tiet} Tiết")
             else:
-                m_col3.metric(label="⏱️ Tổng số tiết định mức định kỳ / tuần", value="0 Tiết")
+                m_col3.metric(label="⏱️ Tổng số tiết định mức / tuần", value="0 Tiết")
                 
             st.markdown("---")
             
@@ -143,7 +144,6 @@ else:  # Phân hệ Quản lý tổ chuyên môn
             with chart_col2:
                 st.markdown("##### ⏳ Định mức Tiết dạy/Tuần của từng Giáo viên")
                 if "Số tiết/Tuần" in df_tv.columns and "Họ và tên" in df_tv.columns:
-                    # Tạo cấu trúc DataFrame riêng để lập biểu đồ dòng kẻ hoặc cột đứng
                     df_chart_tiet = df_tv.set_index("Họ và tên")[["Số tiết/Tuần"]]
                     st.bar_chart(df_chart_tiet, color="#EF4444")
                 else:
