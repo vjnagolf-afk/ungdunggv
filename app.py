@@ -95,7 +95,7 @@ if phan_he == "Trợ lý Giảng dạy (Giáo viên)":
         render_khbd_section(lambda p: run_ai_prompt_safe(p))
     elif menu == "2. Thiết kế Đề KT": 
         render_exam_designer_section("", lambda p: run_ai_prompt_safe(p))
-         menu == "3. Đánh giá HS": 
+    elif menu == "3. Đánh giá HS": 
         render_assessment_section(lambda p: run_ai_prompt_safe(p))
     elif menu == "4. Quản lý điểm (SMAS)": 
         render_grade_manager_section()
