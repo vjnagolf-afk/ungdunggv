@@ -1,5 +1,6 @@
 import streamlit as st
 import io
+import re
 from docx import Document
 
 # ==========================================
@@ -32,7 +33,7 @@ def render_nam_hoc_tab():
         
     col_ctc, col_bpc = st.columns(2)
     with col_ctc:
-        st.text_area("Chỉ tiêu chung", value="100% học sinh không vi phạm nội quy trường học.\n95% học sinh đạt rèn luyện tốt và Khá.\nKhông có học sinh bỏ học.", height=100, key="nam_hoc_chi_tieu_chung")
+        st.text_area("Chỉ tiêu chung", value="100% học sinh không vi phạm nội quy trường học.\n95% học sinh đạt Rèn luyện tốt và Khá.\nKhông có học sinh bỏ học.", height=100, key="nam_hoc_chi_tieu_chung")
     with col_bpc:
         st.text_area("Biện pháp chính chung", value="- GVCN quán triệt cho học sinh nội quy của nhà trường, bài học văn hóa ứng xử, giáo dục truyền thống nhà trường, giáo dục môi trường, an toàn giao thông.", height=100, key="nam_hoc_bien_phap_chung")
 
@@ -67,7 +68,7 @@ def render_nam_hoc_tab():
     st.markdown("### 📊 III. CHỈ TIÊU TOÀN DIỆN CUỐI NĂM")
     col_td_ct, col_td_bp = st.columns(2)
     with col_td_ct:
-        st.text_area("Chỉ tiêu cuối năm", value="1. Danh hiệu lớp: Lớp Tiên tiến - Chi đội: Mạnh\n2. Rèn luyện: Tốt: 40 (97,7%) Khá: 02 (2,3%)\n3. Học tập: Mức Tốt: 5HS (13,5%) Khá: 12 HS (27,9%)", height=120, key="td_chi_tieu")
+        st.text_area("Chỉ tiêu cuối năm", value="1. Danh hiệu lớp: Lớp Tiên tiến - Chi đội: Mạnh\n2. Rèn luyện: Tốt: 40 (97,7%) Khá: 02 (2,3%)\n3. Kết quả học tập: Mức Tốt: 5HS (13,5%) Khá: 12 HS (27,9%)", height=120, key="td_chi_tieu")
     with col_td_bp:
         st.text_area("Biện pháp chính cuối năm", value="- GVCN thường xuyên bám sát lớp, gần gũi tiếp xúc với HS để tìm hiểu hoàn cảnh.\n- Phối hợp chặt chẽ với GVBM và Tổng phụ trách Đội.\n- Phối hợp thường xuyên với PHHS.", height=120, key="td_bien_phap")
         
@@ -113,30 +114,36 @@ def render_thang_tab(run_ai_prompt_safe=None):
     if st.button("🚀 Khởi tạo Kế hoạch bằng AI", type="primary", key="btn_chu_nhiem_ai"):
         if run_ai_prompt_safe is not None:
             with st.spinner(f"AI đang thiết lập kế hoạch {selected_thang}..."):
+                # Cập nhật Prompt để ép AI dùng đúng thuật ngữ và định dạng
                 prompt_he_thong = f"""
                 Bạn là trợ lý AI cho giáo viên chủ nhiệm THCS Việt Nam. Hãy lập bản kế hoạch công tác chủ nhiệm chi tiết cho lớp {selected_lop} trong {selected_thang}.
-                YÊU CẦU ĐẦU RA PHẢI PHÂN TÁCH DÒNG DỌC RÕ RÀNG THEO CẤU TRÚC:
                 
+                LƯU Ý QUAN TRỌNG VỀ THUẬT NGỮ VÀ ĐỊNH DẠNG:
+                1. TUYỆT ĐỐI KHÔNG dùng từ "Học lực", phải dùng từ "Kết quả học tập".
+                2. TUYỆT ĐỐI KHÔNG dùng từ "Hạnh kiểm", phải dùng từ "Rèn luyện".
+                3. Trình bày rõ ràng. KHÔNG dùng ký tự ** để in đậm. KHÔNG dùng dấu gạch ngang (-) hoặc dấu sao (*) ở đầu các dòng tiêu đề của Tuần.
+                
+                YÊU CẦU ĐẦU RA THEO CẤU TRÚC SAU:
                 KẾ HOẠCH THÁNG {selected_thang.replace('Tháng ', '')}
                 1. Chủ điểm: [Tên chủ điểm giáo dục tương ứng tháng]
-                - [Nhiệm vụ thi đua]
+                [Nhiệm vụ thi đua]
                 
                 2. Nội dung hoạt động:
-                - [Đầu việc lớn]
+                [Đầu việc lớn]
                 
-                * KẾ HOẠCH TỪNG TUẦN:
-                - TUẦN 22: (Ghi nội dung chi tiết từng việc nề nếp, sĩ số...)
+                KẾ HOẠCH TỪNG TUẦN:
+                TUẦN 1: (Ghi nội dung chi tiết)
+                Nề nếp, sĩ số:
+                Hoạt động cụ thể:
                 
                 Ghi chú từ GV: {ghi_chu_them}
                 """
                 
-                # Gọi AI
                 raw_response = run_ai_prompt_safe(prompt_he_thong)
                 
                 if raw_response is None:
                     final_text = "Lỗi: Không nhận được phản hồi từ AI."
                 else:
-                    # Bóc tách text nếu bị kẹt trong Tuple
                     if isinstance(raw_response, tuple):
                         final_text = str(raw_response[0])
                     elif hasattr(raw_response, 'text'):
@@ -144,7 +151,6 @@ def render_thang_tab(run_ai_prompt_safe=None):
                     else:
                         final_text = str(raw_response)
                         
-                    # Dọn dẹp dấu ngoặc Tuple thô nếu vô tình bị ép kiểu chuỗi ở app.py
                     if final_text.startswith("('"):
                         final_text = final_text[2:]
                     if final_text.endswith("',)"):
@@ -152,8 +158,20 @@ def render_thang_tab(run_ai_prompt_safe=None):
                     elif final_text.endswith("')"):
                         final_text = final_text[:-2]
                         
-                    # Thay thế \n ảo thành lệnh xuống dòng thực tế
                     final_text = final_text.replace("\\n", "\n")
+                    
+                    # BỘ LỌC HẬU KỲ XỬ LÝ TEXT:
+                    # 1. Quét và thay thế các từ cấm (phòng ngừa AI quên lệnh)
+                    final_text = final_text.replace("Học lực", "Kết quả học tập").replace("học lực", "kết quả học tập")
+                    final_text = final_text.replace("Hạnh kiểm", "Rèn luyện").replace("hạnh kiểm", "rèn luyện")
+                    
+                    # 2. Xóa tất cả các dấu sao in đậm
+                    final_text = final_text.replace("**", "")
+                    
+                    # 3. Dọn dẹp sạch sẽ các ký tự thừa (- hoặc *) ở đầu dòng chữ TUẦN, Nề nếp, Hoạt động
+                    final_text = re.sub(r'^[\-\*\s]+TUẦN', 'TUẦN', final_text, flags=re.MULTILINE)
+                    final_text = re.sub(r'^[\-\*\s]+Nề nếp', 'Nề nếp', final_text, flags=re.MULTILINE)
+                    final_text = re.sub(r'^[\-\*\s]+Hoạt động', 'Hoạt động', final_text, flags=re.MULTILINE)
                     
                 st.session_state["ta_main_editor"] = final_text.strip()
         else:
@@ -167,7 +185,6 @@ def render_thang_tab(run_ai_prompt_safe=None):
         key="ta_main_editor"
     )
     
-    # Kiểm tra để xuất file Word
     if isinstance(st.session_state["ta_main_editor"], str) and st.session_state["ta_main_editor"].strip():
         st.write("")
         file_name_doc = f"Ke_hoach_chu_nhiem_{selected_lop}_{selected_thang.replace('/', '_')}.docx"
