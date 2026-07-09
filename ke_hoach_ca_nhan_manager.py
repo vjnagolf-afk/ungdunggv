@@ -148,6 +148,51 @@ def extract_text_from_file(uploaded_file):
     except Exception as e:
         return f"Không thể đọc file: {str(e)}"
     return ""
+
+
+# --- HÀM XUẤT FILE EXCEL MẪU 8 CỘT ---
+def export_plan_to_excel(teacher_name, subject_name, content_data):
+    output = io.BytesIO()
+    raw_df = pd.DataFrame(content_data)
+    df = pd.DataFrame({
+        "STT": range(1, len(raw_df) + 1),
+        "Tiết CT": raw_df.get("TietCT", range(1, len(raw_df) + 1)),
+        "Bài học": raw_df.get("BaiHoc", ""),
+        "Số tiết": raw_df.get("SoTiet", ""),
+        "Thời điểm": raw_df.get("ThoiDiem", ""),
+        "Yêu cầu cần đạt": raw_df.get("YeuCauCanDat", ""),
+        "Thiết bị": raw_df.get("ThietBi", ""),
+        "Địa điểm dạy học": raw_df.get("DiaDiem", "Lớp học")
+    })
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        workbook = writer.book
+        worksheet = workbook.create_sheet(title="Kế hoạch dạy học", index=0)
+        writer.sheets["Kế hoạch dạy học"] = worksheet
+        worksheet["A1"] = "I. KẾ HOẠCH DẠY HỌC"
+        worksheet["A2"] = f"1. KHDH MÔN {subject_name.upper()}"
+        df.to_excel(writer, sheet_name="Kế hoạch dạy học", startrow=3, index=False)
+        for col in worksheet.columns:
+            max_len = max(len(str(cell.value or '')) for cell in col)
+            col_letter = col.column_letter
+            worksheet.column_dimensions[col_letter].width = max(max_len + 3, 12)
+    return output.getvalue()
+
+# --- HÀM TRÍCH XUẤT CHỮ TỪ FILE TÀI LIỆU ---
+def extract_text_from_file(uploaded_file):
+    if uploaded_file is None:
+        return ""
+    file_name = uploaded_file.name
+    try:
+        if file_name.endswith(".txt"):
+            return uploaded_file.read().decode("utf-8")
+        elif file_name.endswith(".docx"):
+            doc = docx.Document(uploaded_file)
+            return "\n".join([p.text for p in doc.paragraphs])
+        elif file_name.endswith(".pdf"):
+            return "Nội dung tệp PDF đính kèm: " + str(uploaded_file.name)
+    except Exception as e:
+        return f"Không thể đọc file: {str(e)}"
+    return ""
 # --- GIAO DIỆN PHÂN HỆ KẾ HOẠCH CÁ NHÂN ---
 def render_personal_plan(run_ai_handler=None):
     st.markdown("<h3 style='text-align: left; color: #1E3A8A;'>🗓️ TRỢ LÝ XÂY DỰNG KẾ HOẠCH GIÁO DỤC CÁ NHÂN (PHỤ LỤC III)</h3>", unsafe_allow_html=True)
