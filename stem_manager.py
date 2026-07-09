@@ -16,7 +16,9 @@ def render_stem_section():
     st.markdown("## 🚀 HỆ SINH THÁI GIÁO DỤC STEM")
     st.markdown("---")
     
-    # KHỞI TẠO BỘ NHỚ (SESSION STATE)
+    # ---------------------------------------------------------
+    # 0. KHỞI TẠO BỘ NHỚ
+    # ---------------------------------------------------------
     if "stem_generated_content" not in st.session_state:
         st.session_state.stem_generated_content = ""
     if "stem_saved_projects" not in st.session_state:
@@ -24,118 +26,110 @@ def render_stem_section():
     if "stem_ai_suggestions" not in st.session_state:
         st.session_state.stem_ai_suggestions = ""
 
-    # LỆNH TẠO 3 THẺ ĐỘC LẬP
+    # ---------------------------------------------------------
+    # KHỞI TẠO 3 THẺ ĐỘC LẬP
+    # ---------------------------------------------------------
     tab1, tab2, tab3 = st.tabs([
         "💡 1. CÁC SẢN PHẨM STEM", 
-        "🛠️ 2. CHỨC NĂNG XÂY DỰNG DỰ ÁN GIÁO DỤC STEM", 
+        "🛠️ 2. XÂY DỰNG DỰ ÁN", 
         "📁 3. QUẢN LÝ DỰ ÁN ĐÃ LƯU"
     ])
 
     # =========================================================
-    # THẺ 1: CÁC SẢN PHẨM STEM (ĐÃ NÂNG CẤP BỘ LỌC AI)
+    # THẺ 1: CÁC SẢN PHẨM STEM (BỘ LỌC TÌM KIẾM CHỦ ĐỀ)
     # =========================================================
     with tab1:
-        st.subheader("⚙️ Bộ lọc tùy chỉnh yêu cầu AI gợi ý")
+        st.info("💡 **Giao diện Bộ lọc Đề xuất:** Thầy chọn các tiêu chí dưới đây để AI gợi ý danh sách dự án STEM phù hợp.")
         
-        # Tạo 3 cột cho 3 Menu
+        # 3 Cột menu lọc
         col_m1, col_m2, col_m3 = st.columns(3)
         with col_m1:
-            chon_khoi = st.selectbox("1. Chọn khối lớp:", ["Khối 9", "Khối 8", "Khối 7", "Khối 6"], index=0)
+            chon_khoi_t1 = st.selectbox("1. Khối lớp (Thẻ 1):", ["Khối 9", "Khối 8", "Khối 7", "Khối 6"])
         with col_m2:
-            chon_mon = st.selectbox("2. Môn học chủ đạo:", ["Khoa học tự nhiên", "Toán học", "Công nghệ", "Tin học"], index=0)
+            chon_mon_t1 = st.selectbox("2. Môn chủ đạo (Thẻ 1):", ["Khoa học tự nhiên", "Toán học", "Công nghệ", "Tin học"])
         with col_m3:
-            chon_chu_de = st.selectbox("3. Chọn Chủ đề:", [
+            chon_chu_de_t1 = st.selectbox("3. Lĩnh vực (Thẻ 1):", [
                 "Tiết kiệm năng lượng", 
                 "Bảo vệ môi trường", 
                 "Nông nghiệp thông minh", 
                 "Nhà thông minh (Smart Home)", 
-                "Chăm sóc sức khỏe", 
                 "Chủ đề tự do"
             ])
             
-        st.markdown("**Các lĩnh vực và yêu cầu tích hợp bổ sung:**")
-        
-        # Menu dạng tag cho phép chọn nhiều môn học tích hợp
-        mon_tich_hop = st.multiselect(
-            "Các môn học cần tích hợp (Mô hình STEM/STEAM):", 
-            ["Toán học (Math)", "Khoa học (Science)", "Công nghệ (Technology)", "Kỹ thuật (Engineering)", "Nghệ thuật (Art)"]
+        # Lĩnh vực tích hợp
+        mon_tich_hop_t1 = st.multiselect(
+            "Các môn học cần tích hợp (Thẻ 1):", 
+            ["Toán học", "Khoa học", "Công nghệ", "Kỹ thuật", "Nghệ thuật"]
         )
         
-        # Các hộp kiểm (Checkboxes)
-        tich_hop_ai = st.checkbox("🔌 Tích hợp ứng dụng AI hoặc Vi điều khiển (Ví dụ: Arduino, ESP8266)", value=True)
-        tich_hop_khuyet_tat = st.checkbox("🤝 Phân hóa hoạt động và câu hỏi dành cho học sinh khuyết tật", value=True)
+        tich_hop_ai_t1 = st.checkbox("🔌 Ưu tiên dự án có AI / Vi điều khiển (Thẻ 1)", value=True, key="chk_ai_t1")
+        tich_hop_khuyet_tat_t1 = st.checkbox("🤝 Ưu tiên dự án phù hợp Giáo dục hòa nhập (Thẻ 1)", value=True, key="chk_kt_t1")
         
         st.markdown("---")
         
-        # Nút gọi AI
-        if st.button("Trợ lý AI nghiên cứu và gợi ý chủ đề mới", use_container_width=True):
+        # Nút bấm Thẻ 1
+        if st.button("✨ Kích hoạt AI gợi ý danh sách chủ đề (Thẻ 1)", use_container_width=True):
             with st.spinner("AI đang phân tích các tiêu chí và tổng hợp dữ liệu..."):
-                
-                # Biến cờ (flag) để hiển thị chữ Có/Không trong mô phỏng kết quả
-                str_ai = "Có" if tich_hop_ai else "Không"
-                str_ht = "Có" if tich_hop_khuyet_tat else "Không"
-                str_mon = ", ".join(mon_tich_hop) if mon_tich_hop else "Không yêu cầu"
-                
-                # Nội dung mô phỏng AI trả về dựa trên các tùy chọn của thầy
+                # Nội dung mô phỏng trả về
                 st.session_state.stem_ai_suggestions = f"""
-                ### 📌 Danh sách dự án STEM đề xuất cho {chon_khoi} - Môn {chon_mon}
-                *(Chủ đề: {chon_chu_de} | Tích hợp: {str_mon})*
+                ### 📌 Danh sách dự án STEM đề xuất cho {chon_khoi_t1} - Môn {chon_mon_t1}
+                *(Lĩnh vực: {chon_chu_de_t1})*
                 
-                **1. Hệ thống giám sát và điều khiển {chon_chu_de.lower()} tự động**
-                *   **Mô tả:** Sử dụng vi điều khiển ESP8266 kết nối cảm biến để thu thập dữ liệu môi trường, tự động điều chỉnh thiết bị nhằm tối ưu hóa hiệu suất.
-                *   **Giáo dục hòa nhập:** Cung cấp sơ đồ mạch điện in nổi, các khối lệnh lập trình kéo thả màu sắc tương phản cao, phân công vai trò giám sát dữ liệu phù hợp với từng nhu cầu của học sinh.
+                **1. Hệ thống giám sát và điều khiển {chon_chu_de_t1.lower()} tự động**
+                *   **Mô tả:** Sử dụng vi điều khiển ESP8266 kết nối cảm biến để thu thập dữ liệu môi trường.
+                *   **Tính hòa nhập:** Cung cấp sơ đồ mạch điện in nổi, phân công vai trò quan sát phù hợp với năng lực học sinh.
                 
-                **2. Mô hình trực quan ứng dụng AI trong {chon_chu_de.lower()}**
-                *   **Mô tả:** Xây dựng mô hình vật lý kết hợp camera AI để nhận diện và phân loại, giúp học sinh nắm bắt thực tiễn của Khoa học Tự nhiên.
+                **2. Mô hình trực quan ứng dụng AI**
+                *   **Mô tả:** Xây dựng mô hình vật lý kết hợp camera để nhận diện, giúp học sinh nắm bắt thực tiễn.
                 """
         
-        # Hiển thị kết quả gợi ý
         if st.session_state.stem_ai_suggestions:
             with st.container(border=True):
                 st.markdown(st.session_state.stem_ai_suggestions)
 
     # =========================================================
-    # THẺ 2: CHỨC NĂNG XÂY DỰNG DỰ ÁN GIÁO DỤC STEM
+    # THẺ 2: XÂY DỰNG DỰ ÁN GIÁO DỤC STEM (THIẾT KẾ GIÁO ÁN)
     # =========================================================
     with tab2:
-        st.subheader("1. Thông tin chung")
-        ten_chu_de = st.text_input("Tên dự án / Chủ đề STEM:", 
-                                   placeholder="Ví dụ: Thiết kế hệ thống tiết kiệm năng lượng...")
+        st.info("🛠️ **Giao diện Thiết kế Kế hoạch Bài dạy:** Thầy nhập thông tin để AI biên soạn giáo án hoàn chỉnh.")
+        
+        ten_chu_de_t2 = st.text_input("Tên dự án / Chủ đề STEM (Thẻ 2):", 
+                                   placeholder="Ví dụ: Thiết kế hệ thống tiết kiệm năng lượng trường học...")
         
         col1, col2 = st.columns(2)
         with col1:
-            mon_chu_dao_t2 = st.selectbox("Môn học chủ đạo (Thẻ 2):", ["Khoa học tự nhiên", "Toán học", "Công nghệ", "Tin học"], index=0)
-            lop_hoc_t2 = st.selectbox("Lớp (Thẻ 2):", ["Lớp 9", "Lớp 8", "Lớp 7", "Lớp 6"], index=0)
+            mon_chu_dao_t2 = st.selectbox("Môn học chủ đạo (Thẻ 2):", ["Khoa học tự nhiên", "Toán học", "Công nghệ", "Tin học"])
+            lop_hoc_t2 = st.selectbox("Lớp (Thẻ 2):", ["Lớp 9", "Lớp 8", "Lớp 7", "Lớp 6"])
         with col2:
-            thoi_luong = st.text_input("Thời lượng thực hiện:", placeholder="Ví dụ: 3 Tiết")
+            thoi_luong_t2 = st.text_input("Thời lượng thực hiện (Thẻ 2):", placeholder="Ví dụ: 3 Tiết")
         
-        st.subheader("2. Yêu cầu tích hợp & Phân hóa")
-        tich_hop_ai_iot_t2 = st.checkbox("🔌 Tích hợp ứng dụng AI hoặc Vi điều khiển (Ví dụ: Arduino, ESP8266)", value=True, key="cb1_t2")
-        tich_hop_hoa_nhap_t2 = st.checkbox("🤝 Phân hóa hoạt động và câu hỏi dành cho học sinh khuyết tật", value=True, key="cb2_t2")
+        tich_hop_ai_iot_t2 = st.checkbox("🔌 Tích hợp ứng dụng AI hoặc Vi điều khiển trong bài dạy (Thẻ 2)", value=True, key="chk_ai_t2")
+        tich_hop_hoa_nhap_t2 = st.checkbox("🤝 Phân hóa câu hỏi và hoạt động cho học sinh khuyết tật (Thẻ 2)", value=True, key="chk_kt_t2")
         
-        st.subheader("3. Tài liệu tham khảo (Học liệu nguồn)")
-        tai_lieu_nguon = st.file_uploader("Tải lên file bài học, tài liệu tham khảo (PDF, Word)", accept_multiple_files=True)
+        tai_lieu_nguon = st.file_uploader("Tải lên tài liệu tham khảo (Thẻ 2)", accept_multiple_files=True)
         
         st.markdown("---")
         
-        if st.button("Kích hoạt AI thiết kế tiến trình STEM", type="primary", use_container_width=True):
-            if not ten_chu_de:
+        # Nút bấm Thẻ 2
+        if st.button("🚀 Kích hoạt AI thiết kế Kế hoạch bài dạy (Thẻ 2)", type="primary", use_container_width=True):
+            if not ten_chu_de_t2:
                 st.warning("Vui lòng nhập tên chủ đề STEM!")
             else:
                 with st.spinner("Hệ thống đang thiết kế..."):
                     noi_dung_ai = f"""
-                    # GIÁO ÁN STEM: {ten_chu_de}
-                    **Môn học:** {mon_chu_dao_t2} | **Đối tượng:** {lop_hoc_t2} | **Thời lượng:** {thoi_luong}
+                    # GIÁO ÁN STEM: {ten_chu_de_t2}
+                    **Môn học:** {mon_chu_dao_t2} | **Đối tượng:** {lop_hoc_t2} | **Thời lượng:** {thoi_luong_t2}
                     
                     ## BƯỚC 1: XÁC ĐỊNH VẤN ĐỀ
-                    Học sinh xác định bài toán thực tiễn...
+                    Học sinh tìm hiểu về thực trạng...
                     
                     ## BƯỚC 2: NGHIÊN CỨU KIẾN THỨC NỀN
-                    Nghiên cứu nguyên lý vi điều khiển và mạch điện...
+                    Nghiên cứu nguyên lý hoạt động của mạch điện và vi điều khiển...
                     """
                     st.session_state.stem_generated_content = noi_dung_ai
-                    st.success("Thiết kế thành công!")
+                    st.success("Thiết kế bài dạy thành công!")
 
+        # Khu vực lưu và tải xuống
         if st.session_state.stem_generated_content != "":
             st.markdown("### 📖 KẾT QUẢ THIẾT KẾ")
             with st.container(border=True):
@@ -143,7 +137,7 @@ def render_stem_section():
             
             col_download, col_save = st.columns(2)
             with col_download:
-                docx_file = create_word_file(ten_chu_de, st.session_state.stem_generated_content)
+                docx_file = create_word_file(ten_chu_de_t2, st.session_state.stem_generated_content)
                 st.download_button(
                     label="📥 Tải giáo án (File Word)",
                     data=docx_file,
@@ -152,15 +146,15 @@ def render_stem_section():
                     use_container_width=True
                 )
             with col_save:
-                if st.button("💾 Lưu dự án vào hệ thống", use_container_width=True):
-                    st.session_state.stem_saved_projects[ten_chu_de] = st.session_state.stem_generated_content
+                if st.button("💾 Lưu dự án vào hệ thống (Thẻ 3)", use_container_width=True):
+                    st.session_state.stem_saved_projects[ten_chu_de_t2] = st.session_state.stem_generated_content
                     st.toast("Đã lưu thành công! Hãy kiểm tra ở Thẻ 3.", icon="✅")
 
     # =========================================================
     # THẺ 3: QUẢN LÝ DỰ ÁN ĐÃ LƯU
     # =========================================================
     with tab3:
-        st.subheader("Danh sách các dự án đang lưu trữ")
+        st.info("📁 **Kho Lưu trữ:** Chứa các dự án thầy đã thiết kế và ấn lưu ở Thẻ 2.")
         
         if len(st.session_state.stem_saved_projects) > 0:
             danh_sach_du_an = list(st.session_state.stem_saved_projects.keys())
@@ -173,4 +167,4 @@ def render_stem_section():
                         del st.session_state.stem_saved_projects[ten_da]
                         st.rerun() 
         else:
-            st.info("Hiện tại chưa có dự án nào được lưu. Thầy hãy tạo và lưu dự án ở Thẻ 2 nhé.")
+            st.warning("Hiện tại chưa có dự án nào được lưu. Thầy hãy tạo và lưu dự án ở Thẻ 2 nhé.")
