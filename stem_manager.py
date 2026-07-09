@@ -74,7 +74,14 @@ def render_tab_3():
             st.markdown(nd)
 
 def render_stem_section():
-    if "stem_saved_projects" not in st.session_state: st.session_state.stem_saved_projects = {}
+    # Thêm các dòng khởi tạo này vào ngay đầu hàm
+    if "stem_saved_projects" not in st.session_state: 
+        st.session_state.stem_saved_projects = {}
+    if "stem_generated_content" not in st.session_state: 
+        st.session_state.stem_generated_content = ""
+    
+    st.markdown("## 🚀 HỆ SINH THÁI GIÁO DỤC STEM")
+    
     tab1, tab2, tab3 = st.tabs(["💡 1. SẢN PHẨM", "🛠️ 2. XÂY DỰNG KHBD", "📁 3. KHBD ĐÃ LƯU"])
     with tab1: render_tab_1()
     with tab2: render_tab_2()
