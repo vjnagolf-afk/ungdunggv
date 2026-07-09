@@ -34,13 +34,10 @@ def sync_to_google_sheet(ten_de, mon, khoi, thoi_gian, noi_dung):
         if creds_dict is None:
             for key in st.secrets.keys():
                 node = st.secrets[key]
-                # Nếu phần tử này là một dictionary/bộ cấu hình
                 if hasattr(node, "get") or isinstance(node, dict):
-                    # Kiểm tra xem có chứa thông tin đặc trưng của Service Account không
                     if node.get("type") == "service_account" or "private_key" in node:
                         creds_dict = node
                         break
-                    # Kiểm tra trường hợp cấu hình lồng nhau một cấp (ví dụ: [connections])
                     for sub_key in node.keys():
                         sub_node = node[sub_key]
                         if hasattr(sub_node, "get") or isinstance(sub_node, dict):
@@ -49,35 +46,25 @@ def sync_to_google_sheet(ten_de, mon, khoi, thoi_gian, noi_dung):
                                 break
                 if creds_dict: break
 
-        # 3. NẾU VẪN KHÔNG TÌM THẤY BẤT KỲ CẤU HÌNH HỢP LỆ NÀO
         if creds_dict is None:
             st.error("Hệ thống tự động quét toàn bộ Secrets nhưng không tìm thấy cấu hình Service Account hợp lệ nào!")
             return False
             
-        # Kết nối tới Google API bằng bộ chứng thực vừa dò tìm thấy
         gc = gspread.service_account_from_dict(creds_dict)
-        
-        # Mở Spreadsheet bằng ID chính xác của thầy
         sh = gc.open_by_key(SPREADSHEET_ID)
-        
-        # Mở tab chính xác tên DE_KT
         worksheet = sh.worksheet(TAB_NAME)
         
-        # Nếu trang tính trống (chưa có dòng nào), tự động tạo dòng tiêu đề
         if len(worksheet.get_all_values()) == 0:
             worksheet.append_row(["Tên Đề", "Môn Học", "Khối Lớp", "Thời Gian", "Nội Dung Chi Tiết"])
             
-        # Thêm dữ liệu đề thi mới vào dòng cuối cùng
         worksheet.append_row([ten_de, mon, khoi, thoi_gian, noi_dung])
         return True
         
     except Exception as e:
         st.warning(f"Không thể đồng bộ Google Sheet: {e}")
         return False
-
-
 # ==========================================
-# KHỐI 2: ĐỌC FILE TÀI LIỆU & VẼ ĐỒ THỊ
+# KHỐI 2: ĐỌC FILE TÀI LIỆU & VÈ ĐỒ THỊ
 # ==========================================
 def read_uploaded_docx(uploaded_file):
     try:
@@ -237,7 +224,7 @@ def export_to_docx_vietnam_standard(text_content, title_name,
     doc.save(bio)
     return bio.getvalue()
 # ==========================================
-# KHỐI 4: GIAO DIỆN FORM ĐẦU VÀO ĐỀ THI
+# KHỐI 4: GIAO DIỆN FORM ĐẦU VÀO & TẢI FILE MẪU
 # ==========================================
 def render_exam_designer_section(api_key_input, run_ai_prompt_safe_func):
     st.markdown("""
@@ -259,69 +246,73 @@ def render_exam_designer_section(api_key_input, run_ai_prompt_safe_func):
     tab_thiet_ke, tab_kho_luu_tru = st.tabs([" CHỨC NĂNG: TẠO ĐỀ KIỂM TRA AI", " THƯ MỤC ĐỀ ĐÃ XÂY DỰNG"])
     
     with tab_thiet_ke:
-        col_top1, col_top2 = st.columns([1, 1])
+        col_top1, col_top2 = st.columns(2)
         with col_top1:
-            c_lbl, c_sel = st.columns([1, 2])
+            c_lbl, c_sel = st.columns()
             c_lbl.markdown("<div style='margin-top: 8px;'>Hình thức đề:</div>", unsafe_allow_html=True)
             hinh_thuc = c_sel.selectbox("Hinh_thuc", ["Trắc nghiệm kết hợp tự luận", "100% Trắc nghiệm", "100% Tự luận"])
             
-            c_lbl2, c_txt2 = st.columns([1, 2])
+            c_lbl2, c_txt2 = st.columns()
             c_lbl2.markdown("<div style='margin-top: 8px;'>Môn học:</div>", unsafe_allow_html=True)
             mon_de = c_txt2.text_input("Mon", value="Khoa học tự nhiên")
             
-            c_lbl3, c_sel3 = st.columns([1, 2])
+            c_lbl3, c_sel3 = st.columns()
             c_lbl3.markdown("<div style='margin-top: 8px;'>Khối lớp:</div>", unsafe_allow_html=True)
             khoi_de = c_sel3.selectbox("Khoi", ["Lớp 6", "Lớp 7", "Lớp 8", "Lớp 9"], index=3)
             
-            c_lbl4, c_txt4 = st.columns([1, 2])
+            c_lbl4, c_txt4 = st.columns()
             c_lbl4.markdown("<div style='margin-top: 8px;'>Thời gian:</div>", unsafe_allow_html=True)
             thoi_gian_de = c_txt4.text_input("Thoi_gian", value="45 phút")
             
         with col_top2:
-            st.markdown("<div style='margin-top: 8px;'>TẢI TÀI LIỆU LÊN (Giới hạn kiến thức/Đề cương):</div>", unsafe_allow_html=True)
-            uploaded_files_de = st.file_uploader(
-                "Up_Files", 
-                type=["pdf", "docx"], 
-                accept_multiple_files=True
-            )
-            if not uploaded_files_de:
-                st.markdown("*Chưa có tài liệu nào được tải lên hệ thống.*", unsafe_allow_html=True)
+            st.markdown("<div style='font-weight: bold; color: #1E3A8A;'>1. TẢI TÀI LIỆU KIẾN THỨC LÊN (Giới hạn kiến thức/Đề cương):</div>", unsafe_allow_html=True)
+            uploaded_files_de = st.file_uploader("Up_Files", type=["pdf", "docx"], accept_multiple_files=True, key="up_kien_thuc_de_key")
+            
+            st.markdown("<div style='margin-top: 10px; font-weight: bold; color: #B71C1C;'>2. TẢI FILE MA TRẬN & ĐẶC TẢ MẪU (Làm căn cứ bám sát cấu trúc):</div>", unsafe_allow_html=True)
+            uploaded_matrix_file = st.file_uploader("Up_Matrix", type=["pdf", "docx"], accept_multiple_files=False, key="up_matrix_sample_key")
+            
+            # Khung hiển thị trạng thái tải tệp
+            if not uploaded_files_de and not uploaded_matrix_file:
+                st.markdown("*Chưa có tài liệu kiến thức hoặc tệp ma trận mẫu nào được tải lên.*")
             else:
-                st.success(f" Đã tải lên {len(uploaded_files_de)} tài liệu.")
+                if uploaded_files_de:
+                    st.success(f" Đã nhận {len(uploaded_files_de)} tệp nội dung kiến thức.")
+                if uploaded_matrix_file:
+                    st.info(f" Đã nhận tệp cấu trúc mẫu: {uploaded_matrix_file.name}")
                 
         st.markdown("<hr style='margin: 10px 0px;'>", unsafe_allow_html=True)
-        col_tn, spacer, col_tl = st.columns([10, 1, 10])
+        col_tn, spacer, col_tl = st.columns()
 # ==========================================
-# KHỐI 5A: GIAO DIỆN MA TRẬN ĐIỂM & TỶ LỆ
+# KHỐI 5A: LƯỚI ĐIỂM & TỶ LỆ NHẬN THỨC
 # ==========================================
-        # (Tiếp nối nội dung lồng trong tab_thiet_ke của Khối 4)
+        # (Tiếp nối nội dung cấu trúc lồng bên dưới tab_thiet_ke của Khối 4)
         with col_tn:
             st.markdown("<div class='header-pink'>PHẦN TRẮC NGHIỆM</div>", unsafe_allow_html=True)
-            c1, c2, c3, c4 = st.columns([3, 2, 3, 2])
+            c1, c2, c3, c4 = st.columns(4)
             c1.markdown("<b style='color:#C62828; line-height:2.2;'>Tổng số câu TNKQ:</b>", unsafe_allow_html=True)
             ph_tong_so_tn = c2.empty() 
             c3.markdown("<b style='line-height:2.2;'>Tổng điểm TN:</b>", unsafe_allow_html=True)
             ph_tong_diem_tn = c4.empty()
             
-            c1, c2, c3, c4 = st.columns([3, 2, 3, 2])
+            c1, c2, c3, c4 = st.columns(4)
             c1.markdown("<div style='line-height:2.2;'>Số câu nhiều lựa chọn:</div>", unsafe_allow_html=True)
             tn_1_dap_an = c2.number_input("TN_1_DA", min_value=0, value=12)
             c3.markdown("<div style='line-height:2.2;'>Tổng điểm dòng này:</div>", unsafe_allow_html=True)
             diem_tn_1 = c4.number_input("Diem_TN_1", min_value=0.0, value=3.0, step=0.25, format="%.2f")
             
-            c1, c2, c3, c4 = st.columns([3, 2, 3, 2])
+            c1, c2, c3, c4 = st.columns(4)
             c1.markdown("<div style='line-height:2.2;'>Số câu đúng sai:</div>", unsafe_allow_html=True)
             tn_dung_sai = c2.number_input("TN_DS", min_value=0, value=2)
             c3.markdown("<div style='line-height:2.2;'>Tổng điểm dòng này:</div>", unsafe_allow_html=True)
             diem_tn_2 = c4.number_input("Diem_TN_2", min_value=0.0, value=1.0, step=0.25, format="%.2f")
             
-            c1, c2, c3, c4 = st.columns([3, 2, 3, 2])
+            c1, c2, c3, c4 = st.columns(4)
             c1.markdown("<div style='line-height:2.2;'>Số câu điền khuyết:</div>", unsafe_allow_html=True)
             tn_dien_khuyen = c2.number_input("TN_DK", min_value=0, value=0)
             c3.markdown("<div style='line-height:2.2;'>Tổng điểm dòng này:</div>", unsafe_allow_html=True)
             diem_tn_3 = c4.number_input("Diem_TN_3", min_value=0.0, value=0.0, step=0.25, format="%.2f")
             
-            c1, c2, c3, c4 = st.columns([3, 2, 3, 2])
+            c1, c2, c3, c4 = st.columns(4)
             c1.markdown("<div style='line-height:2.2;'>Số câu trả lời ngắn:</div>", unsafe_allow_html=True)
             tn_tra_loi_ngan = c2.number_input("TN_TLN", min_value=0, value=0)
             c3.markdown("<div style='line-height:2.2;'>Tổng điểm dòng này:</div>", unsafe_allow_html=True)
@@ -335,7 +326,7 @@ def render_exam_designer_section(api_key_input, run_ai_prompt_safe_func):
             
         with col_tl:
             st.markdown("<div class='header-green'>PHẦN TỰ LUẬN</div>", unsafe_allow_html=True)
-            c1, c2, c3, c4 = st.columns([3, 2, 2, 2])
+            c1, c2, c3, c4 = st.columns(4)
             c1.markdown("<b style='color:#1565C0; line-height:2.2;'>TỔNG SỐ CÂU TỰ LUẬN:</b>", unsafe_allow_html=True)
             tong_so_tl = c2.number_input("Tong_TL", min_value=0, max_value=20, value=5)
             
@@ -347,7 +338,7 @@ def render_exam_designer_section(api_key_input, run_ai_prompt_safe_func):
             tong_diem_tl_auto = 0.0
             
             for i in range(int(tong_so_tl)):
-                rc1, rc2, rc3, rc4 = st.columns([1, 2, 2, 2])
+                rc1, rc2, rc3, rc4 = st.columns(4)
                 rc2.markdown(f"<div style='line-height:2.2;'>Câu {i+1}</div>", unsafe_allow_html=True)
                 diem_cau = rc3.number_input(f"Diem_Cau_{i+1}", min_value=0.0, value=1.0, step=0.25, format="%.2f", key=f"diem_tl_{i}")
                 rc4.markdown("<div style='line-height:2.2;'>ĐIỂM</div>", unsafe_allow_html=True)
@@ -357,12 +348,12 @@ def render_exam_designer_section(api_key_input, run_ai_prompt_safe_func):
             ph_tong_diem_tl.text_input("Lock_TD_TL", value=f"{tong_diem_tl_auto:.2f}", disabled=True)
             
         st.markdown("<hr style='margin: 15px 0px;'>", unsafe_allow_html=True)
-        c_btn, c_chk = st.columns([2, 5])
+        c_btn, c_chk = st.columns(2)
         btn_tao = c_btn.button("⚙ Tự động tạo ma trận & đề thi", type="primary", use_container_width=True)
         uu_tien_de = c_chk.checkbox("Yêu cầu bám sát kiến thức trong tài liệu tải lên", value=True)
         
         st.markdown("<b>Tỷ lệ mức độ nhận thức (%):</b>", unsafe_allow_html=True)
-        c_nb1, c_nb2, c_th1, c_th2, c_vd1, c_vd2, c_vdc1, c_vdc2 = st.columns([1, 1, 1, 1, 1, 1, 1, 1])
+        c_nb1, c_nb2, c_th1, c_th2, c_vd1, c_vd2, c_vdc1, c_vdc2 = st.columns(8)
         c_nb1.markdown("<div style='line-height:2.2;'>Nhận biết:</div>", unsafe_allow_html=True)
         nb = c_nb2.number_input("NB", value=40)
         c_th1.markdown("<div style='line-height:2.2;'>Thông hiểu:</div>", unsafe_allow_html=True)
@@ -375,25 +366,31 @@ def render_exam_designer_section(api_key_input, run_ai_prompt_safe_func):
         st.markdown("<div style='margin-top: 8px;'>Nhập yêu cầu khác (Tùy chọn):</div>", unsafe_allow_html=True)
         yeu_cau_khac = st.text_area("Yeu_Cau_Khac", placeholder="Nhập yêu cầu khác ....")
 # ==========================================
-# KHỐI 5B: XỬ LÝ AI PROMPT & KHO LƯU TRỮ (ĐÃ SỬA LỖI THAM SỐ LAMBDA)
+# KHỐI 5B: XỬ LÝ AI PROMPT & KHO LƯU TRỮ
 # ==========================================
-        # (Tiếp nối xử lý điều kiện bấm nút sinh đề lồng bên dưới Khối 5A)
+        # (Tiếp nối xử lý điều kiện lồng bên dưới nút bấm btn_tao của Khối 5A)
         if btn_tao:
-            # Lấy API Key hệ thống để kiểm tra xem ứng dụng đã sẵn sàng chưa
-            actual_api_key = api_key_input if api_key_input else st.secrets.get("gemini_api_key", st.secrets.get("GEMINI_API_KEY", ""))
-            
-            with st.spinner("Hệ thống đang phân tích tài liệu và cấu trúc để sinh Ma trận, Đề thi chuẩn mẫu..."):
+            with st.spinner("Hệ thống đang phân tích tài liệu và cấu trúc ma trận mẫu để sinh Đề kiểm tra chuẩn mẫu..."):
                 try:
                     content_de_nguon = ""
                     if uploaded_files_de:
                         for file in uploaded_files_de:
-                            content_de_nguon += f"\n--- TÀI LIỆU: {file.name} ---\n"
+                            content_de_nguon += f"\n--- TÀI LIỆU KIẾN THỨC: {file.name} ---\n"
                             if file.name.endswith('.docx'): content_de_nguon += read_uploaded_docx(file)
                             else: content_de_nguon += read_uploaded_pdf(file)
                     
+                    # ĐỌC NỘI DUNG TỆP CẤU TRÚC MA TRẬN VÀ ĐẶC TẢ MẪU ĐƯỢC TẢI LÊN
+                    content_matrix_sample = ""
+                    if uploaded_matrix_file:
+                        content_matrix_sample = f"\n--- CĂN CỨ CẤU TRÚC MA TRẬN & ĐẶC TẢ MẪU BẮT BUỘC BÁM SÁT ({uploaded_matrix_file.name}) ---\n"
+                        if uploaded_matrix_file.name.endswith('.docx'):
+                            content_matrix_sample += read_uploaded_docx(uploaded_matrix_file)
+                        else:
+                            content_matrix_sample += read_uploaded_pdf(uploaded_matrix_file)
+                    
                     diem_tl_str = ", ".join([f"Câu {i+1} ({diem_tl_list[i]} điểm)" for i in range(int(tong_so_tl))])
                     
-                    prompt_de = f"""Đóng vai một chuyên gia khảo thí. Hãy thiết kế Đề kiểm tra định kỳ môn {mon_de} {khoi_de}. Hình thức: {hinh_thuc}. Thời gian: {thoi_gian_de}.
+                    prompt_de = f"""Đóng vai một chuyên gia khảo thí cấp cao. Hãy thiết kế Đề kiểm tra định kỳ môn {mon_de} {khoi_de}. Hình thức: {hinh_thuc}. Thời gian: {thoi_gian_de}.
 Cấu trúc điểm (Tỷ lệ {nb}-{th}-{vd}-{vdc}):
 - TRẮC NGHIỆM ({tong_so_tn} câu - {tong_diem_tn} điểm):
  + {tn_1_dap_an} câu nhiều lựa chọn ({diem_tn_1} điểm)
@@ -403,6 +400,10 @@ Cấu trúc điểm (Tỷ lệ {nb}-{th}-{vd}-{vdc}):
 - TỰ LUẬN ({tong_so_tl} câu - {tong_diem_tl_auto} điểm). Điểm chi tiết: {diem_tl_str}.
 Yêu cầu khác: {yeu_cau_khac}
 """
+                    # NẾU THẦY UP TỆP MA TRẬN MẪU, ÉP AI PHẢI ĐỌC VÀ BÁM SÁT 100% CẤU TRÚC PHÂN PHỐI ĐÓ
+                    if content_matrix_sample:
+                        prompt_de += f"\n\nBẮT BUỘC TUÂN THỦ 100% CẤU TRÚC PHÂN PHỐI CỦA BIỂU MẪU MA TRẬN & ĐẶC TẢ SAU ĐÂY ĐỂ SINH CÂU HỎI TƯƠNG ỨNG:\n{content_matrix_sample}"
+
                     if uu_tien_de and content_de_nguon:
                         prompt_de += f"\n\nBẮT BUỘC BÁM SÁT 100% KIẾN THỨC TÀI LIỆU SAU ĐÂY:\n{content_de_nguon}"
                         
@@ -423,8 +424,7 @@ PHẦN 4. ĐÁP ÁN VÀ BIỂU ĐIỂM CHẤM
 - I. TRẮC NGHIỆM: BẮT BUỘC KẺ BẢNG MARKDOWN DẠNG LƯỚI NGANG (Cột 1 là Câu 1, 2, 3..., Cột 2 là Đáp án A, B, C...).
 - II. TỰ LUẬN: BẮT BUỘC KẺ BẢNG MARKDOWN gồm 2 cột (Nội dung trả lời | Điểm) trình bày barem điểm chi tiết từng ý.
 """
-                    # ĐÃ SỬA LỖI: Chỉ truyền đúng 1 tham số prompt_de vào hàm lambda theo đúng cấu trúc phôi gốc
-                    result_text, _ = run_ai_prompt_safe_func(prompt_de)
+                    result_text, model_used = run_ai_prompt_safe_func(prompt_de)
                     
                     ten_de_moi = f"Đề {mon_de} - {khoi_de} ({thoi_gian_de})"
                     st.session_state["db_de_kiem_tra"].append({
@@ -434,7 +434,7 @@ PHẦN 4. ĐÁP ÁN VÀ BIỂU ĐIỂM CHẤM
                         "noi_dung": result_text
                     })
                     
-                    st.success(" Đã tạo đề thi thành công! Thầy/Cô vui lòng chuyển sang thẻ THƯ MỤC ĐỀ ĐÃ XÂY DỰNG để xem và bấm nút gửi lên Google Sheet.")
+                    st.success(f" Đã tạo đề thi thành công bằng mô hình [{model_used}]! Thầy/Cô chuyển sang thẻ THƯ MỤC ĐỀ ĐÃ XÂY DỰNG để kiểm tra và lưu trữ.")
                         
                 except Exception as error_ai:
                     st.error(f"Lỗi hệ thống AI: {error_ai}")
@@ -482,4 +482,3 @@ PHẦN 4. ĐÁP ÁN VÀ BIỂU ĐIỂM CHẤM
                         if st.button(" Xóa đề này", key=f"del_de_thi_{real_idx}", use_container_width=True):
                             st.session_state["db_de_kiem_tra"].pop(real_idx)
                             st.rerun()
-
