@@ -132,7 +132,7 @@ def render_exam_designer_section(run_ai_prompt_safe_func):
                 with cols_diem_tl[col_idx]:
                     diem_cau = st.number_input(f"Câu {i+1}:", min_value=0.0, max_value=10.0, value=2.0 if i < 3 else 1.0, step=0.5, key=f"tl_c_{i}")
                     diem_chi_tiet_tl.append((i+1, diem_cau))
-# exam_designer.py - ĐOẠN 3: TỶ LỆ NHẬN THỨC, LUỒNG AI GỘP 2 NÚT TẢI, TẢI FILE & TAB THƯ MỤC
+# exam_designer.py - ĐOẠN 3 (Cập nhật đồng bộ hộp chọn mô hình mới)
         st.markdown("---")
 
         # --- HÀNG MỨC ĐỘ NHẬN THỨC VÀ NÚT BẤM ---
@@ -147,7 +147,13 @@ def render_exam_designer_section(run_ai_prompt_safe_func):
         with col_vdc:
             tl_vd_cao = st.number_input("Vận dụng cao:", min_value=0, max_value=100, value=10, step=10)
 
-        st.session_state["save_ten_de"] = st.text_input("Tên bài kiểm tra / Đề số:", value=st.session_state["save_ten_de"])
+        # 🌟 BỔ SUNG HỘP CHỌN MÔ HÌNH ƯU TIÊN CHUẨN THEO ẢNH GIAO DIỆN MỚI
+        col_input_name, col_input_model = st.columns([2.0, 1.0])
+        with col_input_name:
+            st.session_state["save_ten_de"] = st.text_input("Tên bài kiểm tra / Đề số:", value=st.session_state["save_ten_de"])
+        with col_input_model:
+            mo_hinh_uu_tien = st.selectbox("Mô hình xử lý đề thi:", ["3.5 Flash", "3.1 Flash-Lite", "3.1 Pro", "Tư duy mở rộng"], index=0)
+
         yeu_cau_khac = st.text_area("Nhập yêu cầu khác (Tùy chọn):", placeholder="Ví dụ: Đề thi có chứa 1 câu hỏi thực tế về đồ thị hàm số bậc nhất...")
 
         col_btn_l, col_btn_r = st.columns([1.5, 1.0])
@@ -157,7 +163,7 @@ def render_exam_designer_section(run_ai_prompt_safe_func):
             st.write(""); st.write("")
             st.checkbox("Yêu cầu bám sát kiến thức trong GIÁO TRÌNH, tài liệu", value=True)
 
-        # XỬ LÝ LOGIC GỌI AI & ĐỒNG BỘ SONG SONG CẢ ĐỀ CƯƠNG LẪN MA TRẬN
+        # XỬ LÝ LOGIC GỌI AI & TRUYỀN THAM SỐ MÔ HÌNH ƯU TIÊN LỰA CHỌN
         if nut_sinh_de:
             if int(tl_nhan_biet + tl_thong_hieu + tl_van_dung + tl_vd_cao) != 100:
                 st.error("⚠️ Tổng tỷ lệ mức độ nhận thức phải bằng 100%!")
@@ -169,10 +175,10 @@ def render_exam_designer_section(run_ai_prompt_safe_func):
                     Bạn là Chuyên gia Khảo thí và Kiểm định Chất lượng Giáo dục phổ thông tại Việt Nam. Hãy sinh Đề thi cho môn {st.session_state['save_mon_hoc']} - {st.session_state['save_khoi_lop']} (Thời gian làm bài: {st.session_state['save_thoi_gian']}).
                     
                     [DỮ LIỆU ĐỀ CƯƠNG YÊU CẦU BÁM SÁT KIẾN THỨC]:
-                    {noi_dung_de_cuong if noi_dung_de_cuong else "Dựa theo phạm vi phân phối kiến thức tiêu chuẩn của chương trình học hiện hành."}
+                    {noi_dung_de_cuong if 'noi_dung_de_cuong' in locals() and noi_dung_de_cuong else "Dựa theo phạm vi phân phối kiến thức tiêu chuẩn của chương trình học hiện hành."}
                     
                     [DỮ LIỆU CẤU TRÚC MA TRẬN / ĐẶC TẢ YÊU CẦU PHÂN BỔ]:
-                    {noi_dung_ma_tran if noi_dung_ma_tran else "Tự phân bổ số câu Nhận biết/Thông hiểu theo tỷ lệ giao diện."}
+                    {noi_dung_ma_tran if 'noi_dung_ma_tran' in locals() and noi_dung_ma_tran else "Tự phân bổ số câu Nhận biết/Thông hiểu theo tỷ lệ giao diện."}
                     
                     QUY ĐỊNH CẤU TRÚC ĐỀ THI ĐÃ THIẾT LẬP TRÊN GIAO DIỆN:
                     - Hình thức đề: {hinh_thuc}
@@ -183,7 +189,8 @@ def render_exam_designer_section(run_ai_prompt_safe_func):
                     
                     QUY ĐỊNH ĐỊNH DẠNG: Công thức toán đặt trong $...$, các đáp án trắc nghiệm A., B., C., D. bắt buộc phải tự động xuống dòng độc lập trên một hàng mới.
                     """
-                    ket_qua, model_thuc_te = run_ai_prompt_safe_func(prompt_vi_mo)
+                    # 🚀 TRUYỀN THÊM THAM SỐ MÔ HÌNH ƯU TIÊN VÀO HÀM SAFE
+                    ket_qua, model_thuc_te = run_ai_prompt_safe_func(prompt_vi_mo, mo_hinh_uu_tien)
                     st.session_state["ket_qua_de"] = ket_qua
                     st.session_state["model_dung"] = model_thuc_te
                     
@@ -200,7 +207,7 @@ def render_exam_designer_section(run_ai_prompt_safe_func):
 
         # HIỂN THỊ VÀ TẢI TỆP WORD XUỐNG
         if st.session_state["ket_qua_de"]:
-            st.info(f"🤖 Đề thi được xây dựng thành công bằng mô hình: `{st.session_state['model_dung']}`")
+            st.info(f"🤖 Đề thi được xây dựng thành công bằng mô hình thực tế: `{st.session_state['model_dung']}`")
             st.markdown("### 📝 Xem trước nội dung đề thi:")
             st.markdown(st.session_state["ket_qua_de"])
             
@@ -220,3 +227,4 @@ def render_exam_designer_section(run_ai_prompt_safe_func):
     with tab_thu_muc:
         st.write("📂 Danh sách các đề kiểm tra đã đồng bộ và lưu trữ thành công:")
         st.markdown(f"🔗 [Bấm vào đây để mở trực tiếp Google Sheets quản lý đề thi](https://google.com{SPREADSHEET_ID})")
+
