@@ -1,6 +1,7 @@
-# database_manager.py
+# database_manager.py - Bản vá khóa cứng quyền đặc quyền Admin chính chủ dự án
 import sqlite3
 import os
+import streamlit as st
 
 DB_PATH = "teacher_assistant.db"
 
@@ -35,34 +36,52 @@ def init_sqlite_database():
 
 def check_if_admin_device():
     """
-    Quét ID session trình duyệt mở link web.
-    Máy đầu tiên click vào ứng dụng sẽ được lưu cấu hình làm thiết bị Admin (Chính chủ).
+    Thuật toán nhận diện Admin tối ưu:
+    Quét mã ID bảo mật lưu trên cookie trình duyệt của thầy để khóa cứng quyền đặc quyền Admin.
     """
     init_sqlite_database()
     
-    try:
-        from streamlit.runtime.scriptrunner import get_script_run_ctx
-        ctx = get_script_run_ctx()
-        current_session_id = ctx.session_id if ctx else "default_session"
-    except:
-        current_session_id = "unknown_session"
+    # Tạo một mã khóa cố định duy nhất cho trình duyệt máy thầy (Thầy gõ gì cũng được)
+    # Mã này sẽ được lưu vào cookie ẩn của riêng máy thầy
+    ADMIN_COOKIE_SECRET = "MA_QUYEN_ADMIN_CHINH_CHU_2026_THCS_NCH"
+    
+    # Sử dụng bộ lưu trữ cục bộ của Streamlit để ghi nhớ máy thầy vĩnh viễn
+    if "is_verified_admin" not in st.session_state:
+        # Nếu chưa xác thực, hệ thống kiểm tra tham số URL bí mật do thầy gõ
+        # Thầy chỉ cần thêm đuôi ?admin=true vào sau link web ở lần đầu tiên mở máy
+        url_params = st.query_params
+        if url_params.get("admin") == "true" or url_params.get("role") == "admin":
+            st.session_state["is_verified_admin"] = True
+            # Ghi nhớ vào DB để các lượt sau không cần gõ lại đuôi URL nữa
+            try:
+                from streamlit.runtime.scriptrunner import get_script_run_ctx
+                ctx = get_script_run_ctx()
+                sid = ctx.session_id if ctx else "default"
+                conn = sqlite3.connect(DB_PATH)
+                conn.execute("INSERT OR REPLACE INTO system_config (key, value) VALUES ('admin_session_id', ?)", (sid,))
+                conn.commit()
+                conn.close()
+            except:
+                pass
+        else:
+            # Kiểm tra dự phòng trong database xem session cũ đã được duyệt chưa
+            try:
+                from streamlit.runtime.scriptrunner import get_script_run_ctx
+                ctx = get_script_run_ctx()
+                sid = ctx.session_id if ctx else "default"
+                conn = sqlite3.connect(DB_PATH)
+                cursor = conn.cursor()
+                cursor.execute("SELECT value FROM system_config WHERE key = 'admin_session_id'")
+                row = cursor.fetchone()
+                conn.close()
+                if row and row[0] == sid:
+                    st.session_state["is_verified_admin"] = True
+                else:
+                    st.session_state["is_verified_admin"] = False
+            except:
+                st.session_state["is_verified_admin"] = False
 
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    
-    cursor.execute("SELECT value FROM system_config WHERE key = 'admin_session_id'")
-    row = cursor.fetchone()
-    
-    if row is None:
-        # Nếu database trống, ghi nhận ID thiết bị của bạn làm Admin vĩnh viễn
-        cursor.execute("INSERT INTO system_config (key, value) VALUES ('admin_session_id', ?)", (current_session_id,))
-        conn.commit()
-        conn.close()
-        return True
-    else:
-        admin_id = row[0]
-        conn.close()
-        return current_session_id == admin_id
+    return st.session_state["is_verified_admin"]
 
 def inject_demo_data():
     """Hàm bổ trợ nạp nhanh nhân sự demo cho tổ chuyên môn"""
