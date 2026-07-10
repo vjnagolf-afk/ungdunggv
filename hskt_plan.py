@@ -1,49 +1,56 @@
 import streamlit as st
 
 def render_special_ed_section(run_ai_prompt_safe_func):
-    # CSS Tối ưu giao diện dịu nhẹ, nút bấm xanh nhạt
     st.markdown("""
         <style>
             .title-box { background-color: #EBF5FB; padding: 15px; border-radius: 10px; border-left: 5px solid #2980B9; margin-bottom: 20px; }
-            /* Định dạng nút bấm màu xanh dịu */
-            button[kind="primary"] {
-                background-color: #5DADE2 !important;
-                border: 1px solid #3498DB !important;
-                color: white !important;
-            }
+            button[kind="primary"] { background-color: #5DADE2 !important; color: white !important; }
         </style>
     """, unsafe_allow_html=True)
     
-    st.markdown("""<div class="title-box"><h3 style='text-align: center; color: #154360; margin: 0;'>🌱 HỖ TRỢ XÂY DỰNG KẾ HOẠCH GIÁO DỤC CÁ NHÂN (IEP)</h3></div>""", unsafe_allow_html=True)
+    st.markdown("<div class='title-box'><h3 style='text-align: center; color: #154360; margin: 0;'>🌱 HỖ TRỢ XÂY DỰNG KẾ HOẠCH HỖ TRỢ HSKT</h3></div>", unsafe_allow_html=True)
 
-    tab_thiet_ke, tab_quan_ly = st.tabs(["📝 XÂY DỰNG KẾ HOẠCH", "🗂️ HỒ SƠ LƯU TRỮ"])
+    tab_thiet_ke, tab_quan_ly = st.tabs(["📝 XÂY DỰNG KẾ HOẠCH", "🗂️ QUẢN LÝ HỒ SƠ"])
     
     with tab_thiet_ke:
         with st.container(border=True):
             st.markdown("<h5 style='color: #2980B9;'>1. Thông tin học sinh</h5>", unsafe_allow_html=True)
-            col_ten, col_lop, col_dang = st.columns([2, 1, 1.5])
-            ten_hs = col_ten.text_input("Họ và tên:", placeholder="Nguyễn Văn A")
-            lop_hs = col_lop.selectbox("Lớp:", ["Lớp 6", "Lớp 7", "Lớp 8", "Lớp 9"])
-            dang_kt = col_dang.selectbox("Dạng khuyết tật:", ["Khuyết tật học tập", "Khuyết tật trí tuệ", "Tự kỷ", "Khuyết tật vận động", "Khác"])
-                
-        with st.container(border=True):
-            st.markdown("<h5 style='color: #2980B9;'>2. Đánh giá & Mục tiêu</h5>", unsafe_allow_html=True)
-            kha_nang = st.text_area("Khả năng hiện tại:", placeholder="- Điểm mạnh: ...\n- Hạn chế: ...", height=100)
-            muc_tieu = st.text_area("Mục tiêu học kỳ:", placeholder="- Mục tiêu 1: ...", height=100)
-
-        ho_so_y_te = st.file_uploader("Tải lên Hồ sơ Y tế (Không bắt buộc):", type=["pdf", "docx"])
+            col1, col2 = st.columns(2)
+            ten_hs = col1.text_input("Họ và tên:")
+            dang_kt = col2.selectbox("Dạng khuyết tật:", [
+                "1. Khuyết tật vận động", "2. Khuyết tật trí tuệ (Chậm phát triển)",
+                "3. Khuyết tật nghe", "4. Khuyết tật nhìn (Thị giác)",
+                "5. Khuyết tật phát triển (Tự kỷ, Tăng động)",
+                "6. Khuyết tật thần kinh, tâm thần", "7. Khác"
+            ])
         
-        # Nút bấm mới: Xanh dịu, chữ trắng
-        if st.button("✨ TẠO KẾ HOẠCH HỖ TRỢ BẰNG AI", type="primary", use_container_width=True):
-            if not ten_hs or not muc_tieu:
-                st.warning("Vui lòng nhập họ tên và mục tiêu giáo dục!")
-            else:
-                with st.spinner("AI đang thiết lập kế hoạch hỗ trợ chuyên biệt..."):
-                    prompt = f"Lập kế hoạch giáo dục cá nhân cho HS {ten_hs}, lớp {lop_hs}, dạng {dang_kt}. Khả năng: {kha_nang}. Mục tiêu: {muc_tieu}."
-                    # Gọi hàm AI của bạn
-                    ket_qua, _ = run_ai_prompt_safe_func(prompt, "3.1 Flash-Lite")
-                    st.success("Đã tạo kế hoạch thành công!")
-                    st.markdown(ket_qua)
+        with st.container(border=True):
+            st.markdown("<h5 style='color: #2980B9;'>2. Kế hoạch & Môn học</h5>", unsafe_allow_html=True)
+            col3, col4 = st.columns(2)
+            ky_hoc = col3.selectbox("Kế hoạch GDHSKT:", ["Kế hoạch HK I", "Kế hoạch HK II", "Cả Năm"])
+            mon_hoc = col4.selectbox("Chọn môn học:", [
+                "Ngữ văn", "Toán", "Tiếng Anh", "Giáo dục công dân", "Lịch sử và Địa lí", 
+                "KHTN (Lý)", "KHTN (Hóa học)", "KHTN (Sinh học)", "Công nghệ", 
+                "Tin học", "Giáo dục thể chất", "Nghệ thuật (Âm nhạc và Mĩ thuật)", 
+                "Giáo dục địa phương", "Hoạt động trải nghiệm, hướng nghiệp"
+            ])
+            
+            uploaded_file = st.file_uploader(f"Tải lên file mẫu kế hoạch môn {mon_hoc}:")
+            
+            c_save, c_del = st.columns(2)
+            if uploaded_file and c_save.button("💾 Lưu file môn học"):
+                st.session_state[f"file_{mon_hoc}"] = uploaded_file
+                st.success(f"Đã lưu file mẫu cho {mon_hoc}")
+            if c_del.button("🗑️ Xóa file môn học"):
+                st.session_state.pop(f"file_{mon_hoc}", None)
+                st.info("Đã xóa file.")
+
+        if st.button("✨ TẠO KẾ HOẠCH HỖ TRỢ TỰ ĐỘNG BẰNG AI", type="primary", use_container_width=True):
+            with st.spinner("AI đang thiết lập kế hoạch..."):
+                file_info = "Có sử dụng file mẫu." if f"file_{mon_hoc}" in st.session_state else "Không có file mẫu."
+                prompt = f"Lập kế hoạch hỗ trợ HSKT dạng {dang_kt}, môn {mon_hoc}, {ky_hoc}. {file_info}"
+                ket_qua, _ = run_ai_prompt_safe_func(prompt, "3.1 Flash-Lite")
+                st.markdown(ket_qua)
                     
     with tab_quan_ly:
-        st.write("📂 Danh sách kế hoạch đã lưu sẽ hiển thị tại đây.")
+        st.write("📂 Quản lý hồ sơ cá nhân học sinh.")
