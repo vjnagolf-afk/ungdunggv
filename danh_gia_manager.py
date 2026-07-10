@@ -7,23 +7,6 @@ from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 import io
 import re
-import gspread
-from google.oauth2.service_account import Credentials
-from datetime import datetime
-
-# Cấu hình Sheets
-SHEET_ID = '1C6642jk_oQ0g9UC2By2qsNxxfQVR0MrZYj52tRdWDlY'
-
-def get_danhgia_sheet():
-    try:
-        creds_dict = dict(st.secrets["GOOGLE_KEY"])
-        scopes = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
-        creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
-        client = gspread.authorize(creds)
-        return client.open_by_key(SHEET_ID).worksheet("DANH_GIA_HS")
-    except Exception as e:
-        st.error(f"Lỗi kết nối Google Sheets: {e}")
-        return None
 
 def set_paragraph_spacing(paragraph, before_pt=3.0, after_pt=4.5):
     p_pr = paragraph._p.get_or_add_pPr()
@@ -33,30 +16,6 @@ def set_paragraph_spacing(paragraph, before_pt=3.0, after_pt=4.5):
     spacing.set(qn('w:line'), '240')
     spacing.set(qn('w:lineRule'), 'auto')
     p_pr.append(spacing)
-
-def create_word_table(doc, table_data, MAU_DEN):
-    """Hàm bổ trợ để vẽ bảng tránh lặp code"""
-    if not table_data:
-        return
-    num_rows = len(table_data)
-    num_cols = len(table_data[0]) if num_rows > 0 else 0
-    
-    if num_cols > 0:
-        word_table = doc.add_table(rows=num_rows, cols=num_cols)
-        word_table.style = 'Table Grid'
-        word_table.alignment = WD_TABLE_ALIGNMENT.CENTER
-        for r_idx, row in enumerate(table_data):
-            for c_idx, val in enumerate(row):
-                if c_idx < num_cols:
-                    cell = word_table.cell(r_idx, c_idx)
-                    cell.text = val
-                    for para in cell.paragraphs:
-                        set_paragraph_spacing(para, 2.0, 3.0)
-                        para.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-                        for r in para.runs:
-                            r.font.name = 'Times New Roman'
-                            r.font.size = Pt(12) # 12pt phù hợp cho bảng hơn 14pt để tránh tràn dòng
-                            r.font.color.rgb = MAU_DEN
 
 def export_rubric_to_docx(title_text, markdown_content):
     doc = docx.Document()
@@ -88,20 +47,35 @@ def export_rubric_to_docx(title_text, markdown_content):
         clean_line = line.strip().replace('**', '').replace('###', '').replace('##', '').replace('#', '')
         
         if line.strip().startswith('|') and line.strip().endswith('|'):
-            if '---|' in line or ':---|' in line: 
-                continue
+            if '---|' in line or ':---|' in line: continue
             in_table = True
             cells = [c.strip().replace('**', '') for c in line.split('|')[1:-1]]
             table_data.append(cells)
             continue
         else:
             if in_table and table_data:
-                create_word_table(doc, table_data, MAU_DEN)
+                num_rows = len(table_data)
+                num_cols = len(table_data) if num_rows > 0 else 0
+                if num_cols > 0:
+                    word_table = doc.add_table(rows=num_rows, cols=num_cols)
+                    word_table.style = 'Table Grid'
+                    word_table.alignment = WD_TABLE_ALIGNMENT.CENTER
+                    for r_idx, row in enumerate(table_data):
+                        for c_idx, val in enumerate(row):
+                            if c_idx < num_cols:
+                                cell = word_table.cell(r_idx, c_idx)
+                                cell.text = val
+                                for para in cell.paragraphs:
+                                    set_paragraph_spacing(para, 2.0, 3.0)
+                                    para.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+                                    for r in para.runs:
+                                        r.font.name = 'Times New Roman'
+                                        r.font.size = Pt(14)
+                                        r.font.color.rgb = MAU_DEN
                 in_table = False
                 table_data = []
 
-        if not clean_line: 
-            continue
+        if not clean_line: continue
 
         if re.match(r'^(I|II|III|IV|V)\.', clean_line) or re.match(r'^\d+\.', clean_line):
             p = doc.add_paragraph()
@@ -120,88 +94,29 @@ def export_rubric_to_docx(title_text, markdown_content):
             run.font.name = 'Times New Roman'
             run.font.size = Pt(14)
 
-    # Xử lý nếu bảng nằm ở cuối cùng văn bản văn bản mẫu
-    if in_table and table_data:
-        create_word_table(doc, table_data, MAU_DEN)
-
     bio = io.BytesIO()
     doc.save(bio)
     return bio.getvalue()
-
-import streamlit as st
-# Đảm bảo đã cài đặt: pip install google-genai
-from google import genai
-from google.genai import types
-
-def call_gemini_with_fallback(prompt_text, preferred_model):
-    """
-    Hàm gọi API Gemini có cơ chế tự động chuyển đổi mô hình (Fallback)
-    """
-    # Khởi tạo client sử dụng API Key từ Streamlit secrets
-    try:
-        client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
-    except Exception as e:
-        return f"❌ Lỗi cấu hình API Key: {str(e)}", None
-
-    # Định nghĩa danh sách thứ tự mô hình ưu tiên hạ cấp (Fallback)
-    # Tên mô hình chính thức cập nhật theo tài liệu Google GenAI
-    model_pool = {
-        "3.1 Pro": ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-2.5-flash-8b"],
-        "3.5 Flash": ["gemini-1.5-flash", "gemini-2.5-flash-8b"],
-        "Flash Lite": ["gemini-2.5-flash-8b"]
-    }
-    
-    # Lấy danh sách chuỗi mô hình sẽ thử nghiệm dựa trên lựa chọn của người dùng
-    models_to_try = model_pool.get(preferred_model, ["gemini-1.5-flash"])
-    
-    last_error = ""
-    for model_name in models_to_try:
-        try:
-            # Thông báo trạng thái đang thử nghiệm mô hình nào
-            # (Hữu ích khi debug, có thể ẩn đi nếu muốn giao diện sạch hơn)
-            response = client.models.generate_content(
-                model=model_name,
-                contents=prompt_text,
-                config=types.GenerateContentConfig(
-                    temperature=0.3, # Thấp một chút để Rubric chuẩn xác, định lượng tốt
-                )
-            )
-            # Nếu thành công, trả về kết quả và tên mô hình đã chạy thành công
-            return response.text, model_name
-        except Exception as e:
-            last_error = str(e)
-            # Nếu lỗi, vòng lặp for sẽ tự động chuyển sang model_name tiếp theo trong danh sách
-            continue
-            
-    # Nếu thử toàn bộ danh sách vẫn lỗi thì trả về thông báo lỗi cuối cùng
-    return f"❌ Tất cả các mô hình đều gặp lỗi. Lỗi cuối cùng: {last_error}", None
-
-
-def render_assessment_section(): # Bỏ tham số run_ai_prompt_safe_func vì đã tích hợp trực tiếp bên trên
+def render_assessment_section(run_ai_prompt_safe_func):
     st.markdown("<h3 style='text-align: center; color: red;'>🎯 TRỢ LÝ THIẾT KẾ RUBRIC ĐÁNH GIÁ HỌC SINH TỰ ĐỘNG</h3>", unsafe_allow_html=True)
     
     tab_thiet_ke, tab_thu_vien = st.tabs(["📝 THIẾT KẾ TIÊU CHÍ RUBRIC AI", "🗄️ LƯU TRỮ RUBRIC"])
     
-    if "ket_qua_rubric" not in st.session_state: 
-        st.session_state["ket_qua_rubric"] = ""
-    if "model_da_dung" not in st.session_state:
-        st.session_state["model_da_dung"] = ""
+    if "ket_qua_rubric" not in st.session_state: st.session_state["ket_qua_rubric"] = ""
+    if "lich_su_rubric" not in st.session_state: st.session_state["lich_su_rubric"] = []
 
     with tab_thiet_ke:
         st.write("Nhập tên nội dung bài học hoặc chủ đề để hệ thống tự động thiết kế bảng tiêu chí đánh giá định lượng.")
         
         noi_dung = st.text_input("Tên nội dung kiến thức bài học / Chương / Chủ đề / Sản phẩm:", placeholder="Ví dụ: Mô hình xe phản lực - Chương Tốc độ chuyển động")
         
-        col_lop, col_loai, col_model = st.columns([1, 1.5, 1.5])
+        col_lop, col_loai = st.columns(2)
         with col_lop:
             lop = st.text_input("Lớp:", placeholder="Ví dụ: 7A")
         with col_loai:
             hinh_thuc = st.selectbox("Hình thức đánh giá:", ["Qua sản phẩm học tập", "Qua bài thuyết trình", "Qua hoạt động nhóm", "Đánh giá năng lực thực hành"])
-        with col_model:
-            # 🆕 THÊM HỘP CHỌN MÔ HÌNH ƯU TIÊN
-            mo_hinh_uu_tien = st.selectbox("Mô hình ưu tiên sử dụng:", ["3.1 Pro", "3.5 Flash", "Flash Lite"])
 
-        col_btn1, col_blank, col_btn2 = st.columns([2.5, 1.0, 2.0])
+        col_btn1, col_blank, col_btn2 = st.columns([2.0, 1.3, 1.7])
         
         with col_btn2:
             st.write(""); st.write("")
@@ -227,36 +142,54 @@ def render_assessment_section(): # Bỏ tham số run_ai_prompt_safe_func vì đ
                     3. BỎ TOÀN BỘ các ký tự dấu sao kép '**' ở đầu và cuối các từ hoặc tiêu đề cột để tránh lỗi font chữ đậm.
                     4. Danh sách liệt kê dùng dấu gạch ngang '-' ở đầu dòng.
                     """
-                    # 🆕 GỌI HÀM CÓ CHỨA CƠ CHẾ TỰ ĐỘNG CHUYỂN ĐỔI MÔ HÌNH
-                    ket_qua, model_thuc_te = call_gemini_with_fallback(prompt_rubric, mo_hinh_uu_tien)
+                    ket_qua, model = run_ai_prompt_safe_func(prompt_rubric)
                     st.session_state["ket_qua_rubric"] = ket_qua
-                    st.session_state["model_da_dung"] = model_thuc_te
-
-        # Hiển thị kết quả AI và thông báo rõ mô hình nào đã phản hồi thành công
-        if st.session_state["ket_qua_rubric"]:
-            if st.session_state["model_da_dung"]:
-                st.info(f"🤖 Đã tạo thành công bằng mô hình: `{st.session_state['model_da_dung']}`")
-            st.markdown("### 📋 Kết quả Rubric từ AI:")
-            st.markdown(st.session_state["ket_qua_rubric"])
 
         with col_btn1:
             st.write(""); st.write("")
+            from danh_gia_manager import export_rubric_to_docx
             title_file = f"Rubric_{lop}_{noi_dung[:20].replace(' ', '_')}" if noi_dung else "Rubric_Danh_Gia"
-            
-            if st.session_state["ket_qua_rubric"] and "❌ Lỗi" not in st.session_state["ket_qua_rubric"]:
-                from danh_gia_manager import export_rubric_to_docx # Hoặc import từ file của bạn
-                docx_data = export_rubric_to_docx(f"BẢNG RUBRIC ĐÁNH GIÁ: {noi_dung}", st.session_state["ket_qua_rubric"])
-                is_disabled = False
-            else:
-                docx_data = b""
-                is_disabled = True
-
+            docx_data = export_rubric_to_docx(f"BẢNG RUBRIC ĐÁNH GIÁ: {noi_dung}", st.session_state["ket_qua_rubric"]) if st.session_state["ket_qua_rubric"] else b""
             st.download_button(
                 label="📥 Tải file Word (.docx) chuẩn về máy",
                 data=docx_data,
                 file_name=f"{title_file}.docx",
                 mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                disabled=is_disabled,
+                disabled=(st.session_state["ket_qua_rubric"] == ""),
                 use_container_width=True
             )
 
+        st.markdown("**📊 Bảng tiêu chí và thang điểm chi tiết sinh bởi AI:**")
+        with st.container(border=True):
+            if st.session_state["ket_qua_rubric"]:
+                st.markdown(st.session_state["ket_qua_rubric"])
+                if st.button("📥 Lưu vào thư viện hệ thống", use_container_width=True):
+                    st.session_state["lich_su_rubric"].append({"Nội dung": noi_dung, "Lớp": lop, "Data": st.session_state["ket_qua_rubric"]})
+                    st.success("✅ Đã lưu bảng Rubric thành công!")
+            else:
+                st.caption("Nội dung bảng Rubric sẽ hiển thị tại đây sau khi khởi tạo bằng AI...")
+
+    with tab_thu_vien:
+        st.markdown("### 🗄️ DANH SÁCH CÁC TIÊU CHÍ RUBRIC ĐÃ LƯU TRỮ")
+        if not st.session_state["lich_su_rubric"]:
+            st.info("Chưa có tiêu chí nào được lưu trong phiên làm việc này.")
+        else:
+            for idx, item in enumerate(st.session_state["lich_su_rubric"]):
+                col_exp, col_del = st.columns([0.88, 0.12])
+                with col_exp:
+                    with st.expander(f"📊 {idx+1}. {item['Nội dung']} - Lớp {item['Lớp']}"):
+                        st.markdown(item["Data"])
+                        from danh_gia_manager import export_rubric_to_docx
+                        saved_docx = export_rubric_to_docx(f"BẢNG RUBRIC ĐÁNH GIÁ: {item['Nội dung']}", item["Data"])
+                        st.download_button(
+                            label="📥 Tải lại file Word (.docx)",
+                            data=saved_docx,
+                            file_name=f"Luu_tru_Rubric_{idx+1}.docx",
+                            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                            key=f"dl_saved_rubric_{idx}"
+                        )
+                with col_del:
+                    st.write("")
+                    if st.button("🗑️ Xóa", key=f"del_rubric_{idx}", use_container_width=True):
+                        st.session_state["lich_su_rubric"].pop(idx)
+                        st.rerun()
