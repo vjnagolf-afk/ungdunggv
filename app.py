@@ -1,144 +1,14 @@
-# database_manager.py
-import sqlite3
-import os
-
-DB_PATH = "teacher_assistant.db"
-
-def init_sqlite_database():
-    """Khởi tạo cấu trúc các bảng dữ liệu nội bộ nếu chưa tồn tại"""
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("CREATE TABLE IF NOT EXISTS system_config (key TEXT UNIQUE, value TEXT)")
-    cursor.execute("CREATE TABLE IF NOT EXISTS org_members (id INTEGER PRIMARY KEY AUTOINCREMENT, fullname TEXT UNIQUE, position TEXT, main_subject TEXT, email TEXT, phone TEXT, note TEXT)")
-    cursor.execute("CREATE TABLE IF NOT EXISTS org_assignments (id INTEGER PRIMARY KEY AUTOINCREMENT, fullname TEXT UNIQUE, subject_class TEXT, homeroom TEXT, concurrent TEXT, total_periods TEXT DEFAULT '0')")
-    conn.commit()
-    conn.close()
-
-def check_if_admin_device():
-    """
-    Quét ID session trình duyệt mở link web.
-    Máy đầu tiên click vào ứng dụng sẽ được lưu cấu hình làm thiết bị Admin (Chính chủ).
-    """
-    init_sqlite_database()
-    
-    try:
-        from streamlit.runtime.scriptrunner import get_script_run_ctx
-        ctx = get_script_run_ctx()
-        current_session_id = ctx.session_id if ctx else "default_session"
-    except:
-        current_session_id = "unknown_session"
-
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    
-    cursor.execute("SELECT value FROM system_config WHERE key = 'admin_session_id'")
-    row = cursor.fetchone()
-    
-    if row is None:
-        # Nếu database trống, ghi nhận ID thiết bị của bạn làm Admin vĩnh viễn
-        cursor.execute("INSERT INTO system_config (key, value) VALUES ('admin_session_id', ?)", (current_session_id,))
-        conn.commit()
-        conn.close()
-        return True
-    else:
-        admin_id = row[0]
-        conn.close()
-        return current_session_id == admin_id
-
-def inject_demo_data():
-    """Hàm bổ trợ nạp nhanh nhân sự demo cho tổ chuyên môn"""
-    conn = sqlite3.connect(DB_PATH)
-    danh_sach_demo = [
-        ("Lê Hồng Dưỡng", "Khoa học tự nhiên (Phân môn Vật lí)", "14"),
-        ("Nguyễn Thị Huyền Trang", "Khoa học tự nhiên (Phân môn Vật lí)", "16"),
-        ("Khương Thị Thúy Vân", "Khoa học tự nhiên (Phân môn Sinh học)", "12"),
-        ("Phạm Thùy Ngoan", "Khoa học tự nhiên (Phân môn Hóa học)", "15"),
-        ("Trần Xuân Hạnh", "Giáo dục thể chất", "14")
-    ]
-    for name, subj, periods in danh_sach_demo:
-        conn.execute("INSERT OR REPLACE INTO org_members (fullname, position, main_subject) VALUES (?, 'GV', ?)", (name, subj))
-        conn.execute("INSERT OR REPLACE INTO org_assignments (fullname, total_periods) VALUES (?, ?)", (name, periods))
-    conn.commit()
-    conn.close()
-# ai_service.py
-import streamlit as st
-from google import genai
-from google.genai import errors
-
-def get_system_api_key():
-    """Lấy API Key tổng dự phòng của hệ thống"""
-    return st.secrets.get("GEMINI_API_KEY", "")
-
-def run_ai_prompt_safe(prompt_text, preferred_model="3.5 Flash", is_admin_owner=True):
-    """
-    Trung tâm điều phối gọi API phân luồng bảo mật.
-    - Nếu là máy của Admin: Chạy thẳng bằng Key hệ thống.
-    - Nếu là máy giáo viên khác: Ép dùng Key cá nhân dán ở Sidebar giao diện.
-    """
-    if is_admin_owner:
-        api_key_to_use = get_system_api_key()
-        nguon_key = "Tài khoản hệ thống (Chính chủ)"
-    else:
-        api_key_ca_nhan = st.session_state.get("gv_api_key_input", "").strip()
-        if api_key_ca_nhan:
-            api_key_to_use = api_key_ca_nhan
-            nguon_key = "Tài khoản cá nhân Giáo viên"
-        else:
-            return "⚠️ Bạn đang truy cập từ thiết bị thành viên. Vui lòng nhập API Key Gemini cá nhân của bạn ở mục '🔑 TRẠNG THÁI TÀI KHOẢN' tại thanh bên trái để kích hoạt quyền ra đề/soạn bài!", "error"
-            
-    if not api_key_to_use:
-        return "⚠️ Hệ thống chưa được cấu hình API Key. Vui lòng liên hệ Admin hoặc tự cung cấp mã Key cá nhân!", "error"
-    
-    # Định biên danh mục mã Model ID thương mại chính thức của Google
-    model_pool = {
-        "3.1 Flash-Lite": ["gemini-2.5-flash"],
-        "3.5 Flash": ["gemini-2.5-flash"],
-        "3.1 Pro": ["gemini-2.5-pro", "gemini-2.5-flash"],
-        "Tư duy mở rộng": ["gemini-2.5-pro", "gemini-2.5-flash"]
-    }
-    models_to_try = model_pool.get(preferred_model, ["gemini-2.5-flash"])
-    
-    last_error_message = "Không có thông tin lỗi cụ thể."
-    client = genai.Client(api_key=api_key_to_use)
-    
-    for model_name in models_to_try:
-        try:
-            config_params = {}
-            if preferred_model == "Tư duy mở rộng" and "pro" in model_name:
-                config_params["thinking_config"] = {"thinking_budget": 2048}
-            
-            response = client.models.generate_content(
-                model=model_name,
-                contents=prompt_text,
-                config=config_params if config_params else None
-            )
-            
-            if response and response.text:
-                return response.text, f"{model_name} ({nguon_key})"
-            else:
-                continue
-                
-        except errors.APIError as error:  
-            last_error_message = f"Mô hình {model_name} báo lỗi API: {str(error)}"
-            if "429" in str(error):
-                st.toast("⏳ Mô hình đạt giới hạn hạn mức câu hỏi của ngày. Hệ thống đang lùi dòng máy...", icon="⚠️")
-            continue  
-        except Exception as e:
-            last_error_message = f"Sự cố đường truyền: {str(e)}"
-            continue
-            
-    return f"❌ Lỗi: Không thể phản hồi. Ghi nhận lỗi cuối cùng: {last_error_message}", "error"
 # app.py
 import streamlit as st
 import pandas as pd
 import sqlite3
 import os
 
-# Nhúng các cấu trúc module con vừa bóc tách
-from database_manager import check_if_admin_device, inject_demo_data, DB_PATH
-from ai_service import run_ai_prompt_safe
+# 🚀 SỬA THÀNH CÓ DẤU CHẤM ĐỂ TRIỆT TIÊU LỖI MODULE NOT FOUND TRÊN LINUX
+from .database_manager import check_if_admin_device, inject_demo_data, DB_PATH
+from .ai_service import run_ai_prompt_safe
 
-# Nhúng các phân hệ tác nghiệp vệ tinh của bạn
+# Nhúng các phân hệ tác nghiệp vệ tinh của thầy/cô
 from exam_designer import render_exam_designer_section 
 from grade_manager import render_grade_manager_section
 from tkb_manager import render_tkb_manager  
