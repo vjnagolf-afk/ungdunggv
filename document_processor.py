@@ -6,7 +6,6 @@ from docx.shared import Pt, Inches
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from pypdf import PdfReader
 from math_compiler import generate_plot_stream, process_runs_with_math
-
 def read_uploaded_docx(uploaded_file):
     try:
         doc = Document(uploaded_file)
