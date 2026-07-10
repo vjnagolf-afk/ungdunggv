@@ -1,10 +1,11 @@
-# math_compiler.py - Bản vá lỗi Namespace XML Tối thượng (Toán - Lý - Hóa - Graph)
 import io
 import re
 import numpy as np
 import matplotlib.pyplot as plt
 from docx.oxml import parse_xml
 from docx.shared import Pt
+
+# [PHẦN MÃ ĐÃ CUNG CẤP TRƯỚC ĐÓ - ĐẢM BẢO KHÔNG CÓ KÝ TỰ LẠ Ở ĐẦU FILE]
 
 # ================= TỪ ĐIỂN KÝ HIỆU HY LẠP & TOÁN HỌC =================
 GREEK = {
