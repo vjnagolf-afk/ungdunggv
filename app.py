@@ -20,43 +20,61 @@ from chu_nhiem_manager import render_chu_nhiem_section
 # --- 2. CẤU HÌNH ĐỌC API KEY TỰ ĐỘNG TỪ TRONG SECRETS ---
 API_KEY_HE_THONG = st.secrets.get("GEMINI_API_KEY", "")
 
-def run_ai_prompt_safe(prompt_text):
+# app.py (Cập nhật Khối gọi API đồng bộ danh mục mô hình mới)
+from google import genai
+from google.genai import errors
+import streamlit as st
+
+API_KEY_HE_THONG = st.secrets.get("GEMINI_API_KEY", "")
+
+def run_ai_prompt_safe(prompt_text, preferred_model="3.5 Flash"):
+    """
+    Hàm gọi API Gemini thế hệ mới tích hợp cơ chế Fallback (Tự động chuyển đổi mô hình)
+    đúng theo các tùy chọn: 3.1 Pro, 3.5 Flash, 3.1 Flash-Lite, Tư duy mở rộng.
+    """
     api_key = API_KEY_HE_THONG
     if not api_key:
         return "⚠️ Hệ thống chưa được cấu hình API Key trong mục Secrets. Vui lòng liên hệ Admin.", "error"
     
-    # DANH SÁCH MÔ HÌNH DỰ PHÒNG THEO THỨ TỰ ƯU TIÊN
-    MODEL_FALLBACK_LIST = [
-        "gemini-2.5-flash",        
-        "gemini-1.5-flash",        
-        "gemini-2.5-pro",          
-        "gemini-1.5-pro",          
-        "gemini-3.1-flash-lite"    
-    ]
+    # 🌟 ĐỒNG BỘ MÃ MÔ HÌNH CHUẨN KỸ THUẬT THEO CẤU TRÚC PHÂN CẤP DỰ PHÒNG
+    model_pool = {
+        "3.1 Pro": ["gemini-1.5-pro", "gemini-2.5-flash", "gemini-2.5-flash-8b"],
+        "3.5 Flash": ["gemini-2.5-flash", "gemini-2.5-flash-8b"],
+        "3.1 Flash-Lite": ["gemini-2.5-flash-8b"],
+        "Tư duy mở rộng": ["gemini-2.5-pro", "gemini-1.5-pro", "gemini-2.5-flash"]
+    }
+    
+    # Lấy danh sách mô hình sẽ lần lượt thử nghiệm dựa trên lựa chọn của giáo viên
+    models_to_try = model_pool.get(preferred_model, ["gemini-2.5-flash"])
     
     last_error_message = ""
     client = genai.Client(api_key=api_key)
     
-    # VÒNG LẶP TỰ ĐỘNG QUÉT VÀ THỬ NGHIỆM TỪNG MÔ HÌNH
-    for model_name in MODEL_FALLBACK_LIST:
+    # VÒNG LẶP TỰ ĐỘNG CHUYỂN ĐỔI THÔNG MINH KHI GẶP LỖI HẠN MỨC (QUOTA)
+    for model_name in models_to_try:
         try:
+            # Nếu người dùng chọn chế độ "Tư duy mở rộng" (Thinking), bổ sung tham số bật tính năng ẩn
+            config_params = {}
+            if preferred_model == "Tư duy mở rộng" and "pro" in model_name:
+                config_params["thinking_config"] = {"thinking_budget": 1024} # Kích hoạt chế độ giải toán chuyên sâu
+            
             response = client.models.generate_content(
                 model=model_name,
                 contents=prompt_text,
+                config=config_params if config_params else None
             )
             return response.text, model_name
             
         except errors.APIError as error:  
-            last_error_message = f"Mô hình {model_name} lỗi hoặc hết hạn mức (Quota). Đang lùi về mô hình tiếp theo..."
+            last_error_message = f"Mô hình {model_name} lỗi hạn mức hoặc nghẽn mạng. Đang lùi về dòng máy dự phòng..."
             st.toast(last_error_message, icon="⚠️")
             continue  
             
         except Exception as e:
-            last_error_message = f"Mô hình {model_name} gặp sự cố: {str(e)}"
+            last_error_message = f"Mô hình {model_name} gặp sự cố cấu trúc: {str(e)}"
             continue
             
     return f"Lỗi quá tải hệ thống trên diện rộng (Tất cả mô hình dự phòng đều cạn hạn mức). Lỗi cuối cùng: {last_error_message}", "error"
-
 # --- 3. KHỞI TẠO BỘ NHỚ TẠM ĐỒNG BỘ ---
 if "db_thanh_vien" not in st.session_state: 
     st.session_state["db_thanh_vien"] = []
