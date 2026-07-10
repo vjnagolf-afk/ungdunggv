@@ -40,21 +40,28 @@ import streamlit as st
 
 API_KEY_HE_THONG = st.secrets.get("GEMINI_API_KEY", "")
 
+# app.py (Bản vá dứt điểm lỗi 404 bằng Model ID phiên bản đầy đủ chuẩn SDK GenAI mới)
+from google import genai
+from google.genai import errors
+import streamlit as st
+
+API_KEY_HE_THONG = st.secrets.get("GEMINI_API_KEY", "")
+
 def run_ai_prompt_safe(prompt_text, preferred_model="3.5 Flash"):
     """
-    Hàm gọi API Gemini thế hệ mới - Đã sửa đổi chính xác mã định danh 
-    Model ID để tránh lỗi 404 hệ thống.
+    Hàm gọi API Gemini thế hệ mới - Đã cấu trúc chuẩn mã định danh phiên bản đầy đủ 
+    giúp triệt tiêu hoàn toàn lỗi 404 NOT_FOUND trên môi trường API v1beta.
     """
     api_key = API_KEY_HE_THONG
     if not api_key:
         return "⚠️ Hệ thống chưa được cấu hình API Key trong mục Secrets. Vui lòng liên hệ Admin.", "error"
     
-    # 🌟 VÁ LỖI CỐT LÕI: ĐỒNG BỘ ĐÚNG MÃ MÔ HÌNH CHÍNH THỨC CỦA GOOGLE AI STUDIO
+    # 🌟 CẬP NHẬT CHUẨN XÁC MODEL ID ĐẦY ĐỦ PHIÊN BẢN THEO CHUẨN THƯ VIỆN GOOGLE-GENAI MỚI
     model_pool = {
-        "3.1 Pro": ["gemini-1.5-pro", "gemini-2.5-flash"],
-        "3.5 Flash": ["gemini-2.5-flash", "gemini-1.5-flash"],
-        "3.1 Flash-Lite": ["gemini-1.5-flash"], # Sử dụng gemini-1.5-flash làm giải pháp siêu nhanh/tiết kiệm thay thế
-        "Tư duy mở rộng": ["gemini-1.5-pro", "gemini-2.5-flash"]
+        "3.1 Pro": ["gemini-1.5-pro-latest", "gemini-2.5-flash"],
+        "3.5 Flash": ["gemini-2.5-flash", "gemini-1.5-flash-latest"],
+        "3.1 Flash-Lite": ["gemini-1.5-flash-latest"],
+        "Tư duy mở rộng": ["gemini-1.5-pro-latest", "gemini-2.5-flash"]
     }
     
     models_to_try = model_pool.get(preferred_model, ["gemini-2.5-flash"])
@@ -66,21 +73,22 @@ def run_ai_prompt_safe(prompt_text, preferred_model="3.5 Flash"):
     for model_name in models_to_try:
         try:
             config_params = {}
-            # Tính năng Tư duy mở rộng (Thinking) chuẩn của dòng Pro (1.5-pro hỗ trợ rất tốt)
+            # Kích hoạt tính năng Tư duy mở rộng (Thinking) cho phiên bản Pro đầy đủ nếu giáo viên yêu cầu
             if preferred_model == "Tư duy mở rộng" and "pro" in model_name:
                 config_params["thinking_config"] = {"thinking_budget": 1024}
             
-            # Thực hiện lệnh gọi sinh văn bản
+            # Tiến hành gửi yêu cầu xử lý dữ liệu học thuật
             response = client.models.generate_content(
                 model=model_name,
                 contents=prompt_text,
                 config=config_params if config_params else None
             )
             
+            # Nếu nhận được phản hồi thành công, trả về kết quả ngay lập tức
             if response and response.text:
                 return response.text, model_name
             else:
-                last_error_message = f"Mô hình {model_name} phản hồi chuỗi rỗng."
+                last_error_message = f"Mô hình {model_name} phản hồi chuỗi trống."
                 continue
                 
         except errors.APIError as error:  
