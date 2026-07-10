@@ -1,4 +1,4 @@
-# exam_designer.py - BẢN FIX LỖI CỘNG ĐIỂM (HIỂN THỊ ĐẦY ĐỦ SỐ THẬP PHÂN)
+# exam_designer.py - BẢN CẬP NHẬT MENU MÔN HỌC ĐẦY ĐỦ
 import streamlit as st
 import gspread
 from document_processor import read_uploaded_docx, read_uploaded_pdf, export_to_docx_vietnam_standard
@@ -87,13 +87,23 @@ def render_exam_designer_section(run_ai_prompt_safe_func):
         col1, col2, col3, col4 = st.columns(4)
         with col1:
             st.markdown("<h6 style='color:blue; font-weight:bold; text-align:center;'>MENU MÔN HỌC</h6>", unsafe_allow_html=True)
-            st.session_state["save_mon_hoc"] = st.text_input("Môn học:", value=st.session_state["save_mon_hoc"], label_visibility="collapsed")
+            danh_sach_mon = [
+                "Ngữ văn", "Toán", "Tiếng Anh", "Giáo dục công dân", "Lịch sử và Địa lí", 
+                "Khoa học tự nhiên", "KHTN (Lý)", "KHTN (Hóa)", "KHTN (Sinh)", 
+                "Công nghệ", "Tin học", "Nghệ thuật", "Giáo dục địa phương", 
+                "Hoạt động trải nghiệm, hướng nghiệp"
+            ]
+            idx_mon = danh_sach_mon.index(st.session_state["save_mon_hoc"]) if st.session_state["save_mon_hoc"] in danh_sach_mon else 5
+            st.session_state["save_mon_hoc"] = st.selectbox("Môn học:", danh_sach_mon, index=idx_mon, label_visibility="collapsed")
+        
         with col2:
             st.markdown("<h6 style='color:blue; font-weight:bold; text-align:center;'>MENU LỚP</h6>", unsafe_allow_html=True)
             st.session_state["save_khoi_lop"] = st.selectbox("Khối lớp:", ["Lớp 6", "Lớp 7", "Lớp 8", "Lớp 9", "Khối 10", "Khối 11", "Khối 12"], index=2, label_visibility="collapsed")
+        
         with col3:
             st.markdown("<h6 style='color:blue; font-weight:bold; text-align:center;'>HÌNH THỨC KT</h6>", unsafe_allow_html=True)
             hinh_thuc = st.selectbox("Hình thức đề:", ["Trắc nghiệm kết hợp tự luận", "100% Trắc nghiệm", "100% Tự luận"], label_visibility="collapsed")
+        
         with col4:
             st.markdown("<h6 style='color:blue; font-weight:bold; text-align:center;'>THỜI GIAN</h6>", unsafe_allow_html=True)
             st.session_state["save_thoi_gian"] = st.text_input("Thời gian:", value=st.session_state["save_thoi_gian"], label_visibility="collapsed")
@@ -176,7 +186,7 @@ def render_exam_designer_section(run_ai_prompt_safe_func):
             tong_cau_tn = sc_nhieu_lua_chon + sc_dung_sai + sc_dien_khuyết + sc_tra_loi_ngan
             tong_diem_tn = d_nhieu_lua_chon + d_dung_sai + d_dien_khuyết + d_tra_loi_ngan
             
-            # GIỮ CHÍNH XÁC SỐ THẬP PHÂN KHI CỘNG (ví dụ 4.25 vẫn hiển thị đủ 4.25)
+            # GIỮ CHÍNH XÁC SỐ THẬP PHÂN KHI CỘNG
             hien_thi_tn = str(round(tong_diem_tn, 2))
             
             header_tn_placeholder.markdown(f"""
