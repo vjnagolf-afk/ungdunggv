@@ -43,7 +43,7 @@ def delete_khbd_from_sheet(row_index):
         return True
     return False
 
-# ================= GIAO DIỆN KHBD HOÀN CHỈNH =================
+# ================= GIAO DIỆN KHBD ĐẦY ĐỦ =================
 def render_khbd_section(run_ai_prompt_safe_func):
     st.markdown("<h3 style='text-align: center; color: blue;'>🧠 TRỢ LÝ THIẾT KẾ KẾ HOẠCH BÀI DẠY (KHBD) AI</h3>", unsafe_allow_html=True)
     
@@ -58,18 +58,23 @@ def render_khbd_section(run_ai_prompt_safe_func):
         with col_bo: bo_sach = st.selectbox("Bộ sách:", ["Kết nối tri thức", "Cánh Diều", "Chân trời sáng tạo"])
         
         col_tg, col_loai = st.columns(2)
-        with col_tg: thoi_luong = st.text_input("Thời lượng:", value="2 tiết")
+        with col_tg: thoi_luong = st.text_input("Thời lượng (Tiết):", value="2 tiết")
         with col_loai: kieu_khbd = st.selectbox("Mẫu thiết kế:", ["Chuẩn 5512", "Rút gọn", "STEM"])
         
-        files_tailieu = st.file_uploader("Tài liệu tham khảo:", type=["docx", "pdf", "txt"], accept_multiple_files=True)
-        chk_ai_digital = st.checkbox("Tích hợp năng lực số và AI", value=True)
+        files_tailieu = st.file_uploader("Tài liệu tham khảo (.docx, .pdf, .txt):", accept_multiple_files=True)
+        
+        col_chk1, col_chk2 = st.columns(2)
+        with col_chk1: chk_ai_digital = st.checkbox("Tích hợp năng lực số và AI", value=True)
+        with col_chk2: chk_strict_file = st.checkbox("🚩 Bám sát 100% file tài liệu tải lên", value=False)
+        
         yeu_cau_rieng = st.text_area("Yêu cầu sư phạm bổ sung:")
 
         c1, c2 = st.columns(2)
-        if c1.button("⚡ Thiết kế bài dạy bằng AI", type="primary", use_container_width=True):
+        if c1.button("⚡ Tiến hành thiết kế bài dạy bằng AI", type="primary", use_container_width=True):
             if ten_bai:
                 with st.spinner("Đang soạn giáo án..."):
-                    ket_qua, _ = run_ai_prompt_safe_func(f"Soạn KHBD bài {ten_bai} lớp {lop_khbd} {bo_sach}")
+                    context_msg = "- BÁM SÁT 100% TÀI LIỆU TẢI LÊN." if chk_strict_file else ""
+                    ket_qua, _ = run_ai_prompt_safe_func(f"Soạn KHBD bài {ten_bai}. {context_msg}")
                     st.session_state["ket_qua_khbd"] = ket_qua
             else: st.warning("Vui lòng nhập tên bài!")
         
@@ -79,6 +84,7 @@ def render_khbd_section(run_ai_prompt_safe_func):
                     st.success("✅ Đã lưu!")
         
         if st.session_state["ket_qua_khbd"]:
+            st.markdown("### 📋 Kết quả xem trước:")
             st.markdown(st.session_state["ket_qua_khbd"])
                 
     with tab_thu_vien:
@@ -91,4 +97,6 @@ def render_khbd_section(run_ai_prompt_safe_func):
                     st.session_state["ket_qua_khbd"] = bai['Nội dung chi tiết']
                     st.rerun()
                 if c2.button("🗑️ Xóa bài soạn", key=f"del_{idx}"):
-                    delete_khbd_from_sheet(idx); st.rerun()
+                    if delete_khbd_from_sheet(idx):
+                        st.success("✅ Đã xóa!")
+                        st.rerun()
