@@ -11,18 +11,15 @@ def read_uploaded_docx(uploaded_file):
     try:
         doc = Document(uploaded_file)
         return "\n".join([para.text for para in doc.paragraphs])
-    except: 
-        return "Lỗi đọc file Word"
+    except: return "Lỗi đọc file Word"
 
 def read_uploaded_pdf(uploaded_file):
     try:
         reader = PdfReader(uploaded_file)
         return "\n".join([page.extract_text() for page in reader.pages if page.extract_text()])
-    except: 
-        return "Lỗi đọc file PDF"
+    except: return "Lỗi đọc file PDF"
 
 def export_to_docx_vietnam_standard(text_content, title_name, school_name, group_name="TỔ KHOA HỌC TỰ NHIÊN"):
-    # 🚀 TỐI ƯU TOÀN CỤC: Làm sạch toàn bộ các dấu băm # dư thừa trong chuỗi văn bản trước khi xử lý dòng
     text_content = re.sub(r'(?m)^#+\s*', '', text_content)
     
     doc = Document()
@@ -34,20 +31,20 @@ def export_to_docx_vietnam_standard(text_content, title_name, school_name, group
     
     style = doc.styles['Normal']
     style.font.name = 'Times New Roman'
-    style.font.size = Pt(13)
+    style.font.size = Pt(14) # 🚀 CẬP NHẬT CỠ CHỮ CHUẨN ĐỒNG BỘ 14PT
     
     admin_table = doc.add_table(rows=1, cols=2)
     admin_table.autofit = False
     
-    cell_l = admin_table.rows[0].cells[0]
-    p_left = cell_l.paragraphs[0]
+    cell_l = admin_table.rows[0].cells
+    p_left = cell_l[0].paragraphs[0]
     p_left.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p_left.add_run(f"{school_name.upper()}\n").bold = True
     p_left.add_run(f"{group_name.upper()}\n").bold = True
     p_left.add_run("Số: ..... /BB-TCM").font.size = Pt(11)
     
-    cell_r = admin_table.rows[0].cells[1]
-    p_right = cell_r.paragraphs[0]
+    cell_r = admin_table.rows[0].cells
+    p_right = cell_r[1].paragraphs[0]
     p_right.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p_right.add_run("CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM\n").bold = True
     p_right.add_run("Độc lập - Tự do - Hạnh phúc\n").bold = True
@@ -115,7 +112,6 @@ def export_to_docx_vietnam_standard(text_content, title_name, school_name, group
             
         p = doc.add_paragraph()
         if re.match(r'^(Câu \d+:)', cleaned_line) or re.match(r'^(Câu \d+ \([^)]+\):)', cleaned_line):
-            # Nhận diện cả "Câu 1:" và dạng "Câu 3 (Nhận biết):" như trong ảnh của bạn
             match_prefix = re.match(r'^(Câu \d+\s*(?:\([^)]+\))?:)', cleaned_line)
             prefix = match_prefix.group(1)
             rest = cleaned_line[len(prefix):]
