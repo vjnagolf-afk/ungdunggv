@@ -1,4 +1,4 @@
-# exam_designer.py - BẢN FIX MÀU NÚT BẤM, ĐỊNH DẠNG CÂU HỎI & TOÁN HỌC/ĐỒ THỊ
+# exam_designer.py - BẢN HOÀN THIỆN TÍNH NĂNG LƯU/XÓA FILE & QUẢN LÝ THƯ MỤC
 import streamlit as st
 import gspread
 from document_processor import read_uploaded_docx, read_uploaded_pdf, export_to_docx_vietnam_standard
@@ -7,8 +7,8 @@ from document_processor import read_uploaded_docx, read_uploaded_pdf, export_to_
 SPREADSHEET_ID = "1C6642jk_oQ0g9UC2By2qsNxxfQVR0MrZYj52tRdWDlY"
 TAB_NAME = "DE_KT"
 
-def sync_exam_to_google_sheet(ten_de, mon, khoi, thoi_gian, noi_dung):
-    """Tự động tìm kiếm Service Account trong Secrets và đồng bộ kết quả lên Google Sheets"""
+def get_exam_sheet():
+    """Hàm hỗ trợ kết nối Google Sheets an toàn"""
     try:
         creds_dict = None
         priority_keys = ["gspread_credentials", "GSPREAD_CREDENTIALS", "google_sheet_creds", "google_creds", "GOOGLE_KEY"]
@@ -26,24 +26,40 @@ def sync_exam_to_google_sheet(ten_de, mon, khoi, thoi_gian, noi_dung):
                         break
         
         if creds_dict is None:
-            return False
+            return None
             
         gc = gspread.service_account_from_dict(creds_dict)
         sh = gc.open_by_key(SPREADSHEET_ID)
-        worksheet = sh.worksheet(TAB_NAME)
-        
-        if len(worksheet.get_all_values()) == 0:
-            worksheet.append_row(["Tên Đề", "Môn Học", "Khối Lớp", "Thời Gian", "Nội Dung Đề Thi"])
-            
-        worksheet.append_row([ten_de, mon, khoi, thoi_gian, noi_dung])
-        return True
+        return sh.worksheet(TAB_NAME)
     except:
-        return False
+        return None
+
+def sync_exam_to_google_sheet(ten_de, mon, khoi, thoi_gian, noi_dung):
+    """Lưu đề thi mới vào Sheet"""
+    sheet = get_exam_sheet()
+    if sheet:
+        if len(sheet.get_all_values()) == 0:
+            sheet.append_row(["Tên Đề", "Môn Học", "Khối Lớp", "Thời Gian", "Nội Dung Đề Thi"])
+        sheet.append_row([ten_de, mon, khoi, thoi_gian, noi_dung])
+        return True
+    return False
+
+def get_all_exams_from_sheet():
+    """Lấy danh sách đề thi đã lưu"""
+    sheet = get_exam_sheet()
+    return sheet.get_all_records() if sheet else []
+
+def delete_exam_from_sheet(row_index):
+    """Xóa đề thi khỏi Sheet"""
+    sheet = get_exam_sheet()
+    if sheet:
+        sheet.delete_rows(row_index + 2) # +2 vì dòng 1 là tiêu đề, index bắt đầu từ 0
+        return True
+    return False
 
 # ================= ĐOẠN 2: GIAO DIỆN CHÍNH =================
 def render_exam_designer_section(run_ai_prompt_safe_func):
     
-    # CSS Customization: Đã bổ sung chỉnh màu chữ cho nút Primary thành màu trắng
     st.markdown("""
         <style>
             .block-container {
@@ -68,7 +84,6 @@ def render_exam_designer_section(run_ai_prompt_safe_func):
                 font-weight: bold !important;
                 font-size: 15px !important;
             }
-            /* Ép nút sinh đề thành màu trắng nổi bật trên nền đỏ */
             button[kind="primary"] {
                 background-color: #ff3b3b !important;
                 border: 1px solid #cc0000 !important;
@@ -235,20 +250,17 @@ def render_exam_designer_section(run_ai_prompt_safe_func):
 
         col_btn_l, col_btn_r = st.columns([1.5, 1.0])
         with col_btn_l:
-            # Đổi nhãn nút thành in hoa nổi bật
             nut_sinh_de = st.button("🚀 TỰ ĐỘNG KHỞI TẠO MA TRẬN VÀ ĐỀ THI", type="primary", use_container_width=True)
         with col_btn_r:
             mo_hinh_uu_tien = st.selectbox("Mô hình xử lý đề thi:", ["3.1 Flash-Lite", "3.5 Flash", "3.1 Pro", "Tư duy mở rộng"], index=0, label_visibility="collapsed")
 
-        # ================= ĐOẠN 3: LOGIC GỌI AI VÀ EXPORT CẢI TIẾN PROMPT =================
+        # ================= ĐOẠN 3: LOGIC GỌI AI =================
         if nut_sinh_de:
             if int(tl_nhan_biet + tl_thong_hieu + tl_van_dung + tl_vd_cao) != 100:
                 st.error("⚠️ Tổng tỷ lệ mức độ nhận thức phải bằng 100%!")
             else:
                 with st.spinner("🧠 Hệ thống đang lập bảng Ma trận, Bản đặc tả và dựng đề thi..."):
-                    # CHỈNH SỬA CHUỖI ĐIỂM: ÉP ĐỊNH DẠNG SẠCH
                     chuỗi_điểm_tl_clean = ", ".join([f"Câu {c_id}. ({d} điểm)" for c_id, d in diem_chi_tiet_tl])
-                    
                     lenh_bam_sat = "\n- YÊU CẦU QUAN TRỌNG: Bám sát 100% nội dung đề cương tài liệu tải lên." if bam_sat else ""
                     
                     prompt_vi_mo = f"""
@@ -282,6 +294,7 @@ def render_exam_designer_section(run_ai_prompt_safe_func):
                     st.session_state["ket_qua_de"] = ket_qua
                     st.session_state["model_dung"] = model_thuc_te
                     
+                    # Tính năng lưu tự động (Auto-sync) khi tạo xong
                     if "⚠️" not in ket_qua and "Lỗi" not in ket_qua:
                         success = sync_exam_to_google_sheet(
                             st.session_state["save_ten_de"], 
@@ -291,11 +304,36 @@ def render_exam_designer_section(run_ai_prompt_safe_func):
                             ket_qua
                         )
                         if success:
-                            st.toast("🎉 Đã lưu trữ và đồng bộ đề thi thành công lên Google Sheet!", icon="🚀")
+                            st.toast("🎉 Đã tự động lưu trữ lên Google Sheet!", icon="🚀")
 
+        # ================= ĐOẠN 4: HIỂN THỊ KẾT QUẢ VÀ NÚT LƯU/XÓA FILE =================
         if st.session_state["ket_qua_de"]:
             st.info(f"🤖 Đề thi được xây dựng thành công bằng mô hình thực tế: `{st.session_state['model_dung']}`")
-            st.markdown("### 📝 Xem trước nội dung đề thi:")
+            st.markdown("<br>", unsafe_allow_html=True)
+            
+            # --- CHÈN 2 NÚT CÙNG HÀNG VỚI TIÊU ĐỀ ---
+            c_title, c_save, c_del = st.columns([5.5, 2.5, 2])
+            with c_title:
+                st.markdown("<h4 style='margin-top: 5px;'>📝 Xem trước nội dung đề thi:</h4>", unsafe_allow_html=True)
+            with c_save:
+                if st.button("💾 Lưu file tạm thời", use_container_width=True):
+                    success = sync_exam_to_google_sheet(
+                        st.session_state["save_ten_de"], 
+                        st.session_state["save_mon_hoc"], 
+                        st.session_state["save_khoi_lop"], 
+                        st.session_state["save_thoi_gian"], 
+                        st.session_state["ket_qua_de"]
+                    )
+                    if success: st.success("✅ Đã lưu vào thư mục!")
+                    else: st.error("❌ Lỗi khi lưu file.")
+            with c_del:
+                if st.button("🗑️ Xóa file", use_container_width=True):
+                    st.session_state["ket_qua_de"] = ""
+                    st.rerun()
+            
+            # Dòng phân cách mỏng
+            st.markdown("<hr style='margin-top: 0px;'>", unsafe_allow_html=True)
+            
             st.markdown(st.session_state["ket_qua_de"])
             
             data_word = export_to_docx_vietnam_standard(
@@ -311,6 +349,27 @@ def render_exam_designer_section(run_ai_prompt_safe_func):
                 use_container_width=True
             )
             
+    # ================= ĐOẠN 5: TAB QUẢN LÝ THƯ MỤC =================
     with tab_thu_muc:
-        st.write("📂 Danh sách các đề kiểm tra đã đồng bộ và lưu trữ thành công:")
+        st.write("📂 **Danh sách các đề kiểm tra đã đồng bộ và lưu trữ thành công:**")
         st.markdown(f"🔗 [Bấm vào đây để mở trực tiếp Google Sheets quản lý đề thi](https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/edit)")
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        # Gọi hàm lấy danh sách và hiển thị dưới dạng Expander, kèm nút Xóa
+        ds_de = get_all_exams_from_sheet()
+        
+        if not ds_de:
+            st.info("Chưa có đề kiểm tra nào được lưu trong thư mục.")
+        else:
+            for idx, de in enumerate(ds_de):
+                with st.expander(f"📝 {de.get('Tên Đề', 'Đề kiểm tra')} - {de.get('Môn Học', '')} ({de.get('Khối Lớp', '')})"):
+                    c_view, c_del2 = st.columns(2)
+                    if c_view.button("📥 Gọi lại đề này", key=f"call_de_{idx}", use_container_width=True):
+                        st.session_state["ket_qua_de"] = de.get('Nội Dung Đề Thi', '')
+                        st.rerun()
+                    if c_del2.button("🗑️ Xóa đề khỏi thư mục", key=f"del_de_{idx}", use_container_width=True):
+                        if delete_exam_from_sheet(idx):
+                            st.success("✅ Đã xóa đề thành công!")
+                            st.rerun()
+                        else:
+                            st.error("❌ Có lỗi xảy ra khi xóa đề.")
