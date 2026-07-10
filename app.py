@@ -27,54 +27,69 @@ import streamlit as st
 
 API_KEY_HE_THONG = st.secrets.get("GEMINI_API_KEY", "")
 
+# app.py (Bản sửa lỗi logic vòng lặp Fallback và cập nhật Model ID chuẩn Google)
+from google import genai
+from google.genai import errors
+import streamlit as st
+
+API_KEY_HE_THONG = st.secrets.get("GEMINI_API_KEY", "")
+
 def run_ai_prompt_safe(prompt_text, preferred_model="3.5 Flash"):
     """
-    Hàm gọi API Gemini thế hệ mới tích hợp cơ chế Fallback (Tự động chuyển đổi mô hình)
-    đúng theo các tùy chọn: 3.1 Pro, 3.5 Flash, 3.1 Flash-Lite, Tư duy mở rộng.
+    Hàm gọi API Gemini thế hệ mới - Đã sửa lỗi logic vòng lặp 
+    và đồng bộ mã mô hình chính thức để kích hoạt Gemini Pro thành công.
     """
     api_key = API_KEY_HE_THONG
     if not api_key:
         return "⚠️ Hệ thống chưa được cấu hình API Key trong mục Secrets. Vui lòng liên hệ Admin.", "error"
     
-    # 🌟 ĐỒNG BỘ MÃ MÔ HÌNH CHUẨN KỸ THUẬT THEO CẤU TRÚC PHÂN CẤP DỰ PHÒNG
+    # 🌟 CẬP NHẬT MÃ MÔ HÌNH CHUẨN XÁC THEO HỆ THỐNG PHÂN CẤP GOOGLE AI STUDIO 2026
     model_pool = {
-        "3.1 Pro": ["gemini-1.5-pro", "gemini-2.5-flash", "gemini-2.5-flash-8b"],
+        "3.1 Pro": ["gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.5-flash-8b"],
         "3.5 Flash": ["gemini-2.5-flash", "gemini-2.5-flash-8b"],
         "3.1 Flash-Lite": ["gemini-2.5-flash-8b"],
-        "Tư duy mở rộng": ["gemini-2.5-pro", "gemini-1.5-pro", "gemini-2.5-flash"]
+        "Tư duy mở rộng": ["gemini-2.5-pro", "gemini-2.5-flash"]
     }
     
-    # Lấy danh sách mô hình sẽ lần lượt thử nghiệm dựa trên lựa chọn của giáo viên
     models_to_try = model_pool.get(preferred_model, ["gemini-2.5-flash"])
     
-    last_error_message = ""
+    last_error_message = "Không có thông tin lỗi cụ thể."
     client = genai.Client(api_key=api_key)
     
-    # VÒNG LẶP TỰ ĐỘNG CHUYỂN ĐỔI THÔNG MINH KHI GẶP LỖI HẠN MỨC (QUOTA)
+    # VÒNG LẶP KIỂM TRA VÀ TRÍCH XUẤT ĐÁP ÁN DỰ PHÒNG
     for model_name in models_to_try:
         try:
-            # Nếu người dùng chọn chế độ "Tư duy mở rộng" (Thinking), bổ sung tham số bật tính năng ẩn
             config_params = {}
             if preferred_model == "Tư duy mở rộng" and "pro" in model_name:
-                config_params["thinking_config"] = {"thinking_budget": 1024} # Kích hoạt chế độ giải toán chuyên sâu
+                config_params["thinking_config"] = {"thinking_budget": 1024}
             
+            # Gọi API
             response = client.models.generate_content(
                 model=model_name,
                 contents=prompt_text,
                 config=config_params if config_params else None
             )
-            return response.text, model_name
             
+            # 🌟 NẾU THÀNH CÔNG: Trả về văn bản và dừng toàn bộ vòng lặp ngay lập tức
+            if response and response.text:
+                return response.text, model_name
+            else:
+                last_error_message = f"Mô hình {model_name} phản hồi chuỗi rỗng."
+                continue
+                
         except errors.APIError as error:  
-            last_error_message = f"Mô hình {model_name} lỗi hạn mức hoặc nghẽn mạng. Đang lùi về dòng máy dự phòng..."
-            st.toast(last_error_message, icon="⚠️")
+            # Cập nhật chi tiết lỗi thực tế từ máy chủ Google để lưu lại lịch sử quét
+            last_error_message = f"Mô hình {model_name} báo lỗi API: {str(error)}"
+            st.toast(f"⚠️ {model_name} đang nghẽn hoặc hết lượt xử lý. Hệ thống tự lùi...", icon="⏳")
             continue  
             
         except Exception as e:
-            last_error_message = f"Mô hình {model_name} gặp sự cố cấu trúc: {str(e)}"
+            last_error_message = f"Mô hình {model_name} gặp sự cố kết nối: {str(e)}"
             continue
             
-    return f"Lỗi quá tải hệ thống trên diện rộng (Tất cả mô hình dự phòng đều cạn hạn mức). Lỗi cuối cùng: {last_error_message}", "error"
+    # Trả về thông báo lỗi chuẩn xác nếu sau khi duyệt qua TẤT CẢ các cấu hình dự phòng vẫn thất bại
+    return f"❌ Lỗi quá tải hệ thống trên diện rộng (Tất cả mô hình dự phòng đều cạn hạn mức). Lỗi cuối cùng ghi nhận: {last_error_message}", "error"
+
 # --- 3. KHỞI TẠO BỘ NHỚ TẠM ĐỒNG BỘ ---
 if "db_thanh_vien" not in st.session_state: 
     st.session_state["db_thanh_vien"] = []
