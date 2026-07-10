@@ -86,135 +86,87 @@ def set_paragraph_spacing(paragraph, before_pt=3.0, after_pt=4.5):
 
 # ================= ĐỘNG CƠ KẾT XUẤT ĐỊNH DẠNG CỨNG =================
 def export_khbd_to_docx(markdown_content, images_list):
+    # LÀM SẠCH GỐC: Loại bỏ hoàn toàn định dạng Markdown thừa
     markdown_content = re.sub(r'(?m)^#+\s*', '', markdown_content)
-    markdown_content = markdown_content.replace("<br>", "\n").replace("<br/>", "\n")
+    # Loại bỏ các dòng định dạng bảng markdown thừa |---|
+    markdown_content = re.sub(r'\|[:\-\s]+\|', '', markdown_content)
     
     doc = docx.Document()
+    # THIẾT LẬP LỀ 
     for section in doc.sections:
-        section.top_margin = Inches(0.79)
-        section.bottom_margin = Inches(0.79)
-        section.left_margin = Inches(1.18)
-        section.right_margin = Inches(0.59)
+        section.top_margin = Inches(0.79); section.bottom_margin = Inches(0.79)
+        section.left_margin = Inches(1.18); section.right_margin = Inches(0.59)
 
-    MAU_DO = RGBColor(255, 0, 0)
-    MAU_XANH_DUONG = RGBColor(0, 51, 153)
-    MAU_DEN = RGBColor(0, 0, 0)
+    MAU_DO = RGBColor(255, 0, 0); MAU_XANH_DUONG = RGBColor(0, 51, 153); MAU_DEN = RGBColor(0, 0, 0)
 
     lines = markdown_content.split('\n')
     
+    # BIẾN LƯU BẢNG TẠM
+    table_rows = []
+    
     for line in lines:
-        cl = line.strip().replace('**', '').replace('*', '') 
-        if not cl or all(c in '-| ' for c in cl): 
+        # HỦY MỌI ĐỊNH DẠNG AI (Markdown) để lấy văn bản thuần
+        cl = line.strip().replace('**', '').replace('*', '').replace('#', '')
+        if not cl: continue
+
+        # XỬ LÝ BẢNG (Markdown Table)
+        if '|' in cl and not cl.startswith(('-', 'I.', 'II.', '1.', '2.')):
+            row_data = [cell.strip() for cell in cl.split('|') if cell.strip()]
+            if row_data: table_rows.append(row_data)
             continue
+        else:
+            # Nếu hết bảng, render bảng trước
+            if table_rows:
+                tbl = doc.add_table(rows=len(table_rows), cols=len(table_rows[0]))
+                tbl.style = 'Table Grid'
+                for i, row in enumerate(table_rows):
+                    for j, val in enumerate(row):
+                        tbl.cell(i, j).text = val
+                table_rows = []
+                doc.add_paragraph() # Khoảng cách sau bảng
 
-        # 1. TƯỚC BỎ KÝ TỰ GẠCH NGANG / BULLET CHO CÁC MỤC CỐ ĐỊNH
-        bullet_match = re.match(r'^[-–—*•+]\s*(.*)', cl)
-        if bullet_match:
-            core = bullet_match.group(1).strip()
-            # Nếu là đề mục chính, xóa luôn dấu gạch
-            if re.match(r'^(I|II|III|IV|V|VI|VII)\.', core, re.IGNORECASE) or \
-               re.match(r'^\d+\.\s+(Kiến|Năng|Phẩm)', core, re.IGNORECASE) or \
-               re.match(r'^[a-d]\)\s*', core, re.IGNORECASE) or \
-               re.match(r'^\d+\.\s+HOẠT', core, re.IGNORECASE) or \
-               re.match(r'^\d+\.\d+\.?\s+Hoạt', core, re.IGNORECASE) or \
-               re.match(r'^Bước', core, re.IGNORECASE) or \
-               re.match(r'^\d+\.\s+Đối', core, re.IGNORECASE):
-                cl = core
-            else:
-                cl = "- " + core # Chuẩn hóa gạch ngang cho nội dung thường
-
+        # XỬ LÝ ĐỀ MỤC VÀ ĐỊNH DẠNG (KHÓA CỨNG)
         p = doc.add_paragraph()
         set_paragraph_spacing(p, 3.0, 4.5)
-        # KHÓA CHẶT LỀ 0 TUYỆT ĐỐI
-        p.paragraph_format.left_indent = Inches(0)
-        p.paragraph_format.right_indent = Inches(0)
+        p.paragraph_format.left_indent = Inches(0); p.paragraph_format.right_indent = Inches(0)
         p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
 
-        if '[GRAPH:' in cl:
-            match = re.search(r'\[GRAPH:\s*(.+?)\]', cl)
-            if match:
-                img_stream = generate_plot_stream(match.group(1))
-                doc.add_picture(img_stream, width=Inches(4.5))
-                p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            continue
-
+        # Định dạng theo Rule:
         upper_cl = cl.upper()
         
-        # RULE 1: KẾ HOẠCH BÀI DẠY, BÀI 8 (Đỏ, Đậm, Giữa)
-        if upper_cl.startswith("KẾ HOẠCH BÀI DẠY") or upper_cl.startswith("BÀI"):
+        # RULE 1: TIÊU ĐỀ BÀI (Đỏ, In hoa, Giữa)
+        if upper_cl.startswith(("KẾ HOẠCH BÀI DẠY", "BÀI")):
             p.alignment = WD_ALIGN_PARAGRAPH.CENTER
             run = p.add_run(upper_cl)
-            run.bold = True
-            run.font.name = 'Times New Roman'; run.font.size = Pt(14)
-            run.font.color.rgb = MAU_DO
-            continue
-
-        # RULE 2: MÔN HỌC, LỚP, THỜI LƯỢNG, TIẾT (Xanh dương, Đậm, Giữa)
-        if any(upper_cl.startswith(x) for x in ["MÔN HỌC", "LỚP", "THỜI LƯỢNG", "TIẾT"]):
+            run.bold = True; run.font.name = 'Times New Roman'; run.font.size = Pt(14); run.font.color.rgb = MAU_DO
+        
+        # RULE 2: MÔN, LỚP, TIẾT (Xanh, Đậm, Giữa)
+        elif any(upper_cl.startswith(x) for x in ["MÔN HỌC", "LỚP", "THỜI LƯỢNG", "TIẾT"]):
             p.alignment = WD_ALIGN_PARAGRAPH.CENTER
             run = p.add_run(upper_cl)
-            run.bold = True
-            run.font.name = 'Times New Roman'; run.font.size = Pt(14)
-            run.font.color.rgb = MAU_XANH_DUONG
-            continue
-
-        # RULE 3: I. MỤC TIÊU BÀI HỌC, II. THIẾT BỊ... (Xanh dương, Đậm, Hoa)
-        if re.match(r'^(I|II|III|IV|V|VI|VII)\.', cl):
-            process_runs_with_math(p, upper_cl)
-            for r in p.runs:
-                r.bold = True
-                r.font.name = 'Times New Roman'; r.font.size = Pt(14)
-                r.font.color.rgb = MAU_XANH_DUONG
-            continue
-
-        # RULE 4: 1. Kiến thức, 2. Năng lực... (Tiền tố: Đỏ Đậm)
-        m = re.match(r'^(\d+\.\s+(?:Kiến thức|Năng lực|Phẩm chất)[^:]*:?)(.*)', cl, re.IGNORECASE)
-        if m:
-            r_pref = p.add_run(m.group(1))
-            r_pref.bold = True
-            r_pref.font.name = 'Times New Roman'; r_pref.font.size = Pt(14)
-            r_pref.font.color.rgb = MAU_DO
-            if m.group(2).strip(): process_runs_with_math(p, m.group(2))
-            continue
-
-        # RULE 5: 1. HOẠT ĐỘNG 1... (Tiền tố: Xanh dương, Đậm, Hoa)
-        m = re.match(r'^(\d+\.\s+HOẠT ĐỘNG\s+\d+:\s*[^.(0-9]*)(.*)', cl, re.IGNORECASE)
-        if m:
-            r_pref = p.add_run(m.group(1).upper())
-            r_pref.bold = True
-            r_pref.font.name = 'Times New Roman'; r_pref.font.size = Pt(14)
-            r_pref.font.color.rgb = MAU_XANH_DUONG
-            if m.group(2).strip(): process_runs_with_math(p, m.group(2))
-            continue
-
-        # RULE 6: 2.1 Hoạt động 1. (Tiền tố: Xanh dương, Đậm, Thường)
-        m = re.match(r'^(\d+\.\d+\.?\s+Hoạt động\s+\d+\.?)(.*)', cl, re.IGNORECASE)
-        if m:
-            r_pref = p.add_run(m.group(1) + " ")
-            r_pref.bold = True
-            r_pref.font.name = 'Times New Roman'; r_pref.font.size = Pt(14)
-            r_pref.font.color.rgb = MAU_XANH_DUONG
-            if m.group(2).strip(): process_runs_with_math(p, m.group(2).strip())
-            continue
-
-        # RULE 7: Tiền tố Đen Đậm (a) Mục tiêu, Bước 1, 1. Đối với...)
-        m = re.match(r'^([a-d]\)\s*(?:Năng lực|Mục tiêu|Nội dung|Sản phẩm|Tổ chức thực hiện)[^:]*:?|Bước\s+\d+:?|\d+\.\s+Đối với[^:]*:?)(.*)', cl, re.IGNORECASE)
-        if m:
-            pref = m.group(1)
-            if not pref.endswith(' '): pref += ' '
-            r_pref = p.add_run(pref)
-            r_pref.bold = True
-            r_pref.font.name = 'Times New Roman'; r_pref.font.size = Pt(14)
-            r_pref.font.color.rgb = MAU_DEN
-            if m.group(2).strip(): process_runs_with_math(p, m.group(2).strip())
-            continue
-
-        # RULE 8: Nội dung thông thường
-        process_runs_with_math(p, cl)
-        for r in p.runs:
-            r.font.name = 'Times New Roman'
-            if not r.font.size: r.font.size = Pt(14)
+            run.bold = True; run.font.name = 'Times New Roman'; run.font.size = Pt(14); run.font.color.rgb = MAU_XANH_DUONG
             
+        # RULE 3: ĐỀ MỤC LỚN (I. II. III.) (Xanh, Đậm, Hoa)
+        elif re.match(r'^(I|II|III|IV|V|VI|VII)\.', cl):
+            process_runs_with_math(p, upper_cl)
+            for r in p.runs: r.bold = True; r.font.name = 'Times New Roman'; r.font.size = Pt(14); r.font.color.rgb = MAU_XANH_DUONG
+            
+        # RULE 4: ĐỀ MỤC NHỎ (1. Kiến thức, 2. Năng lực...) (Đỏ, Đậm)
+        elif re.match(r'^\d+\.\s+(Kiến thức|Năng lực|Phẩm chất)', cl, re.IGNORECASE):
+            process_runs_with_math(p, cl)
+            for r in p.runs: r.bold = True; r.font.name = 'Times New Roman'; r.font.size = Pt(14); r.font.color.rgb = MAU_DO
+            
+        # RULE 5: TIỀN TỐ ĐẬM (a) Mục tiêu, Bước 1, 2.1 Hoạt động...)
+        else:
+            m = re.match(r'^([a-d]\)\s*[^:]+:?|\d+\.\d+\.?\s*Hoạt động\s*\d*\.?\s*:?|Bước\s+\d+:?)(.*)', cl, re.IGNORECASE)
+            if m:
+                r_pref = p.add_run(m.group(1).strip() + " ")
+                r_pref.bold = True; r_pref.font.name = 'Times New Roman'; r_pref.font.size = Pt(14); r_pref.font.color.rgb = MAU_DEN
+                if m.group(2): process_runs_with_math(p, m.group(2).strip())
+            else:
+                process_runs_with_math(p, cl)
+                for r in p.runs: r.font.name = 'Times New Roman'; r.font.size = Pt(14); r.font.color.rgb = MAU_DEN
+
     buf = io.BytesIO()
     doc.save(buf)
     return buf.getvalue()
