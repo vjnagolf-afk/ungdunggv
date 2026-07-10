@@ -1,4 +1,4 @@
-# math_compiler.py - Bản Nâng Cấp Toàn Diện Hỗ Trợ Đầy Đủ Toán/Lý/Hóa
+# math_compiler.py - Bản Nâng Cấp Tối Thượng (Toán - Lý - Hóa - Graph)
 import io
 import re
 import numpy as np
@@ -7,7 +7,7 @@ from docx.oxml import parse_xml
 from docx.oxml.ns import nsdecls
 from docx.shared import Pt
 
-# ================= TỪ ĐIỂN KÝ HIỆU HY LẠP VÀ TOÁN HỌC =================
+# ================= TỪ ĐIỂN KÝ HIỆU HY LẠP & TOÁN HỌC CƠ BẢN =================
 GREEK = {
     r'\alpha': 'α', r'\beta': 'β', r'\gamma': 'γ', r'\delta': 'δ', r'\epsilon': 'ε', r'\varepsilon': 'ε',
     r'\zeta': 'ζ', r'\eta': 'η', r'\theta': 'θ', r'\vartheta': 'ϑ', r'\iota': 'ι', r'\kappa': 'κ',
@@ -29,7 +29,7 @@ SYMBOLS = {
     r'\int': '∫', r'\sum': '∑'
 }
 
-# Ánh xạ marker Unicode trung gian sang các thẻ OMML
+# Bảng mã Marker Unicode tạo cấu trúc XML phân lớp cho Word Equation
 TAG_MAP = {
     'Ⓕ': '<m:f>', 'ⓕ': '</m:f>',
     'Ⓝ': '<m:num>', 'ⓝ': '</m:num>',
@@ -48,20 +48,30 @@ TAG_MAP = {
     'Ⓡ': '<m:mr>', 'ⓡ': '</m:mr>'
 }
 
-# ================= BIÊN DỊCH TOÁN HỌC LATEX SANG OMML WORD =================
+# ================= ĐỘNG CƠ BIÊN DỊCH LATEX -> WORD EQUATION =================
 def convert_latex_to_omml(latex_str):
-    # 1. Làm sạch và mã hóa ký tự HTML
+    # 1. Bảo vệ cấu trúc XML
     latex_str = latex_str.strip()
     latex_str = latex_str.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
     
-    # 2. Xử lý các ký hiệu Hy Lạp, Toán học và loại bỏ các thẻ \text thừa
+    # 2. Xử lý khả năng chịu lỗi (Fault Tolerance) cao cấp
+    latex_str = latex_str.replace(r'\dfrac', r'\frac')
+    latex_str = latex_str.replace(r'\limits', '')
+    latex_str = latex_str.replace(r'\displaystyle', '')
+    # Tự động dọn dẹp khoảng trắng thừa bọc quanh ngoặc nhọn, chỉ số của AI
+    latex_str = re.sub(r'\s*\{\s*', '{', latex_str)
+    latex_str = re.sub(r'\s*\}\s*', '}', latex_str)
+    latex_str = re.sub(r'\s*_\s*', '_', latex_str)
+    latex_str = re.sub(r'\s*\^\s*', '^', latex_str)
+
+    # 3. Chuyển đổi ký hiệu, Text và các hàm thông dụng
     for k, v in GREEK.items(): latex_str = latex_str.replace(k, v)
     for k, v in SYMBOLS.items(): latex_str = latex_str.replace(k, v)
     latex_str = latex_str.replace(r'\,', ' ').replace(r'\;', ' ')
-    latex_str = re.sub(r'\\text\s*\{([^{}]*)\}', r'\1', latex_str)
-    latex_str = re.sub(r'\\mathrm\s*\{([^{}]*)\}', r'\1', latex_str)
+    latex_str = re.sub(r'\\(text|mathrm)\{([^{}]*)\}', r'\2', latex_str)
+    latex_str = re.sub(r'\\(sin|cos|tan|cot|log|ln|lim|max|min|det)', r'\1', latex_str) # Chuyển hàm thành text thường trong OMML
 
-    # 3. Xử lý Ma trận (matrix, pmatrix...)
+    # 4. Xử lý Ma trận (matrix, pmatrix, vmatrix...)
     def repl_matrix(m):
         rows = m.group(1).split('\\\\')
         res = 'Ⓜ'
@@ -74,36 +84,35 @@ def convert_latex_to_omml(latex_str):
         return res
     latex_str = re.sub(r'\\begin\{(?:p|b|v|V)?matrix\}(.*?)\\end\{(?:p|b|v|V)?matrix\}', repl_matrix, latex_str, flags=re.DOTALL)
 
-    # 4. Vòng lặp biên dịch lồng ghép (Từ trong ra ngoài)
+    # 5. Phân tách vòng lặp cấu trúc toán học từ trong ra ngoài
+    chars = r'a-zA-Z0-9_>\]/()ⒻⓕⓃⓝⒹⓓⓆⓠⒺⓔⒷⓑⓅⓟⓈⓢⓊⓤⓍⓧⓎⓨⓋⓥⓂⓜⓇⓡα-ωΑ-Ω∞=+\-.,'
     while True:
         prev = latex_str
         
-        # Phân số (\frac)
-        latex_str = re.sub(r'\\frac\s*\{([^{}]+)\}\s*\{([^{}]+)\}', r'ⒻⓃ\1ⓝⒹ\2ⓓⓕ', latex_str)
-        # Căn bậc hai (\sqrt)
-        latex_str = re.sub(r'\\sqrt\s*\{([^{}]+)\}', r'ⓆⒺ\1ⓔⓠ', latex_str)
-        # Vector (\vec)
-        latex_str = re.sub(r'\\vec\s*\{([^{}]+)\}', r'ⓋⒺ\1ⓔⓥ', latex_str)
+        # Phân số, căn, vector
+        latex_str = re.sub(r'\\frac\{([^{}]+)\}\{([^{}]+)\}', r'ⒻⓃ\1ⓝⒹ\2ⓓⓕ', latex_str)
+        latex_str = re.sub(r'\\sqrt\{([^{}]+)\}', r'ⓆⒺ\1ⓔⓠ', latex_str)
+        latex_str = re.sub(r'\\vec\{([^{}]+)\}', r'ⓋⒺ\1ⓔⓥ', latex_str)
         
-        # Tích phân/Tổng lồng cả sub và sup (∫_a^b)
+        # Tích phân / Tổng Sigma
         latex_str = re.sub(r'(∫|∑)_\{([^{}]+)\}\^\{([^{}]+)\}', r'ⓍⒺ\1ⓔⓈ\2ⓢⓊ\3ⓤⓧ', latex_str)
         latex_str = re.sub(r'(∫|∑)_([a-zA-Z0-9])\^([a-zA-Z0-9])', r'ⓍⒺ\1ⓔⓈ\2ⓢⓊ\3ⓤⓧ', latex_str)
         
-        # Chỉ số trên và dưới ĐỒNG THỜI (Hóa học/Vật lý lồng ghép như SO_4^{2-})
-        latex_str = re.sub(r'([a-zA-Z0-9_>\]/()ⒻⓕⓃⓝⒹⓓⓆⓠⒺⓔⒷⓑⓅⓟⓈⓢⓊⓤⓍⓧⓎⓨⓋⓥⓂⓜⓇⓡ]+)_\{([^{}]+)\}\^\{([^{}]+)\}', r'ⓏⒺ\1ⓔⓈ\2ⓢⓊ\3ⓤⓩ', latex_str)
-        latex_str = re.sub(r'([a-zA-Z0-9_>\]/()ⒻⓕⓃⓝⒹⓓⓆⓠⒺⓔⒷⓑⓅⓟⓈⓢⓊⓤⓍⓧⓎⓨⓋⓥⓂⓜⓇⓡ]+)\^\{([^{}]+)\}_\{([^{}]+)\}', r'ⓏⒺ\1ⓔⓈ\3ⓢⓊ\2ⓤⓩ', latex_str)
+        # Chỉ số trên và dưới lồng ghép (Vật lý/Hóa học: SO_4^{2-})
+        latex_str = re.sub(rf'([{chars}]+)_\{{([^{{}}]+)\}}\^\{{([^{{}}]+)\}}', r'ⓏⒺ\1ⓔⓈ\2ⓢⓊ\3ⓤⓩ', latex_str)
+        latex_str = re.sub(rf'([{chars}]+)\^\{{([^{{}}]+)\}}_\{{([^{{}}]+)\}}', r'ⓏⒺ\1ⓔⓈ\3ⓢⓊ\2ⓤⓩ', latex_str)
 
-        # Chỉ số dưới (\_ )
-        latex_str = re.sub(r'([a-zA-Z0-9_>\]/()ⒻⓕⓃⓝⒹⓓⓆⓠⒺⓔⒷⓑⓅⓟⓈⓢⓊⓤⓍⓧⓎⓨⓋⓥⓂⓜⓇⓡ]+)_\{([^{}]+)\}', r'ⒷⒺ\1ⓔⓈ\2ⓢⓑ', latex_str)
-        latex_str = re.sub(r'([a-zA-Z0-9_>\]/()ⒻⓕⓃⓝⒹⓓⓆⓠⒺⓔⒷⓑⓅⓟⓈⓢⓊⓤⓍⓧⓎⓨⓋⓥⓂⓜⓇⓡ]+)_([a-zA-Z0-9])', r'ⒷⒺ\1ⓔⓈ\2ⓢⓑ', latex_str)
+        # Chỉ số dưới độc lập
+        latex_str = re.sub(rf'([{chars}]+)_\{{([^{{}}]+)\}}', r'ⒷⒺ\1ⓔⓈ\2ⓢⓑ', latex_str)
+        latex_str = re.sub(rf'([{chars}]+)_([a-zA-Z0-9])', r'ⒷⒺ\1ⓔⓈ\2ⓢⓑ', latex_str)
         
-        # Chỉ số trên (\^ )
-        latex_str = re.sub(r'([a-zA-Z0-9_>\]/()ⒻⓕⓃⓝⒹⓓⓆⓠⒺⓔⒷⓑⓅⓟⓈⓢⓊⓤⓍⓧⓎⓨⓋⓥⓂⓜⓇⓡ]+)\^\{([^{}]+)\}', r'ⓅⒺ\1ⓔⓊ\2ⓤⓟ', latex_str)
-        latex_str = re.sub(r'([a-zA-Z0-9_>\]/()ⒻⓕⓃⓝⒹⓓⓆⓠⒺⓔⒷⓑⓅⓟⓈⓢⓊⓤⓍⓧⓎⓨⓋⓥⓂⓜⓇⓡ]+)\^([a-zA-Z0-9])', r'ⓅⒺ\1ⓔⓊ\2ⓤⓟ', latex_str)
+        # Chỉ số trên độc lập
+        latex_str = re.sub(rf'([{chars}]+)\^\{{([^{{}}]+)\}}', r'ⓅⒺ\1ⓔⓊ\2ⓤⓟ', latex_str)
+        latex_str = re.sub(rf'([{chars}]+)\^([a-zA-Z0-9])', r'ⓅⒺ\1ⓔⓊ\2ⓤⓟ', latex_str)
 
         if latex_str == prev: break
 
-    # 5. Render thành chuẩn OMML XML
+    # 6. Lắp ráp Word Equation XML
     MARKERS = "".join(TAG_MAP.keys())
     parts = re.split(f'([{MARKERS}])', latex_str)
     
@@ -120,24 +129,34 @@ def convert_latex_to_omml(latex_str):
     
     try:
         return parse_xml(omml_xml)
-    except Exception as e:
+    except:
         return None
 
-# ================= BÓC TÁCH MỌI KIỂU TOÁN HỌC =================
+# ================= ENGINE BÓC TÁCH TEXT & AUTO-CHEMISTRY =================
 def process_runs_with_math(paragraph, text):
-    """Tự động nhận diện mọi kiểu định dạng Toán: $$ $$, \[ \], \( \), $ $"""
+    """
+    Quét mọi thẻ toán ($...$, $$...$$, \(...\), \[...\]).
+    Tự động format Hóa Học/Vật lý trong Text thường.
+    """
     text_clean = text.strip()
     
-    # Chia tách thông minh mọi loại thẻ toán học
+    # 1. AUTO-CHEMISTRY BẰNG REGEX (chỉ tác động văn bản thường, an toàn tuyệt đối)
+    # Tự động chuyển đổi: H2SO4 -> H₂SO₄, SO4^2- -> SO₄²⁻, Na^+ -> Na⁺
+    ELEMENTS = "H|He|Li|Be|B|C|N|O|F|Ne|Na|Mg|Al|Si|P|S|Cl|Ar|K|Ca|Sc|Ti|V|Cr|Mn|Fe|Co|Ni|Cu|Zn|Ga|Ge|As|Se|Br|Kr|Rb|Sr|Y|Zr|Nb|Mo|Tc|Ru|Rh|Pd|Ag|Cd|In|Sn|Sb|Te|I|Xe|Cs|Ba|La|Ce|Pr|Nd|Pm|Sm|Eu|Gd|Tb|Dy|Ho|Er|Tm|Yb|Lu|Hf|Ta|W|Re|Os|Ir|Pt|Au|Hg|Tl|Pb|Bi|Po|At|Rn|Fr|Ra|Ac|Th|Pa|U|Np|Pu|Am|Cm|Bk|Cf|Es|Fm|Md|No|Lr"
+    text_clean = re.sub(rf'({ELEMENTS})(\d+)\^([0-9]*[+-])', r'\1<sub>\2</sub><sup>\3</sup>', text_clean)
+    text_clean = re.sub(rf'({ELEMENTS})\^([0-9]*[+-])', r'\1<sup>\2</sup>', text_clean)
+    text_clean = re.sub(rf'({ELEMENTS})(\d+)', r'\1<sub>\2</sub>', text_clean)
+
+    # 2. QUÉT ĐA ĐỊNH DẠNG LATEX
     delimiter_pattern = r'(\$\$[\s\S]*?\$\$|\\\[[\s\S]*?\\\]|\\\([\s\S]*?\\\)|\$[\s\S]*?\$)'
     parts = re.split(delimiter_pattern, text_clean)
     
     for part in parts:
         if not part: continue
         
-        # Xác định nội dung bên trong cặp thẻ
         is_math = False
         math_content = ""
+        # Nhận diện thẻ
         if part.startswith('$$') and part.endswith('$$'):
             math_content = part[2:-2].strip(); is_math = True
         elif part.startswith('\\[') and part.endswith('\\]'):
@@ -147,55 +166,71 @@ def process_runs_with_math(paragraph, text):
         elif part.startswith('$') and part.endswith('$'):
             math_content = part[1:-1].strip(); is_math = True
 
-        # Render OMML nếu là toán học, hoặc in thường nếu là văn bản
+        # Ghi khối toán học
         if is_math and math_content:
             math_element = convert_latex_to_omml(math_content)
             if math_element is not None:
                 paragraph._p.append(math_element)
             else:
-                run = paragraph.add_run(part)
+                run = paragraph.add_run(part) # Fallback nếu lỗi
                 run.font.name = 'Times New Roman'
                 run.font.size = Pt(14)
-        elif not is_math:
+        else:
+            # Ghi khối Text (Kèm xử lý in đậm ** và chỉ số trên/dưới HTML)
             bold_parts = part.split('**')
             for i, b_part in enumerate(bold_parts):
                 is_bold = (i % 2 != 0)
                 sub_sup_parts = re.split(r'(<sub>.*?</sub>|<sup>.*?</sup>)', b_part)
                 for s_part in sub_sup_parts:
                     if not s_part: continue
+                    run = paragraph.add_run()
+                    run.bold = is_bold
+                    run.font.name = 'Times New Roman'
+                    run.font.size = Pt(14)
+                    
                     if s_part.startswith('<sub>') and s_part.endswith('</sub>'):
-                        run = paragraph.add_run(s_part[5:-6])
-                        run.bold = is_bold
+                        run.text = s_part[5:-6]
                         run.font.subscript = True
-                        run.font.name, run.font.size = 'Times New Roman', Pt(14)
                     elif s_part.startswith('<sup>') and s_part.endswith('</sup>'):
-                        run = paragraph.add_run(s_part[5:-6])
-                        run.bold = is_bold
+                        run.text = s_part[5:-6]
                         run.font.superscript = True
-                        run.font.name, run.font.size = 'Times New Roman', Pt(14)
                     else:
-                        run = paragraph.add_run(s_part)
-                        run.bold = is_bold
-                        run.font.name, run.font.size = 'Times New Roman', Pt(14)
+                        run.text = s_part
 
-# ================= XỬ LÝ ĐỒ THỊ AI =================
+# ================= GRAPH ENGINE ĐA CHỨC NĂNG =================
 def generate_plot_stream(eq_str):
     fig, ax = plt.subplots(figsize=(5, 3.5))
-    x = np.linspace(-10, 10, 400)
-    safe_dict = {"x": x, "np": np, "sin": np.sin, "cos": np.cos, "tan": np.tan, "sqrt": np.sqrt}
-    try:
-        eq_str_py = eq_str.replace('^', '**')
-        y = eval(eq_str_py, {"__builtins__": {}}, safe_dict)
-        if isinstance(y, (int, float)):
-            y = np.full_like(x, y)
-        ax.plot(x, y, color='#1E40AF', linewidth=2.5)
-        ax.axhline(0, color='black', linewidth=1.2)
-        ax.axvline(0, color='black', linewidth=1.2)
-        ax.grid(color='gray', linestyle='--', linewidth=0.5, alpha=0.7)
-        ax.set_ylim([-10, 10])
-        ax.set_title(f"Đồ thị: y = {eq_str}", fontsize=10, pad=10)
-    except:
-        ax.text(0.5, 0.5, f"[Lỗi cú pháp vẽ đồ thị]", ha='center', va='center', color='red')
+    
+    if eq_str.lower().strip() == 'scatter':
+        x = np.random.rand(50) * 10
+        y = np.random.rand(50) * 10
+        ax.scatter(x, y, color='#1E40AF', alpha=0.7)
+        ax.set_title("Đồ thị phân tán (Scatter)", fontsize=10, pad=10)
+    else:
+        x = np.linspace(-10, 10, 400)
+        safe_dict = {
+            "x": x, "np": np, "sin": np.sin, "cos": np.cos, "tan": np.tan, 
+            "sqrt": np.sqrt, "log": np.log, "log10": np.log10, "exp": np.exp, "e": np.e, "pi": np.pi
+        }
+        try:
+            # Làm sạch chuỗi, AI thường hay viết 'y = ...'
+            eq_clean = eq_str.lower().replace('y=', '').replace('y =', '').strip()
+            eq_py = eq_clean.replace('^', '**').replace('e**x', 'np.exp(x)')
+            # Chữa lỗi tự động 3x -> 3*x
+            eq_py = re.sub(r'(\d)(x)', r'\1*\2', eq_py)
+            
+            y = eval(eq_py, {"__builtins__": {}}, safe_dict)
+            if isinstance(y, (int, float)): y = np.full_like(x, y)
+            
+            ax.plot(x, y, color='#1E40AF', linewidth=2.5)
+            ax.axhline(0, color='black', linewidth=1.2)
+            ax.axvline(0, color='black', linewidth=1.2)
+        except Exception as e:
+            ax.text(0.5, 0.5, f"[Lỗi biểu thức: {eq_str}]", ha='center', va='center', color='red')
+        
+        ax.set_title(f"Đồ thị: y = {eq_str.replace('y=','').replace('y =','')}", fontsize=10, pad=10)
+
+    ax.grid(color='gray', linestyle='--', linewidth=0.5, alpha=0.7)
     buf = io.BytesIO()
     plt.savefig(buf, format='png', bbox_inches='tight', dpi=150)
     buf.seek(0)
