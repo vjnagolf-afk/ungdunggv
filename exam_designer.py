@@ -1,4 +1,4 @@
-# exam_designer.py - BẢN CẬP NHẬT (THU NHỎ, MỞ RỘNG Ô ĐIỂM, THÊM TÍCH CHỌN, XÓA DÒNG THỪA)
+# exam_designer.py - BẢN FIX LỖI CỘNG ĐIỂM (HIỂN THỊ ĐẦY ĐỦ SỐ THẬP PHÂN)
 import streamlit as st
 import gspread
 from document_processor import read_uploaded_docx, read_uploaded_pdf, export_to_docx_vietnam_standard
@@ -43,10 +43,9 @@ def sync_exam_to_google_sheet(ten_de, mon, khoi, thoi_gian, noi_dung):
 # ================= ĐOẠN 2: GIAO DIỆN CHÍNH =================
 def render_exam_designer_section(run_ai_prompt_safe_func):
     
-    # CSS Customization để thu nhỏ giao diện, làm rộng ô điểm, và định dạng Checkbox
+    # CSS Customization để thu nhỏ giao diện, tối ưu lề và border
     st.markdown("""
         <style>
-            /* Thu nhỏ tổng thể và tối ưu lề */
             .block-container {
                 max-width: 95% !important;
                 padding-top: 1rem !important;
@@ -63,7 +62,6 @@ def render_exam_designer_section(run_ai_prompt_safe_func):
                 font-size: 14px !important;
                 text-align: center !important;
             }
-            /* Cấu hình checkbox màu đỏ nghiêng */
             div[data-testid="stCheckbox"] label span {
                 color: red !important;
                 font-style: italic !important;
@@ -76,7 +74,6 @@ def render_exam_designer_section(run_ai_prompt_safe_func):
     if "ket_qua_de" not in st.session_state: st.session_state["ket_qua_de"] = ""
     if "model_dung" not in st.session_state: st.session_state["model_dung"] = ""
     
-    # Lưu thông tin cấu hình vào session_state
     if "save_ten_de" not in st.session_state: st.session_state["save_ten_de"] = "Kiểm tra đánh giá giữa kì I"
     if "save_school" not in st.session_state: st.session_state["save_school"] = "TRƯỜNG THCS NGUYỄN CHÍ THANH"
     if "save_mon_hoc" not in st.session_state: st.session_state["save_mon_hoc"] = "Khoa học tự nhiên"
@@ -136,7 +133,6 @@ def render_exam_designer_section(run_ai_prompt_safe_func):
             st.markdown("<p style='color:red; font-style:italic; font-weight:bold; text-align:center; font-size:14px;'>Tải Đề mẫu ma trận (.docx, .pdf):</p>", unsafe_allow_html=True)
             file_ma_tran = st.file_uploader("f2", type=["docx", "pdf"], key="exam_upload_ma_tran_2026", label_visibility="collapsed")
 
-        # Xử lý nội dung file
         noi_dung_de_cuong, noi_dung_ma_tran = "", ""
         if file_de_cuong:
             noi_dung_de_cuong = read_uploaded_docx(file_de_cuong) if file_de_cuong.name.endswith(".docx") else read_uploaded_pdf(file_de_cuong)
@@ -151,29 +147,27 @@ def render_exam_designer_section(run_ai_prompt_safe_func):
         col_tn, col_space, col_tl = st.columns([1.1, 0.1, 1.1])
         
         with col_tn:
-            # HEADER TN: Chỗ trống để điền Tổng điểm tính được ở dưới
             header_tn_placeholder = st.empty()
             
-            # CÁC HÀNG TRẮC NGHIỆM
-            c1, c2, c3, c4 = st.columns([2.5, 1, 1, 0.8])
+            c1, c2, c3, c4 = st.columns([2.2, 1.2, 1.2, 0.6])
             c1.markdown("<p style='font-size:14px; font-weight:bold; margin-top:8px;'>Số câu nhiều lựa chọn:</p>", unsafe_allow_html=True)
             sc_nhieu_lua_chon = c2.number_input("sc_nlc", min_value=0, value=12, label_visibility="collapsed")
-            d_nhieu_lua_chon = c3.number_input("d_nlc", min_value=0.0, value=3.0, step=0.25, label_visibility="collapsed")
+            d_nhieu_lua_chon = c3.number_input("d_nlc", min_value=0.0, value=3.25, step=0.25, label_visibility="collapsed")
             c4.markdown("<p style='font-style:italic; font-size:14px; margin-top:8px;'>điểm</p>", unsafe_allow_html=True)
             
-            c1, c2, c3, c4 = st.columns([2.5, 1, 1, 0.8])
+            c1, c2, c3, c4 = st.columns([2.2, 1.2, 1.2, 0.6])
             c1.markdown("<p style='font-size:14px; font-weight:bold; margin-top:8px;'>Số câu đúng/sai:</p>", unsafe_allow_html=True)
-            sc_dung_sai = c2.number_input("sc_ds", min_value=0, value=2, label_visibility="collapsed")
-            d_dung_sai = c3.number_input("d_ds", min_value=0.0, value=0.5, step=0.25, label_visibility="collapsed")
+            sc_dung_sai = c2.number_input("sc_ds", min_value=0, value=1, label_visibility="collapsed")
+            d_dung_sai = c3.number_input("d_ds", min_value=0.0, value=0.25, step=0.25, label_visibility="collapsed")
             c4.markdown("<p style='font-style:italic; font-size:14px; margin-top:8px;'>điểm</p>", unsafe_allow_html=True)
 
-            c1, c2, c3, c4 = st.columns([2.5, 1, 1, 0.8])
+            c1, c2, c3, c4 = st.columns([2.2, 1.2, 1.2, 0.6])
             c1.markdown("<p style='font-size:14px; font-weight:bold; margin-top:8px;'>Số câu điền khuyết:</p>", unsafe_allow_html=True)
-            sc_dien_khuyết = c2.number_input("sc_dk", min_value=0, value=12, label_visibility="collapsed")
-            d_dien_khuyết = c3.number_input("d_dk", min_value=0.0, value=3.0, step=0.25, label_visibility="collapsed")
+            sc_dien_khuyết = c2.number_input("sc_dk", min_value=0, value=1, label_visibility="collapsed")
+            d_dien_khuyết = c3.number_input("d_dk", min_value=0.0, value=0.25, step=0.25, label_visibility="collapsed")
             c4.markdown("<p style='font-style:italic; font-size:14px; margin-top:8px;'>điểm</p>", unsafe_allow_html=True)
 
-            c1, c2, c3, c4 = st.columns([2.5, 1, 1, 0.8])
+            c1, c2, c3, c4 = st.columns([2.2, 1.2, 1.2, 0.6])
             c1.markdown("<p style='font-size:14px; font-weight:bold; margin-top:8px;'>Số câu trả lời ngắn:</p>", unsafe_allow_html=True)
             sc_tra_loi_ngan = c2.number_input("sc_tln", min_value=0, value=2, label_visibility="collapsed")
             d_tra_loi_ngan = c3.number_input("d_tln", min_value=0.0, value=0.5, step=0.25, label_visibility="collapsed")
@@ -182,21 +176,22 @@ def render_exam_designer_section(run_ai_prompt_safe_func):
             tong_cau_tn = sc_nhieu_lua_chon + sc_dung_sai + sc_dien_khuyết + sc_tra_loi_ngan
             tong_diem_tn = d_nhieu_lua_chon + d_dung_sai + d_dien_khuyết + d_tra_loi_ngan
             
-            # CẬP NHẬT HEADER TRẮC NGHIỆM - Đã nới rộng ô 4.0 với padding 45px
+            # GIỮ CHÍNH XÁC SỐ THẬP PHÂN KHI CỘNG (ví dụ 4.25 vẫn hiển thị đủ 4.25)
+            hien_thi_tn = str(round(tong_diem_tn, 2))
+            
             header_tn_placeholder.markdown(f"""
             <div style="background-color: #FFF2CC; padding: 10px; display: flex; align-items: center; justify-content: center; gap: 15px;">
                 <span style="color: blue; font-size: 18px; font-weight: bold;">TRẮC NGHIỆM</span>
-                <span style="background-color: white; border: 1px solid #FFD700; color: blue; padding: 4px 45px; font-weight: bold; font-size: 18px;">{tong_diem_tn:.1f}</span>
+                <span style="background-color: white; border: 1px solid #FFD700; color: blue; padding: 4px 45px; font-weight: bold; font-size: 18px;">{hien_thi_tn}</span>
                 <span style="color: blue; font-size: 18px; font-weight: bold;">Điểm</span>
             </div><br>
             """, unsafe_allow_html=True)
 
         with col_tl:
-            # HEADER TL
             h1, h2, h3, h4 = st.columns([1.5, 0.8, 1, 1])
             with h1: st.markdown("<div style='background-color:#E2EEDB; height:45px; line-height:45px; text-align:center; color:blue; font-weight:bold; font-size:18px;'>TỰ LUẬN</div>", unsafe_allow_html=True)
             with h2: sc_tu_luan = st.number_input("sc_tl", min_value=1, max_value=20, value=4, label_visibility="collapsed")
-            with h3: ph_tong_diem_tl = st.empty() # Khóa tổng điểm TL
+            with h3: ph_tong_diem_tl = st.empty() 
             with h4: st.markdown("<div style='background-color:#E2EEDB; height:45px; line-height:45px; text-align:center; color:blue; font-weight:bold; font-size:18px;'>Điểm</div>", unsafe_allow_html=True)
             
             st.markdown("<br>", unsafe_allow_html=True)
@@ -204,17 +199,18 @@ def render_exam_designer_section(run_ai_prompt_safe_func):
             tong_diem_tl = 0.0
             diem_chi_tiet_tl = []
             
-            # TỰ ĐỘNG SINH CÂU TỰ LUẬN
             for i in range(int(sc_tu_luan)):
-                c1, c2, c3 = st.columns([2.5, 1, 1.8])
+                c1, c2, c3 = st.columns([2.5, 1.2, 1.3])
                 c1.markdown(f"<p style='font-size:14px; font-weight:bold; text-align:center; margin-top:8px;'>Câu {i+1}.</p>", unsafe_allow_html=True)
-                d_c = c2.number_input(f"tl_{i}", min_value=0.0, value=2.5 if i==0 else (1.5 if i==1 else 1.0), step=0.25, label_visibility="collapsed")
+                d_c = c2.number_input(f"tl_{i}", min_value=0.0, value=2.75 if i==0 else (1.5 if i==1 else 1.0), step=0.25, label_visibility="collapsed")
                 c3.markdown("<p style='font-style:italic; font-size:14px; margin-top:8px;'>điểm</p>", unsafe_allow_html=True)
                 tong_diem_tl += d_c
                 diem_chi_tiet_tl.append((i+1, d_c))
                 
-            # CẬP NHẬT HEADER TỰ LUẬN
-            ph_tong_diem_tl.markdown(f"<div style='background-color:white; border:2px solid #FFD700; height:45px; line-height:40px; text-align:center; color:red; font-weight:bold; font-size:18px;'>{tong_diem_tl:.1f}</div>", unsafe_allow_html=True)
+            # GIỮ CHÍNH XÁC SỐ THẬP PHÂN KHI CỘNG
+            hien_thi_tl = str(round(tong_diem_tl, 2))
+            
+            ph_tong_diem_tl.markdown(f"<div style='background-color:white; border:2px solid #FFD700; height:45px; line-height:40px; text-align:center; color:red; font-weight:bold; font-size:18px;'>{hien_thi_tl}</div>", unsafe_allow_html=True)
 
         # --- HÀNG 5: YÊU CẦU KHÁC & CHECKBOX BÁM SÁT ---
         st.markdown("<br>", unsafe_allow_html=True)
@@ -241,7 +237,6 @@ def render_exam_designer_section(run_ai_prompt_safe_func):
                 with st.spinner("🧠 Hệ thống đang lập bảng Ma trận, Bản đặc tả và dựng đề thi..."):
                     chuỗi_điểm_tl = ", ".join([f"Câu {c_id} ({d}đ)" for c_id, d in diem_chi_tiet_tl])
                     
-                    # Thêm yêu cầu bám sát vào prompt nếu được tích chọn
                     lenh_bam_sat = "\n- YÊU CẦU QUAN TRỌNG: Bám sát 100% nội dung đề cương tài liệu tải lên." if bam_sat else ""
                     
                     prompt_vi_mo = f"""
