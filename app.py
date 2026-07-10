@@ -1,9 +1,10 @@
-# app.py - Tích hợp bộ mật mã xác thực Admin vĩnh viễn chống lỗi F5
+# app.py - Tích hợp bộ nhớ LocalStorage vĩnh viễn, chống bắt nhập lại mật mã khi F5
 import streamlit as st
 import pandas as pd
 import sqlite3
 import os
 import sys
+import streamlit.components.v1 as components
 
 # THUẬT TOÁN ĐƯỜNG DẪN: Ép hệ thống tìm module trong cùng thư mục chạy ứng dụng
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -52,9 +53,7 @@ st.markdown("<h1 style='text-align: center; color: darkred; font-weight: bold;'>
 st.markdown("<p style='text-align: center; color: #0056b3; font-weight: bold; font-size: 16px;'>Sản phẩm tham gia Cuộc thi AI for Life năm 2026, trường THCS Nguyễn Chí Thanh - Phường Tân Lập tỉnh Đắk Lắk</p>", unsafe_allow_html=True)
 st.markdown("---")
 
-# ==================================================================================
-# --- THANH ĐIỀU HƯỚNG TỔNG TẠI SIDEBAR (VỊ TRÍ 1 - TRÊN CÙNG) ---
-# ==================================================================================
+# --- MENU ĐIỀU HƯỚNG TỔNG TẠI SIDEBAR (VỊ TRÍ 1 - TRÊN CÙNG) ---
 st.sidebar.markdown("### MENU HỆ THỐNG")
 st.sidebar.caption("CHỌN PHÂN HỆ TÁC NGHIỆP")
 
@@ -68,17 +67,55 @@ phan_he = st.sidebar.radio(
 st.sidebar.markdown("---")
 
 # ==================================================================================
-# --- KHỐI HIỂN THỊ Ô XÁC THỰC ADMIN / NHẬP KEY (VỊ TRÍ 3 - ĐÃ ĐẨY XUỐNG DƯỚI CÙNG SIDEBAR) ---
+# --- 🚀 THUẬT TOÁN ĐỌC/GHI BỘ NHỚ TRÌNH DUYỆT (LOCAL STORAGE) QUA JAVASCRIPT ---
 # ==================================================================================
-# 🌟 Đặt khối logic check mật mã ẩn lên trên đầu luồng để gán đặc quyền cho Menu
-# Thầy cô tự đặt mật mã bảo mật của mình tại đây (Ví dụ: "123456")
 MAT_MA_ADMIN_CỐ_ĐỊNH = "123456"
 
-# Tạo hộp nhập mật mã ẩn ở chân trang Sidebar, tận dụng tính năng tự động ghi nhớ form của trình duyệt Chrome/Cốc Cốc
-st.sidebar.markdown("### 🔑 TRẠNG THÁI TÀI KHOẢN")
-mat_ma_nhap = st.sidebar.text_input("Mật mã định danh Admin (Nếu có):", type="password", key="admin_password_permanent_key")
+# Khởi tạo biến lưu trữ mật mã trong bộ nhớ Streamlit nếu chưa có
+if "saved_admin_password" not in st.session_state:
+    st.session_state["saved_admin_password"] = ""
 
-# Kiểm tra điều kiện gán đặc quyền Admin
+# Đọc mật mã ẩn từ URL được chuyển hướng từ JavaScript
+query_params = st.query_params
+if "get_pwd" in query_params:
+    st.session_state["saved_admin_password"] = query_params["get_pwd"]
+
+# Nhúng đoạn mã HTML/JS chạy ngầm để đọc và tự động điền mật mã khi F5
+components.html(f"""
+    <script>
+        // 1. Kiểm tra xem máy thầy đã từng lưu mật mã admin chưa
+        var stored_pwd = localStorage.getItem("nch_admin_password_storage");
+        var current_url = new URL(window.parent.location.href);
+        
+        // 2. Nếu tìm thấy mật mã trong máy và URL chưa được nạp, tự chuyển hướng nạp ngầm vào Streamlit
+        if (stored_pwd && !current_url.searchParams.has("get_pwd")) {{
+            current_url.searchParams.set("get_pwd", stored_pwd);
+            window.parent.location.href = current_url.href;
+        }}
+    </script>
+""", height=0, width=0)
+
+st.sidebar.markdown("### 🔑 TRẠNG THÁI TÀI KHOẢN")
+
+# Lấy mật mã đã lưu làm giá trị mặc định cho ô nhập liệu
+default_pwd_value = st.session_state["saved_admin_password"]
+
+mat_ma_nhap = st.sidebar.text_input(
+    "Mật mã định danh Admin (Nếu có):", 
+    value=default_pwd_value, 
+    type="password", 
+    key="admin_password_permanent_key"
+)
+
+# Nếu thầy gõ mật mã mới, lập tức ra lệnh cho JavaScript lưu chặt vào ổ cứng trình duyệt vĩnh viễn
+if mat_ma_nhap:
+    components.html(f"""
+        <script>
+            localStorage.setItem("nch_admin_password_storage", "{mat_ma_nhap}");
+        </script>
+    """, height=0, width=0)
+
+# Kiểm tra điều kiện gán đặc quyền Admin dựa trên mật mã nạp tự động
 if mat_ma_nhap == MAT_MA_ADMIN_CỐ_ĐỊNH:
     is_admin_owner = True
     st.sidebar.success("👑 Thiết bị: Chủ dự án (Admin)")
