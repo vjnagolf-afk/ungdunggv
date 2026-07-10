@@ -5,7 +5,7 @@ from google import genai
 from google.genai import errors  
 
 # --- 1. PHÂN LUỒNG IMPORT CÁC MODULE ĐỘC LẬP ---
-# from exam_designer import render_exam_designer_section
+from exam_designer import render_exam_designer_section # 🚀 ĐÃ MỞ KHÓA IMPORT TẠI ĐÂY
 from grade_manager import render_grade_manager_section
 from tkb_manager import render_tkb_manager  
 from khbd_manager import render_khbd_section  
@@ -15,7 +15,7 @@ from org_manager import render_org_section
 from bien_ban_manager import render_meeting_minutes
 from ke_hoach_ca_nhan_manager import render_personal_plan 
 from stem_manager import render_stem_section
-from chu_nhiem_manager import render_chu_nhiem_section # ĐÃ SỬA LỖI ĐƯỜNG DẪN MODULE TẠI ĐÂY
+from chu_nhiem_manager import render_chu_nhiem_section 
 
 # --- 2. CẤU HÌNH ĐỌC API KEY TỰ ĐỘNG TỪ TRONG SECRETS ---
 API_KEY_HE_THONG = st.secrets.get("GEMINI_API_KEY", "")
@@ -93,7 +93,7 @@ if phan_he == "Trợ lý Giảng dạy (Giáo viên)":
     if menu == "1. Thiết kế KHBD": 
         render_khbd_section(lambda p: run_ai_prompt_safe(p))
     elif menu == "2. Thiết kế Đề KT": 
-        render_exam_designer_section("", lambda p: run_ai_prompt_safe(p))
+        render_exam_designer_section(lambda p: run_ai_prompt_safe(p)) # 🚀 Đã khớp tham số truyền hàm
     elif menu == "3. Đánh giá HS": 
         render_assessment_section(lambda p: run_ai_prompt_safe(p))
     elif menu == "4. Quản lý điểm (SMAS)": 
@@ -167,9 +167,3 @@ else:  # Phân hệ Quản lý tổ chuyên môn
                     conn.commit()
                     conn.close()
                     st.success("🎉 Đã nạp dữ liệu thử nghiệm trực tiếp vào SQLite! Đang dựng sơ đồ...")
-                    st.rerun()
-                except Exception as demo_err:
-                    st.error(f"Không thể nạp dữ liệu mẫu: {demo_err}")
-    if __name__ == "__main__":
-    main()
-
