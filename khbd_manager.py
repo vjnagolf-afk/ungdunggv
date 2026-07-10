@@ -49,42 +49,45 @@ def render_khbd_section(run_ai_prompt_safe_func):
     
     if "ket_qua_khbd" not in st.session_state: st.session_state["ket_qua_khbd"] = ""
     
+    # Tăng cỡ chữ cho Tab bằng CSS
+    st.markdown("""
+        <style>
+            button[data-baseweb="tab"] {
+                font-size: 20px !important;
+                font-weight: bold !important;
+            }
+        </style>
+    """, unsafe_allow_html=True)
+    
     tab_thiet_ke, tab_thu_vien = st.tabs(["📝 THIẾT KẾ KHBD TỰ ĐỘNG", "🗄️ THƯ VIỆN BÀI SOẠN"])
     
     with tab_thiet_ke:
         ten_bai = st.text_input("Tên bài học / Chủ đề bài dạy:", placeholder="Ví dụ: Bài 4: Tốc độ chuyển động")
-        col_lop, col_bo = st.columns(2)
-        with col_lop: lop_khbd = st.text_input("Lớp dạy:", value="Lớp 7")
-        with col_bo: bo_sach = st.selectbox("Bộ sách:", ["Kết nối tri thức", "Cánh Diều", "Chân trời sáng tạo"])
         
-        col_tg, col_loai = st.columns(2)
-        with col_tg: thoi_luong = st.text_input("Thời lượng (Tiết):", value="2 tiết")
-        with col_loai: kieu_khbd = st.selectbox("Mẫu thiết kế:", ["Chuẩn 5512", "Rút gọn", "STEM"])
+        # Thiết kế 4 menu trên cùng 1 hàng
+        col1, col2, col3, col4 = st.columns(4)
+        with col1: lop_khbd = st.selectbox("Lớp:", [f"Lớp {i}" for i in range(6, 13)])
+        with col2: kieu_khbd = st.selectbox("Mẫu thiết kế:", ["Chuẩn 5512", "Rút gọn", "STEM"])
+        with col3: thoi_luong = st.text_input("Thời lượng (Tiết):", value="2")
+        with col4: files_tailieu = st.file_uploader("Tài liệu (docx, pdf, txt):", accept_multiple_files=True)
         
-        files_tailieu = st.file_uploader("Tài liệu tham khảo (.docx, .pdf, .txt):", accept_multiple_files=True)
+        # Checkbox bám sát 100%
+        chk_strict_file = st.checkbox("🚩 Bám sát 100% tài liệu tải lên", value=False)
         
-        col_chk1, col_chk2 = st.columns(2)
-        with col_chk1: chk_ai_digital = st.checkbox("Tích hợp năng lực số và AI", value=True)
-        with col_chk2: chk_strict_file = st.checkbox("🚩 Bám sát 100% file tài liệu tải lên", value=False)
-        
-        yeu_cau_rieng = st.text_area("Yêu cầu sư phạm bổ sung:")
-
+        # Nút chức năng
         c1, c2 = st.columns(2)
-        if c1.button("⚡ Tiến hành thiết kế bài dạy bằng AI", type="primary", use_container_width=True):
+        if c1.button("⚡ Thiết kế bài dạy bằng AI", type="primary", use_container_width=True):
             if ten_bai:
-                with st.spinner("Đang soạn giáo án..."):
-                    context_msg = "- BÁM SÁT 100% TÀI LIỆU TẢI LÊN." if chk_strict_file else ""
-                    ket_qua, _ = run_ai_prompt_safe_func(f"Soạn KHBD bài {ten_bai}. {context_msg}")
+                with st.spinner("Đang soạn giáo án (Bộ sách: Kết nối tri thức)..."):
+                    ket_qua, _ = run_ai_prompt_safe_func(f"Soạn KHBD chuẩn 5512 bài: {ten_bai} (Bộ sách: Kết nối tri thức). Tài liệu: {chk_strict_file}")
                     st.session_state["ket_qua_khbd"] = ket_qua
-            else: st.warning("Vui lòng nhập tên bài!")
         
-        if c2.button("💾 Lưu tạm thời vào Google Sheets", use_container_width=True):
+        if c2.button("💾 Lưu tạm vào Google Sheets", use_container_width=True):
             if st.session_state["ket_qua_khbd"]:
-                if save_khbd_to_sheet(ten_bai, lop_khbd, bo_sach, thoi_luong, st.session_state["ket_qua_khbd"]):
+                if save_khbd_to_sheet(ten_bai, lop_khbd, "Kết nối tri thức", thoi_luong, st.session_state["ket_qua_khbd"]):
                     st.success("✅ Đã lưu!")
         
         if st.session_state["ket_qua_khbd"]:
-            st.markdown("### 📋 Kết quả xem trước:")
             st.markdown(st.session_state["ket_qua_khbd"])
                 
     with tab_thu_vien:
