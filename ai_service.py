@@ -1,18 +1,12 @@
-# ai_service.py
+# ai_service.py - Bổ sung xử lý lỗi bận hệ thống 503 và 429
 import streamlit as st
 from google import genai
 from google.genai import errors
 
 def get_system_api_key():
-    """Lấy API Key tổng dự phòng của hệ thống"""
     return st.secrets.get("GEMINI_API_KEY", "")
 
 def run_ai_prompt_safe(prompt_text, preferred_model="3.5 Flash", is_admin_owner=True):
-    """
-    Trung tâm điều phối gọi API phân luồng bảo mật.
-    - Nếu là máy của Admin: Chạy thẳng bằng Key hệ thống.
-    - Nếu là máy giáo viên khác: Ép dùng Key cá nhân dán ở Sidebar giao diện.
-    """
     if is_admin_owner:
         api_key_to_use = get_system_api_key()
         nguon_key = "Tài khoản hệ thống (Chính chủ)"
@@ -27,14 +21,15 @@ def run_ai_prompt_safe(prompt_text, preferred_model="3.5 Flash", is_admin_owner=
     if not api_key_to_use:
         return "⚠️ Hệ thống chưa được cấu hình API Key. Vui lòng liên hệ Admin hoặc tự cung cấp mã Key cá nhân!", "error"
     
-    # Định biên danh mục mã Model ID thương mại chính thức của Google theo giao diện
+    # 🌟 THIẾT LẬP LUỒNG DỰ PHÒNG TOÀN DIỆN CHO TẤT CẢ CÁC PHÂN HỆ
+    # Gộp gemini-1.5-pro làm máy gác cổng cuối cùng cho mọi lựa chọn
     model_pool = {
-        "3.1 Flash-Lite": ["gemini-2.5-flash"],
-        "3.5 Flash": ["gemini-2.5-flash"],
-        "3.1 Pro": ["gemini-2.5-pro", "gemini-2.5-flash"],
-        "Tư duy mở rộng": ["gemini-2.5-pro", "gemini-2.5-flash"]
+        "3.1 Flash-Lite": ["gemini-2.5-flash", "gemini-1.5-pro"],
+        "3.5 Flash": ["gemini-2.5-flash", "gemini-1.5-pro"],
+        "3.1 Pro": ["gemini-1.5-pro", "gemini-2.5-flash"],
+        "Tư duy mở rộng": ["gemini-1.5-pro", "gemini-2.5-flash"]
     }
-    models_to_try = model_pool.get(preferred_model, ["gemini-2.5-flash"])
+    models_to_try = model_pool.get(preferred_model, ["gemini-2.5-flash", "gemini-1.5-pro"])
     
     last_error_message = "Không có thông tin lỗi cụ thể."
     client = genai.Client(api_key=api_key_to_use)
@@ -58,11 +53,16 @@ def run_ai_prompt_safe(prompt_text, preferred_model="3.5 Flash", is_admin_owner=
                 
         except errors.APIError as error:  
             last_error_message = f"Mô hình {model_name} báo lỗi API: {str(error)}"
-            if "429" in str(error):
-                st.toast("⏳ Mô hình đạt giới hạn hạn mức câu hỏi của ngày. Hệ thống đang lùi dòng máy...", icon="⚠️")
+            
+            # 🌟 THUẬT TOÁN BẮT BÀI LỖI 503 (QUÁ TẢI) HOẶC 429 (HẾT HẠN MỨC) ĐỂ TỰ ĐỘNG CHUYỂN DÒNG MÁY
+            if "503" in str(error) or "UNAVAILABLE" in str(error):
+                st.toast(f"⏳ {model_name} đang bận cục bộ. Hệ thống tự động lùi sang dòng máy dự phòng...", icon="🔄")
+            elif "429" in str(error):
+                st.toast(f"⏳ {model_name} đạt giới hạn hạn mức câu hỏi của ngày. Hệ thống đang lùi dòng máy...", icon="⚠️")
             continue  
+            
         except Exception as e:
             last_error_message = f"Sự cố đường truyền: {str(e)}"
             continue
             
-    return f"❌ Lỗi: Không thể phản hồi. Ghi nhận lỗi cuối cùng: {last_error_message}", "error"
+    return f"Lỗi hệ thống: Tất cả các dòng máy dự phòng cấu hình đều không phản hồi thành công. Ghi nhận lỗi cuối cùng: {last_error_message}", "error"
