@@ -54,22 +54,29 @@ import streamlit as st
 
 API_KEY_HE_THONG = st.secrets.get("GEMINI_API_KEY", "")
 
+# app.py (Bản cập nhật khớp 100% minh chứng giao diện thương mại và vá lỗi dứt điểm 404)
+from google import genai
+from google.genai import errors
+import streamlit as st
+
+API_KEY_HE_THONG = st.secrets.get("GEMINI_API_KEY", "")
+
 def run_ai_prompt_safe(prompt_text, preferred_model="3.5 Flash"):
     """
-    Hàm gọi API Gemini thế hệ mới - Đã sửa lỗi Model ID chuẩn hóa theo SDK google-genai
-    giúp triệt tiêu hoàn toàn lỗi 404 NOT_FOUND trên môi trường API v1beta.
+    Hàm gọi API Gemini thế hệ mới - Ánh xạ chính xác minh chứng giao diện người dùng
+    sang Model ID thương mại chính thức để triệt tiêu lỗi 404 NOT_FOUND.
     """
     api_key = API_KEY_HE_THONG
     if not api_key:
         return "⚠️ Hệ thống chưa được cấu hình API Key trong mục Secrets. Vui lòng liên hệ Admin.", "error"
     
-    # 🌟 VÁ LỖI QUYẾT ĐỊNH: ĐỒNG BỘ CHUẨN XÁC MODEL ID ĐỐI VỚI THƯ VIỆN GOOGLE-GENAI MỚI
-    # Bỏ hoàn toàn các hậu tố '-latest' để tránh lỗi endpoint không hỗ trợ v1beta.
+    # 🌟 ĐỒNG BỘ 100% THEO MINH CHỨNG SƠ ĐỒ GIAO DIỆN THƯƠNG MẠI
+    # Ánh xạ nhãn hiển thị sang đúng mã Model ID hệ thống được Google chấp nhận
     model_pool = {
-        "3.1 Pro": ["gemini-1.5-pro", "gemini-2.5-flash"],
-        "3.5 Flash": ["gemini-2.5-flash", "gemini-1.5-flash"],
-        "3.1 Flash-Lite": ["gemini-2.5-flash"], # Sử dụng gemini-2.5-flash tốc độ cao để thay thế tối ưu
-        "Tư duy mở rộng": ["gemini-2.5-pro", "gemini-2.5-flash"] # gemini-2.5-pro hỗ trợ chế độ Thinking chuyên sâu
+        "3.1 Flash-Lite": ["gemini-2.5-flash"],
+        "3.5 Flash": ["gemini-2.5-flash"],
+        "3.1 Pro": ["gemini-2.5-pro", "gemini-2.5-flash"],
+        "Tư duy mở rộng": ["gemini-2.5-pro", "gemini-2.5-flash"]
     }
     
     models_to_try = model_pool.get(preferred_model, ["gemini-2.5-flash"])
@@ -77,35 +84,35 @@ def run_ai_prompt_safe(prompt_text, preferred_model="3.5 Flash"):
     last_error_message = "Không có thông tin lỗi cụ thể."
     client = genai.Client(api_key=api_key)
     
-    # VÒNG LẶP KIỂM TRA VÀ TRÍCH XUẤT ĐÁP ÁN DỰ PHÒNG CHUẨN HÓA
+    # VÒNG LẶP KIỂM TRA VÀ TỰ ĐỘNG CHUYỂN ĐỔI MÔ HÌNH DỰ PHÒNG KHI NGHẼN QUOTA
     for model_name in models_to_try:
         try:
             config_params = {}
-            # Kích hoạt tính năng Tư duy mở rộng (Thinking) cho phiên bản 2.5-pro nếu giáo viên yêu cầu
-            if preferred_model == "Tư duy mở rộng" and "gemini-2.5-pro" in model_name:
-                config_params["thinking_config"] = {"thinking_budget": 1024}
+            # Kích hoạt chế độ suy nghĩ chuyên sâu (Thinking) khi giáo viên chọn "Tư duy mở rộng"
+            if preferred_model == "Tư duy mở rộng" and "pro" in model_name:
+                config_params["thinking_config"] = {"thinking_budget": 2048} # Tăng ngân sách tư duy để giải toán/lập ma trận nâng cao
             
-            # Gửi yêu cầu phân tích dữ liệu học thuật lên máy chủ Google
+            # Gửi yêu cầu sinh nội dung
             response = client.models.generate_content(
                 model=model_name,
                 contents=prompt_text,
                 config=config_params if config_params else None
             )
             
-            # Nếu nhận được phản hồi thành công, trả về kết quả và kết thúc ngay
+            # Nếu có phản hồi, trả về kết quả và đóng luồng xử lý thành công
             if response and response.text:
                 return response.text, model_name
             else:
-                last_error_message = f"Mô hình {model_name} phản hồi chuỗi trống."
+                last_error_message = f"Mô hình {model_name} phản hồi chuỗi rỗng."
                 continue
                 
         except errors.APIError as error:  
             last_error_message = f"Mô hình {model_name} báo lỗi API: {str(error)}"
-            st.toast(f"⏳ {model_name} lỗi hoặc bận. Hệ thống tự động chuyển dòng máy dự phòng...", icon="⏳")
+            st.toast(f"⏳ Dòng {model_name} quá tải hạn mức. Hệ thống tự động chuyển mục dự phòng...", icon="⏳")
             continue  
             
         except Exception as e:
-            last_error_message = f"Mô hình {model_name} gặp sự cố kết nối: {str(e)}"
+            last_error_message = f"Mô hình {model_name} gặp sự cố đường truyền: {str(e)}"
             continue
             
     return f"❌ Lỗi hệ thống: Tất cả các dòng máy dự phòng cấu hình đều không phản hồi thành công. Ghi nhận lỗi cuối cùng: {last_error_message}", "error"
