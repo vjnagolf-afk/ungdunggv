@@ -88,9 +88,10 @@ def set_paragraph_spacing(paragraph, before_pt=3.0, after_pt=4.5):
     spacing.set(qn('w:line'), '240')
     spacing.set(qn('w:lineRule'), 'auto')
     p_pr.append(spacing)
+# khbd_manager.py - ĐOẠN 2: THUẬT TOÁN KẾT XUẤT GIÁO ÁN CHUẨN WORD (VÁ LỖI ĐỀ MỤC & TOÁN HỌC)
 def export_khbd_to_docx(markdown_content, images_list):
-    # Làm sạch các dấu thăng tiêu đề Markdown dư thừa
-    text_clean_all = re.sub(r'(?m)^#+\s*', '', markdown_content)
+    # 🚀 1. LÀM SẠCH VĂN BẢN TRƯỚC KHI XỬ LÝ DÒNG
+    markdown_content = re.sub(r'(?m)^#+\s*', '', markdown_content) # Xóa dấu # Markdown
     
     doc = docx.Document()
     for section in doc.sections:
@@ -102,28 +103,48 @@ def export_khbd_to_docx(markdown_content, images_list):
     MAU_DO = RGBColor(255, 0, 0)
     MAU_XANH_DUONG = RGBColor(0, 51, 153)
 
-    # Khởi tạo định dạng văn bản cốt lõi thống nhất cỡ chữ 14pt Times New Roman
     style = doc.styles['Normal']
     style.font.name = 'Times New Roman'
     style.font.size = Pt(14)
 
-    lines = text_clean_all.split('\n')
+    lines = markdown_content.split('\n')
     in_table = False
     table_data = []
     used_img_idx = 0
+    
+    # Biến cờ đánh dấu để bỏ qua các dòng lời dẫn mở đầu của AI
+    passed_intro = False
 
     for line in lines:
-        cleaned_line = line.strip()
+        cleaned_line = line.strip().replace('**', '') # Xóa dấu sao in đậm Markdown thừa
         if not cleaned_line: 
             continue
 
-        # 🚀 SỬA LỖI ĐẦU DÒNG: Chuyển toàn bộ dấu * hoặc nhóm - phức tạp thành duy nhất 1 dấu -
+        # 🚀 2. THUẬT TOÁN LOẠI BỎ CÁC DÒNG LỜI DẪN MỞ ĐẦU CỦA AI
+        if not passed_intro:
+            # Nếu dòng không chứa các từ khóa giáo án hành chính chính thức thì bỏ qua
+            if any(x in cleaned_line.upper() for x in ["MÔN HỌC:", "LỚP:", "BÀI:", "KẾ HOẠCH BÀI DẠY", "TIẾT ", "I. MỤC TIÊU"]):
+                passed_intro = True
+            else:
+                continue
+
+        # 🚀 3. THUẬT TOÁN LÀM SẠCH DẤU GẠCH ĐẦU DÒNG THỪA TẠI CÁC ĐỀ MỤC HÀNH CHÍNH
+        # Tìm và xóa các dấu gạch ngang dính ở đầu các đề mục dạng: - I. ; - 1. ; - a) ; - b)
+        if cleaned_line.startswith('-'):
+            sub_text = re.sub(r'^-+\s*', '', cleaned_line).strip()
+            if (re.match(r'^(I|II|III|IV|V|VI|VII)\.', sub_text) or 
+                re.match(r'^\d+\.', sub_text) or 
+                re.match(r'^[a-z]\)', sub_text) or
+                any(x in sub_text.upper() for x in ["MÔN HỌC:", "LỚP:", "BÀI:", "KẾ HOẠCH BÀI DẠY", "THỜI LƯỢNG:"])):
+                cleaned_line = sub_text
+
+        # Xử lý làm sạch dấu * đầu dòng văn bản thường
         if cleaned_line.startswith('*'):
             cleaned_line = re.sub(r'^\*+\s*', '- ', cleaned_line)
-        elif cleaned_line.startswith('-'):
+        elif cleaned_line.startswith('-') and not re.match(r'^-\s*[a-z0-9I]', cleaned_line):
             cleaned_line = re.sub(r'^-+\s*', '- ', cleaned_line)
 
-        # Xử lý khối biểu bảng dữ liệu
+        # Xử lý khối bảng dữ liệu biểu bảng
         if cleaned_line.startswith('|') and cleaned_line.endswith('|'):
             if '---|' in cleaned_line or ':---|' in cleaned_line: continue
             in_table = True
@@ -150,20 +171,6 @@ def export_khbd_to_docx(markdown_content, images_list):
                 in_table = False
                 table_data = []
 
-        # Xử lý hình ảnh minh họa đính kèm
-        if "[Hình ảnh minh họa]" in cleaned_line and images_list:
-            if used_img_idx < len(images_list):
-                try:
-                    p = doc.add_paragraph()
-                    set_paragraph_spacing(p)
-                    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                    img_stream = io.BytesIO(images_list[used_img_idx])
-                    doc.add_picture(img_stream, width=Inches(4.5))
-                    used_img_idx += 1
-                    continue
-                except: pass
-
-        # Nhận diện chuỗi đồ thị sinh ảnh tự động từ hàm số
         if '[GRAPH:' in cleaned_line:
             match = re.search(r'\[GRAPH:\s*(.+?)\]', cleaned_line)
             if match:
@@ -173,7 +180,7 @@ def export_khbd_to_docx(markdown_content, images_list):
                 doc.paragraphs[-1].alignment = WD_ALIGN_PARAGRAPH.CENTER
             continue
 
-        # Định dạng khối tiêu đề bài học chính căn giữa
+        # Định dạng khối tiêu đề bài dạy chính căn giữa (Chữ Đỏ/Chữ Xanh Đại Thể, 14pt)
         if any(x in cleaned_line.upper() for x in ["MÔN HỌC:", "LỚP:", "BÀI:", "KẾ HOẠCH BÀI DẠY", "THỜI LƯỢNG:"]) or re.match(r'^TIẾT\s+\d+', cleaned_line.upper()):
             p = doc.add_paragraph()
             set_paragraph_spacing(p, 4.0, 4.5)
@@ -185,12 +192,19 @@ def export_khbd_to_docx(markdown_content, images_list):
             run.font.color.rgb = MAU_DO if "KẾ HOẠCH BÀI DẠY" in cleaned_line.upper() else MAU_XANH_DUONG
             continue
 
-        # Định dạng đề mục La Mã lớn hoặc số (I., II., 1., 2., A., B.) in đậm xanh dương
-        if re.match(r'^(I|II|III|IV|V|VI|VII)\.', cleaned_line) or re.match(r'^[A-Z]\.', cleaned_line) or re.match(r'^\d+\.', cleaned_line):
+        # 🚀 4. THUẬT TOÁN ĐỒNG BỘ IN ĐẬM VÀ NHUỘM XANH DƯƠNG CHO TẤT CẢ ĐỀ MỤC LỚN/NHỎ (I., 1., a))
+        if (re.match(r'^(I|II|III|IV|V|VI|VII)\.', cleaned_line) or 
+            re.match(r'^\d+\.', cleaned_line) or 
+            re.match(r'^[a-z]\)', cleaned_line)):
+            
             p = doc.add_paragraph()
             set_paragraph_spacing(p, 4.0, 4.5)
             p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+            
+            # Quét dịch công thức toán nếu đề mục chứa ký hiệu toán
             process_runs_with_math(p, cleaned_line)
+            
+            # Ép thuộc tính in đậm, kích thước 14pt và màu xanh dương cho toàn bộ run đề mục
             for r in p.runs:
                 r.bold = True
                 r.font.name = 'Times New Roman'
@@ -198,7 +212,7 @@ def export_khbd_to_docx(markdown_content, images_list):
                 r.font.color.rgb = MAU_XANH_DUONG
             continue
 
-        # Đoạn văn bài giảng thông thường (Thụt lề thụ động nếu bắt đầu bằng dấu gạch ngang)
+        # Đoạn văn giáo án nội dung thường (Dấu gạch ngang thụt lề)
         p = doc.add_paragraph()
         set_paragraph_spacing(p)
         p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
@@ -212,7 +226,6 @@ def export_khbd_to_docx(markdown_content, images_list):
             if not r.font.size:
                 r.font.size = Pt(14)
 
-    # Đóng khối vét bảng biểu ở cuối văn bản nếu có
     if in_table and table_data:
         num_rows = len(table_data)
         num_cols = len(table_data[0]) if num_rows > 0 else 0
@@ -267,7 +280,6 @@ def render_khbd_section(run_ai_prompt_safe_func):
             context_data, st.session_state["images_khbd"] = extract_context_from_uploaded_files(files_tailieu)
             st.success(f"📊 Đã nạp thành công văn bản tham khảo và trích xuất được {len(st.session_state['images_khbd'])} hình ảnh!")
 
-        # 🚀 GIAO DIỆN 2 Ô CHECKBOX THEO NGUYÊN BẢN CỦA THẦY
         col_chk1, col_chk2 = st.columns(2)
         with col_chk1:
             chk_ai_digital = st.checkbox("Tích hợp năng lực số và AI", value=True)
@@ -287,7 +299,6 @@ def render_khbd_section(run_ai_prompt_safe_func):
                 st.warning("⚠️ Vui lòng điền tên bài học hoặc chủ đề giảng dạy!")
             else:
                 with st.spinner("🧠 AI đang phân tích dữ liệu, bám sát Công văn 5512 để thiết kế tiến trình..."):
-                    # Thiết lập biến đóng gói chỉ lệnh Checkbox gửi cho AI
                     prompt_requirements = ""
                     if chk_ai_digital:
                         prompt_requirements += """
@@ -308,8 +319,8 @@ def render_khbd_section(run_ai_prompt_safe_func):
                     {prompt_requirements}
                     - Yêu cầu bổ sung riêng: {yeu_cau_rieng if yeu_cau_rieng else "Không có"}
                     
-                    QUY ĐỊNH ĐỊNH DẠNG CÔNG THỨC TOÁN HỌC & ĐỒ THỊ:
-                    - Tất cả biểu thức, phân số chồng tầng, đại lượng phải đặt gọn trong cặp dấu đô-la $...$. Ví dụ: $v = \\frac{{s}}{{t}}$.
+                    QUY ĐỊNH ĐỊNH DẠNG CÔNG THỨC TOÁN HỌC & ĐỒ THỊ (Nghiêm ngặt):
+                    - Tuyệt đối không viết chữ toán dạng phẳng dính văn bản thường. Tất cả công thức như v = s/t, các phân số chồng tầng, đại lượng vật lý bắt buộc phải đặt cô lập gọn gàng trong cặp dấu đô-la $...$ độc lập (Ví dụ: $v = \\frac{{s}}{{t}}$, $1 \\text{{ m/s}} = 3.6 \\text{{ km/h}}$).
                     - Nếu có đồ thị hàm số, xuất chuỗi dạng [GRAPH: tên_hàm] (Ví dụ: [GRAPH: 3*x]) để Word tự động vẽ hình.
                     """
                     ket_qua, model_thuc_te = run_ai_prompt_safe_func(prompt_khbd)
