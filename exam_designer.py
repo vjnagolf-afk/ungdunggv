@@ -150,7 +150,7 @@ def render_exam_designer_section(run_ai_prompt_safe_func):
         with col_input_name:
             st.session_state["save_ten_de"] = st.text_input("Tên bài kiểm tra / Đề số:", value=st.session_state["save_ten_de"])
         with col_input_model:
-            mo_hinh_uu_tien = st.selectbox("Mô hình xử lý đề thi:", ["3.5 Flash", "3.1 Flash-Lite", "3.1 Pro", "Tư duy mở rộng"], index=0)
+            mo_hinh_uu_tien = st.selectbox("Mô hình xử lý đề thi:", ["3.1 Flash-Lite", "3.5 Flash", "3.1 Pro", "Tư duy mở rộng"], index=0)
 
         yeu_cau_khac = st.text_area("Nhập yêu cầu khác (Tùy chọn):", placeholder="Ví dụ: Đề thi có chứa 1 câu hỏi thực tế về đồ thị hàm số bậc nhất...")
 
