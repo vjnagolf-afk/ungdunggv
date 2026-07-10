@@ -115,7 +115,7 @@ else:  # Phân hệ Quản lý tổ chuyên môn
         render_meeting_minutes(lambda p: run_ai_prompt_safe(p))
     elif menu == "3. Kế hoạch cá nhân": 
         render_personal_plan(lambda p: run_ai_prompt_safe(p))
-    elif menu == "4. Thống kê số liệu": 
+        elif menu == "4. Thống kê số liệu": 
         st.header("📊 THỐNG KÊ SỐ LIỆU TỔ CHUYÊN MÔN")
         
         import sqlite3
@@ -167,30 +167,13 @@ else:  # Phân hệ Quản lý tổ chuyên môn
                     conn.commit()
                     conn.close()
                     st.success("🎉 Đã nạp dữ liệu thử nghiệm trực tiếp vào SQLite! Đang dựng sơ đồ...")
-                    # ... (Các dòng code phía trên giữ nguyên)
-        if not thuc_te_co_du_lieu:
-            st.warning("ℹ️ Hiện tại chưa có dữ liệu giáo viên nào được nhập từ phân hệ '1. Quản lý & Phân công chuyên môn'.")
-            
-            if st.button("💡 Nạp nhanh dữ liệu mẫu để thử nghiệm biểu đồ", type="primary", use_container_width=True):
-                try:
-                    conn = sqlite3.connect(DB_PATH)
-                    conn.execute("CREATE TABLE IF NOT EXISTS org_members (id INTEGER PRIMARY KEY AUTOINCREMENT, fullname TEXT UNIQUE, position TEXT, main_subject TEXT, email TEXT, phone TEXT, note TEXT)")
-                    conn.execute("CREATE TABLE IF NOT EXISTS org_assignments (id INTEGER PRIMARY KEY AUTOINCREMENT, fullname TEXT UNIQUE, subject_class TEXT, homeroom TEXT, concurrent TEXT, total_periods TEXT DEFAULT '0')")
-                    
-                    danh_sach_demo = [
-                        ("Lê Hồng Dưỡng", "Khoa học tự nhiên (Phân môn Vật lí)", "14"),
-                        ("Nguyễn Thị Huyền Trang", "Khoa học tự nhiên (Phân môn Vật lí)", "16"),
-                        ("Khương Thị Thúy Vân", "Khoa học tự nhiên (Phân môn Sinh học)", "12"),
-                        ("Phạm Thùy Ngoan", "Khoa học tự nhiên (Phân môn Hóa học)", "15"),
-                        ("Trần Xuân Hạnh", "Giáo dục thể chất", "14")
-                    ]
-                    for name, subj, periods in danh_sach_demo:
-                        conn.execute("INSERT OR REPLACE INTO org_members (fullname, position, main_subject) VALUES (?, 'GV', ?)", (name, subj))
-                        conn.execute("INSERT OR REPLACE INTO org_assignments (fullname, total_periods) VALUES (?, ?)", (name, periods))
-                    conn.commit()
-                    conn.close()
-                    st.success("🎉 Đã nạp dữ liệu thử nghiệm trực tiếp vào SQLite! Đang dựng sơ đồ...")
-                    st.rerun() # Tự động tải lại trang để cập nhật biểu đồ đồ thị luôn
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"❌ Không thể nạp dữ liệu mẫu: {str(e)}")
+        else:
+            st.subheader("📋 Danh sách phân công hiện tại:")
+            st.dataframe(df_tv, use_container_width=True)
+
                 
                 # 🚀 BỔ SUNG KHỐI NÀY VÀO CUỐI FILE CỦA BẠN ĐỂ VÁ LỖI CÚ PHÁP
                 except Exception as e:
