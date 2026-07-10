@@ -91,8 +91,11 @@ def set_paragraph_spacing(paragraph, before_pt=3.0, after_pt=4.5):
 # khbd_manager.py - ĐOẠN 2: THUẬT TOÁN KẾT XUẤT GIÁO ÁN CHUẨN WORD (VÁ LỖI ĐỀ MỤC & TOÁN HỌC)
 # khbd_manager.py - ĐOẠN 2: THUẬT TOÁN KẾT XUẤT GIÁO ÁN CHUẨN ĐỊNH DẠNG MÀU SẮC YÊU CẦU
 # khbd_manager.py - ĐOẠN 2: THUẬT TOÁN KẾT XUẤT GIÁO ÁN CHUẨN ĐỊNH DẠNG MÀU SẮC YÊU CẦU
+# khbd_manager.py - ĐOẠN 2: THUẬT TOÁN KẾT XUẤT GIÁO ÁN VĂN BẢN XUÔI (TUYỆT ĐỐI KHÔNG DÙNG BẢNG)
 def export_khbd_to_docx(markdown_content, images_list):
-    markdown_content = re.sub(r'(?m)^#+\s*', '', markdown_content)
+    # 🚀 1. SƠ CHẾ VĂN BẢN TOÀN CỤC: Khử sạch thẻ bảng và làm sạch dấu tiêu đề Markdown
+    markdown_content = re.sub(r'(?m)^#+\s*', '', markdown_content) # Xóa dấu #
+    markdown_content = markdown_content.replace("<br>", "\n").replace("<br/>", "\n") # Ép thẻ dòng HTML thành xuống dòng Word
     
     doc = docx.Document()
     for section in doc.sections:
@@ -105,14 +108,12 @@ def export_khbd_to_docx(markdown_content, images_list):
     MAU_XANH_DUONG = RGBColor(0, 51, 153)
     MAU_DEN = RGBColor(0, 0, 0)
 
+    # Khóa cứng phôi chữ in hành chính Times New Roman 14pt
     style = doc.styles['Normal']
     style.font.name = 'Times New Roman'
     style.font.size = Pt(14)
 
     lines = markdown_content.split('\n')
-    in_table = False
-    table_data = []
-    used_img_idx = 0
     passed_intro = False
 
     for line in lines:
@@ -120,16 +121,26 @@ def export_khbd_to_docx(markdown_content, images_list):
         if not cleaned_line: 
             continue
 
+        # 🚀 2. THUẬT TOÁN BÓC TÁCH KHỬ TOÀN BỘ KÝ TỰ BẢNG PHẲNG CỦA AI
+        # Nếu AI cố tình sinh dòng dạng cột '| Thời gian | Hoạt động |', hệ thống tự bẻ khóa đưa về text thường
+        if cleaned_line.startswith('|'):
+            cleaned_line = cleaned_line.replace('|', '  ').strip()
+            # Bỏ qua các đường kẻ khung ngăn cách bảng của Markdown
+            if all(c in '-: ' for c in cleaned_line): 
+                continue
+
+        # Loại bỏ lời dẫn thừa đầu trang
         if not passed_intro:
             if any(x in cleaned_line.upper() for x in ["KẾ HOẠCH BÀI DẠY", "MÔN HỌC:", "LỚP:", "BÀI:", "TIẾT ", "I. MỤC TIÊU"]):
                 passed_intro = True
             else:
                 continue
 
-        if "BỘ SÁCH:" in cleaned_line.upper() or "CÁNH DIỀU" in cleaned_line.upper() or "KẾT NỐI TRI THỨC" in cleaned_line.upper() or "CHÂN TRỜI SÁNG TẠO" in cleaned_line.upper():
+        # Giấu hoàn toàn dòng tên bộ sách giáo khoa
+        if any(x in cleaned_line.upper() for x in ["BỘ SÁCH:", "CÁNH DIỀU", "KẾT NỐI TRI THỨC", "CHÂN TRỜI SÁNG TẠO"]):
             continue
 
-        # 🚀 1. TƯỚC BỎ DẤU GẠCH NGANG TRƯỚC ĐỀ MỤC LỚN, TIỂU MỤC SỐ VÀ NĂNG LỰC
+        # 🚀 3. TƯỚC BỎ DẤU GẠCH NGANG TRƯỚC CÁC TIÊU ĐỀ ĐỀ MỤC CHÍNH CHUẨN VĂN BẢN
         if cleaned_line.startswith('-'):
             sub_text = re.sub(r'^-+\s*', '', cleaned_line).strip()
             if (re.match(r'^(I|II|III|IV|V|VI|VII)\.', sub_text) or 
@@ -139,38 +150,13 @@ def export_khbd_to_docx(markdown_content, images_list):
                 any(x in sub_text.upper() for x in ["MÔN HỌC:", "LỚP:", "BÀI:", "KẾ HOẠCH BÀI DẠY", "THỜI LƯỢNG:"])):
                 cleaned_line = sub_text
 
+        # Chuẩn hóa định dạng dấu đầu dòng văn bản thường
         if cleaned_line.startswith('*'):
             cleaned_line = re.sub(r'^\*+\s*', '- ', cleaned_line)
         elif cleaned_line.startswith('-') and not re.match(r'^-\s*[a-zA-Z0-9I]', cleaned_line):
             cleaned_line = re.sub(r'^-+\s*', '- ', cleaned_line)
 
-        # Xử lý khối bảng dữ liệu biểu bảng
-        if cleaned_line.startswith('|') and cleaned_line.endswith('|'):
-            if '---|' in cleaned_line or ':---|' in cleaned_line: continue
-            in_table = True
-            cells = [c.strip().replace('**', '') for c in cleaned_line.split('|')[1:-1]]
-            table_data.append(cells)
-            continue
-        else:
-            if in_table and table_data:
-                num_rows = len(table_data)
-                num_cols = len(table_data) if num_rows > 0 else 0
-                if num_cols > 0:
-                    word_table = doc.add_table(rows=num_rows, cols=num_cols)
-                    word_table.style = 'Table Grid'
-                    word_table.alignment = WD_TABLE_ALIGNMENT.CENTER
-                    for r_idx, row in enumerate(table_data):
-                        for c_idx, val in enumerate(row):
-                            if c_idx < num_cols:
-                                cell = word_table.cell(r_idx, c_idx)
-                                cell.text = ""
-                                p_cell = cell.paragraphs
-                                set_paragraph_spacing(p_cell, 2.0, 3.0)
-                                p_cell.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-                                process_runs_with_math(p_cell, val)
-                in_table = False
-                table_data = []
-
+        # Nhận diện hàm số để vẽ đồ thị tự động
         if '[GRAPH:' in cleaned_line:
             match = re.search(r'\[GRAPH:\s*(.+?)\]', cleaned_line)
             if match:
@@ -180,6 +166,7 @@ def export_khbd_to_docx(markdown_content, images_list):
                 doc.paragraphs[-1].alignment = WD_ALIGN_PARAGRAPH.CENTER
             continue
 
+        # Định dạng khối tiêu đề lớn căn giữa (IN HOA, ĐỎ/XANH, 14pt)
         if any(x in cleaned_line.upper() for x in ["MÔN HỌC:", "LỚP:", "BÀI:", "KẾ HOẠCH BÀI DẠY", "THỜI LƯỢNG:"]) or re.match(r'^TIẾT\s+\d+', cleaned_line.upper()):
             p = doc.add_paragraph()
             set_paragraph_spacing(p, 4.0, 4.5)
@@ -191,7 +178,7 @@ def export_khbd_to_docx(markdown_content, images_list):
             run.font.color.rgb = MAU_DO if "KẾ HOẠCH BÀI DẠY" in cleaned_line.upper() else MAU_XANH_DUONG
             continue
 
-        # 🚀 2. ĐỊNH DẠNG ĐỀ MỤC LỚN (I, II, A, B...) -> IN ĐẬM XANH DƯƠNG
+        # 🚀 4. ĐỊNH DẠNG ĐỀ MỤC LỚN (I, II, A, B...) -> IN ĐẬM, MÀU XANH DƯƠNG 14PT
         if re.match(r'^(I|II|III|IV|V|VI|VII)\.', cleaned_line) or re.match(r'^[A-D]\.\s+', cleaned_line):
             p = doc.add_paragraph()
             set_paragraph_spacing(p, 4.0, 4.5)
@@ -204,7 +191,7 @@ def export_khbd_to_docx(markdown_content, images_list):
                 r.font.color.rgb = MAU_XANH_DUONG
             continue
 
-        # 🚀 3. ĐỊNH DẠNG TIỂU MỤC SỐ (1. Về kiến thức, 2. Về năng lực...) -> IN ĐẬM ĐỎ
+        # 🚀 5. ĐỊNH DẠNG TIỂU MỤC SỐ (1. Về kiến thức, 2. Về năng lực...) -> IN ĐẬM, MÀU ĐỎ 14PT
         if re.match(r'^\d+\.\s+Về\s+(kiến thức|năng lực|phẩm chất)', cleaned_line) or re.match(r'^\d+\.\s+Về\s+Mục\s+tiêu', cleaned_line):
             p = doc.add_paragraph()
             set_paragraph_spacing(p, 4.0, 4.5)
@@ -217,15 +204,14 @@ def export_khbd_to_docx(markdown_content, images_list):
                 r.font.color.rgb = MAU_DO
             continue
 
-        # 🚀 4. THUẬT TOÁN ĐẬP TAN LỖI IN ĐẬM TRAN DÒNG (Mục tiêu, Nội dung, Năng lực chung...)
-        # Tách chuỗi từ khóa đầu dòng để CHỈ IN ĐẬM từ khóa, nội dung phía sau chữ thường, màu đen
-        keyword_match = re.match(r'^(-\s*Mục tiêu:|---\s*Mục tiêu:|-\s*Nội dung:|---\s*Nội dung:|-\s*Sản phẩm:|---\s*Sản phẩm:|-\s*Tổ chức thực hiện:|---\s*Tổ chức thực hiện:|-\s*Bước\s+\d+:|---\s*Bước\s+\d+:|[a-d]\)\s+Năng lực\s+(chung|đặc thù|số và AI):)(.*)', cleaned_line, re.IGNORECASE)
+        # 🚀 6. THUẬT TOÁN PHÂN TÁCH CÔ LẬP KHỐI IN ĐẬM ĐẦU DÒNG CHỮ ĐEN CHUẨN XUÔI DÒNG
+        keyword_match = re.match(r'^([-\s]*Mục tiêu:|---\s*Mục tiêu:|[-\s]*Nội dung:|---\s*Nội dung:|[-\s]*Sản phẩm:|---\s*Sản phẩm:|[-\s]*Tổ chức thực hiện:|---\s*Tổ chức thực hiện:|[-\s]*Bước\s+\d+:|---\s*Bước\s+\d+:|Thành phần|Thời gian|[a-d]\)\s+Năng lực\s+(chung|đặc thù|số và AI):)(.*)', cleaned_line, re.IGNORECASE)
         
         if keyword_match:
             keyword = keyword_match.group(1).strip()
-            rest_of_text = keyword_match.group(3).strip()
+            rest_of_text = keyword_match.group(4).strip()
             
-            # Tước bỏ dấu gạch ngang của từ khóa tiến trình khi ghi vào file Word
+            # Làm sạch dấu gạch ngang của từ khóa khi đưa vào phôi Word
             keyword_clean = re.sub(r'^-+\s*', '', keyword)
             
             p = doc.add_paragraph()
@@ -234,14 +220,14 @@ def export_khbd_to_docx(markdown_content, images_list):
             if keyword.startswith('-'):
                 p.paragraph_format.left_indent = Inches(0.25)
             
-            # Run 1: Ghi riêng từ khóa đầu mục -> ÉP IN ĐẬM CHỮ ĐEN
+            # Chỉ in đậm riêng từ khóa, nhuộm màu đen trang nghiêm
             run_key = p.add_run(keyword_clean + " ")
             run_key.bold = True
             run_key.font.name = 'Times New Roman'
             run_key.font.size = Pt(14)
             run_key.font.color.rgb = MAU_DEN
             
-            # Run 2: Ghi phần nội dung diễn giải phía sau -> CHỮ THƯỜNG MÀU ĐEN (Nhúng quét toán)
+            # Phần văn bản nội dung diễn giải phía sau chuyển hoàn toàn thành chữ thường mảnh
             process_runs_with_math(p, rest_of_text)
             for r in p.runs[1:]:
                 r.bold = False
@@ -250,7 +236,7 @@ def export_khbd_to_docx(markdown_content, images_list):
                 r.font.color.rgb = MAU_DEN
             continue
 
-        # Đoạn văn giáo án nội dung thường (Chữ thường, màu đen)
+        # Đoạn văn giáo án nội dung thường phẳng (Times New Roman 14pt thường)
         p = doc.add_paragraph()
         set_paragraph_spacing(p)
         p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
@@ -264,25 +250,11 @@ def export_khbd_to_docx(markdown_content, images_list):
                 r.font.size = Pt(14)
             r.font.color.rgb = MAU_DEN
 
-    if in_table and table_data:
-        num_rows = len(table_data)
-        num_cols = len(table_data) if num_rows > 0 else 0
-        if num_cols > 0:
-            word_table = doc.add_table(rows=num_rows, cols=num_cols)
-            word_table.style = 'Table Grid'
-            word_table.alignment = WD_TABLE_ALIGNMENT.CENTER
-            for r_idx, row in enumerate(table_data):
-                for c_idx, val in enumerate(row):
-                    if c_idx < num_cols:
-                        cell = word_table.cell(r_idx, c_idx)
-                        cell.text = ""
-                        p_cell = cell.paragraphs
-                        set_paragraph_spacing(p_cell, 2.0, 3.0)
-                        process_runs_with_math(p_cell, val)
-
+    # Xuất luồng nhị phân an toàn để trả file về nút download_button
     buf = io.BytesIO()
     doc.save(buf)
     return buf.getvalue()
+
 # khbd_manager.py - ĐOẠN 3: GIAO DIỆN STREAMLIT PHÂN HỆ KHBD HOÀN CHỈNH TÍCH HỢP Ô CHECKBOX
 def render_khbd_section(run_ai_prompt_safe_func):
     st.markdown("<h3 style='text-align: center; color: blue;'>🧠 TRỢ LÝ THIẾT KẾ KẾ HOẠCH BÀI DẠY (KHBD) AI PHÁT TRIỂN NĂNG LỰC</h3>", unsafe_allow_html=True)
