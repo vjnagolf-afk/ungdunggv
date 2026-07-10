@@ -5,7 +5,7 @@ from google import genai
 from google.genai import errors  
 
 # --- 1. PHÂN LUỒNG IMPORT CÁC MODULE ĐỘC LẬP ---
-from exam_designer import render_exam_designer_section
+# from exam_designer import render_exam_designer_section
 from grade_manager import render_grade_manager_section
 from tkb_manager import render_tkb_manager  
 from khbd_manager import render_khbd_section  
@@ -170,3 +170,6 @@ else:  # Phân hệ Quản lý tổ chuyên môn
                     st.rerun()
                 except Exception as demo_err:
                     st.error(f"Không thể nạp dữ liệu mẫu: {demo_err}")
+    if __name__ == "__main__":
+    main()
+
