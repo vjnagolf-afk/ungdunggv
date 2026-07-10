@@ -203,13 +203,13 @@ def export_khbd_to_docx(markdown_content, images_list):
                 r.font.size = Pt(14)
                 r.font.color.rgb = MAU_DO
             continue
-
         # 🚀 6. THUẬT TOÁN PHÂN TÁCH CÔ LẬP KHỐI IN ĐẬM ĐẦU DÒNG CHỮ ĐEN CHUẨN XUÔI DÒNG
-        keyword_match = re.match(r'^([-\s]*Mục tiêu:|---\s*Mục tiêu:|[-\s]*Nội dung:|---\s*Nội dung:|[-\s]*Sản phẩm:|---\s*Sản phẩm:|[-\s]*Tổ chức thực hiện:|---\s*Tổ chức thực hiện:|[-\s]*Bước\s+\d+:|---\s*Bước\s+\d+:|Thành phần|Thời gian|[a-d]\)\s+Năng lực\s+(chung|đặc thù|số và AI):)(.*)', cleaned_line, re.IGNORECASE)
+        # Sửa lại Regex phân cấp đúng 2 nhóm ngoặc đơn: Nhóm 1 (Từ khóa), Nhóm 2 (Nội dung sau dấu :)
+        keyword_match = re.match(r'^((?:-?\s*Mục tiêu:|-?\s*Nội dung:|-?\s*Sản phẩm:|-?\s*Tổ chức thực hiện:|-?\s*Bước\s+\d+:|Thành phần|Thời gian|[a-d]\)\s+Năng lực\s+(?:chung|đặc thù|số và AI):))(.*)', cleaned_line, re.IGNORECASE)
         
         if keyword_match:
             keyword = keyword_match.group(1).strip()
-            rest_of_text = keyword_match.group(4).strip()
+            rest_of_text = keyword_match.group(2).strip() # 🚀 ĐÃ SỬA THÀNH GROUP(2) CHUẨN XÁC
             
             # Làm sạch dấu gạch ngang của từ khóa khi đưa vào phôi Word
             keyword_clean = re.sub(r'^-+\s*', '', keyword)
@@ -220,14 +220,14 @@ def export_khbd_to_docx(markdown_content, images_list):
             if keyword.startswith('-'):
                 p.paragraph_format.left_indent = Inches(0.25)
             
-            # Chỉ in đậm riêng từ khóa, nhuộm màu đen trang nghiêm
+            # Run 1: Ghi riêng từ khóa đầu mục -> ÉP IN ĐẬM CHỮ ĐEN
             run_key = p.add_run(keyword_clean + " ")
             run_key.bold = True
             run_key.font.name = 'Times New Roman'
             run_key.font.size = Pt(14)
             run_key.font.color.rgb = MAU_DEN
             
-            # Phần văn bản nội dung diễn giải phía sau chuyển hoàn toàn thành chữ thường mảnh
+            # Run 2: Ghi phần nội dung diễn giải phía sau -> CHỮ THƯỜNG MÀU ĐEN (Nhúng quét toán)
             process_runs_with_math(p, rest_of_text)
             for r in p.runs[1:]:
                 r.bold = False
@@ -235,7 +235,6 @@ def export_khbd_to_docx(markdown_content, images_list):
                 r.font.size = Pt(14)
                 r.font.color.rgb = MAU_DEN
             continue
-
         # Đoạn văn giáo án nội dung thường phẳng (Times New Roman 14pt thường)
         p = doc.add_paragraph()
         set_paragraph_spacing(p)
