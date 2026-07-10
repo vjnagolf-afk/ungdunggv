@@ -1,10 +1,13 @@
-# math_compiler.py - Bản vá đồng bộ Times New Roman cỡ 14 cho tất cả công thức Toán
+# math_compiler.py - Bản vá dứt điểm 100% lỗi NameError Pt
 import io
 import re
 import numpy as np
 import matplotlib.pyplot as plt
 from docx.oxml import parse_xml
 from docx.oxml.ns import nsdecls
+
+# 🚀 IMPORT ĐẦY ĐỦ ĐỂ TRÁNH LỖI NAMEERROR
+from docx.shared import Pt
 
 def generate_plot_stream(eq_str):
     fig, ax = plt.subplots(figsize=(5, 3.5))
@@ -30,7 +33,6 @@ def generate_plot_stream(eq_str):
     return buf
 
 def build_omml_fraction(num_str, den_str):
-    """Tạo cấu trúc XML Math phân số chuẩn của Word và áp font Times New Roman cỡ 14pt (val='28')"""
     return (
         f'<m:f>'
         f'<m:num><m:r>'
@@ -45,13 +47,10 @@ def build_omml_fraction(num_str, den_str):
     )
 
 def convert_latex_to_omml(latex_str):
-    """Biến đổi mã nguồn LaTeX thành khối Office Math XML đồng bộ chuẩn cỡ chữ 14 và font Times New Roman"""
     latex_str = latex_str.strip()
-    
-    # 🌟 BỔ SUNG TỰ ĐỘNG CHUYỂN ĐỔI TOÀN BỘ KÝ HIỆU TOÁN HỌC SƯ PHẠM
     latex_str = latex_str.replace(r'\pi', 'π').replace(r'\infty', '∞')
     latex_str = latex_str.replace(r'\times', '×').replace(r'\cdot', '·')
-    latex_str = latex_str.replace(r'\approx', '≈').replace(r'\times', '×')
+    latex_str = latex_str.replace(r'\approx', '≈')
     
     latex_str = re.sub(r'\(\((.*?)\)/\((.*?)\)\)', r'(\1)/(\2)', latex_str)
     latex_str = re.sub(r'\((.*?)\)/\((.*?)\)', r'(\1)/(\2)', latex_str)
@@ -74,7 +73,6 @@ def convert_latex_to_omml(latex_str):
 
     latex_str = re.sub(r'\^\{([^}]+)\}', r'^\1', latex_str)
     
-    # 🌟 ÉP ĐỒNG BỘ THUỘC TÍNH FONT CHỮ VÀO THẺ m:rPr CỦA KHỐI TOÁN CHUYÊN DỤNG (sz val='28' nghĩa là 14pt)
     omml_xml = f'<m:oMath {nsdecls("m")}><m:r><m:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="28"/><w:szCs w:val="28"/></m:rPr>'
     if '<m:f>' in latex_str:
         omml_xml += f'</m:r>{latex_str}'
@@ -87,7 +85,6 @@ def convert_latex_to_omml(latex_str):
         return None
 
 def process_runs_with_math(paragraph, text):
-    """Phân tách chuỗi, tự động bôi đậm ký tự đầu đáp án A., B., C., D."""
     text_clean = text.strip()
     
     match_choice = re.match(r'^([A-D]\.\s*)(.*)', text_clean)
@@ -100,7 +97,7 @@ def process_runs_with_math(paragraph, text):
         run_prefix.font.size = Pt(14)
         text_clean = remain_text
 
-    parts = re.split(r'(\$\$[\s\S]*?\  đô la|\$[\s\S]*?\$)', text_clean)
+    parts = re.split(r'(\$\$[\s\S]*?\$\$|\$[\s\S]*?\$)', text_clean)
     for part in parts:
         if not part:
             continue
