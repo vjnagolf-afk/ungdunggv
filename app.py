@@ -1,12 +1,18 @@
-# app.py
+# app.py - Bản vá dứt điểm lỗi ImportError đường dẫn tương đối trên Streamlit Cloud
 import streamlit as st
 import pandas as pd
 import sqlite3
 import os
+import sys
 
-# 🚀 SỬA THÀNH CÓ DẤU CHẤM ĐỂ TRIỆT TIÊU LỖI MODULE NOT FOUND TRÊN LINUX
-from .database_manager import check_if_admin_device, inject_demo_data, DB_PATH
-from .ai_service import run_ai_prompt_safe
+# 🚀 THUẬT TOÁN ĐƯỜNG DẪN: Ép hệ thống tìm module trong cùng thư mục chạy ứng dụng
+current_dir = os.path.dirname(os.path.abspath(__file__))
+if current_dir not in sys.path:
+    sys.path.insert(0, current_dir)
+
+# 🚀 BỎ DẤU CHẤM ĐỂ TRÁNH LỖI ĐỊNH DẠNG PACKAGE CỦA PYTHON
+from database_manager import check_if_admin_device, inject_demo_data, DB_PATH
+from ai_service import run_ai_prompt_safe
 
 # Nhúng các phân hệ tác nghiệp vệ tinh của thầy/cô
 from exam_designer import render_exam_designer_section 
