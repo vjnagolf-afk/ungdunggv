@@ -1,5 +1,6 @@
 # document_processor.py
 import re
+import io
 from docx import Document
 from docx.shared import Pt, Inches
 from docx.enum.text import WD_ALIGN_PARAGRAPH
@@ -7,7 +8,6 @@ from pypdf import PdfReader
 from math_compiler import generate_plot_stream, process_runs_with_math
 
 def read_uploaded_docx(uploaded_file):
-    """Trích xuất chuỗi ký tự từ tệp Word mẫu"""
     try:
         doc = Document(uploaded_file)
         return "\n".join([para.text for para in doc.paragraphs])
@@ -15,7 +15,6 @@ def read_uploaded_docx(uploaded_file):
         return "Lỗi đọc file Word"
 
 def read_uploaded_pdf(uploaded_file):
-    """Trích xuất chuỗi ký tự từ tệp PDF mẫu"""
     try:
         reader = PdfReader(uploaded_file)
         return "\n".join([page.extract_text() for page in reader.pages if page.extract_text()])
@@ -23,7 +22,9 @@ def read_uploaded_pdf(uploaded_file):
         return "Lỗi đọc file PDF"
 
 def export_to_docx_vietnam_standard(text_content, title_name, school_name, group_name="TỔ KHOA HỌC TỰ NHIÊN"):
-    """Thiết lập phôi in ấn Đề kiểm tra chuẩn thể thức văn bản Việt Nam"""
+    # 🚀 TỐI ƯU TOÀN CỤC: Làm sạch toàn bộ các dấu băm # dư thừa trong chuỗi văn bản trước khi xử lý dòng
+    text_content = re.sub(r'(?m)^#+\s*', '', text_content)
+    
     doc = Document()
     for section in doc.sections:
         section.top_margin = Inches(0.79)
@@ -35,7 +36,6 @@ def export_to_docx_vietnam_standard(text_content, title_name, school_name, group
     style.font.name = 'Times New Roman'
     style.font.size = Pt(13)
     
-    # Khung tiêu đề cơ quan ban ngành
     admin_table = doc.add_table(rows=1, cols=2)
     admin_table.autofit = False
     
@@ -81,6 +81,9 @@ def export_to_docx_vietnam_standard(text_content, title_name, school_name, group
         
     for line in text_content.split('\n'):
         cleaned_line = line.strip()
+        if not cleaned_line: 
+            continue
+            
         if cleaned_line.startswith('|') and cleaned_line.endswith('|'):
             in_table = True
             row_data = [cell.strip() for cell in cleaned_line.split('|')[1:-1]]
@@ -93,8 +96,6 @@ def export_to_docx_vietnam_standard(text_content, title_name, school_name, group
             in_table = False
             table_data = []
             
-        if not cleaned_line: continue
-        
         if '[GRAPH:' in cleaned_line:
             match = re.search(r'\[GRAPH:\s*(.+?)\]', cleaned_line)
             if match:
@@ -104,7 +105,6 @@ def export_to_docx_vietnam_standard(text_content, title_name, school_name, group
                 doc.paragraphs[-1].alignment = WD_ALIGN_PARAGRAPH.CENTER
             continue
 
-        # 🚀 KIỂM TRA & BẺ DÒNG PHƯƠNG ÁN TRẮC NGHIỆM TRÀN HÀNG
         if re.search(r'A\..*B\..*C\..*D\.', cleaned_line):
             sub_choices = re.split(r'(?=A\.|B\.|C\.|D\.)', cleaned_line)
             for choice in sub_choices:
@@ -114,8 +114,10 @@ def export_to_docx_vietnam_standard(text_content, title_name, school_name, group
             continue
             
         p = doc.add_paragraph()
-        if re.match(r'^(Câu \d+:)', cleaned_line):
-            prefix = re.match(r'^(Câu \d+:)', cleaned_line).group(1)
+        if re.match(r'^(Câu \d+:)', cleaned_line) or re.match(r'^(Câu \d+ \([^)]+\):)', cleaned_line):
+            # Nhận diện cả "Câu 1:" và dạng "Câu 3 (Nhận biết):" như trong ảnh của bạn
+            match_prefix = re.match(r'^(Câu \d+\s*(?:\([^)]+\))?:)', cleaned_line)
+            prefix = match_prefix.group(1)
             rest = cleaned_line[len(prefix):]
             run_p = p.add_run(prefix + " ")
             run_p.bold = True
@@ -126,6 +128,6 @@ def export_to_docx_vietnam_standard(text_content, title_name, school_name, group
     if in_table and table_data:
         build_table()
         
-    buf = io.BytesIO() if 'io' in globals() else __import__('io').BytesIO()
+    buf = io.BytesIO()
     doc.save(buf)
     return buf.getvalue()
