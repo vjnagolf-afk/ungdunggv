@@ -1,4 +1,4 @@
-# app.py - Đã sửa lỗi ModuleNotFoundError của phân hệ KHBD và hạ trạng thái xuống cuối
+# app.py - Bản vá thu hẹp khoảng cách Sidebar và tích hợp thông tin Tác giả
 import streamlit as st
 import pandas as pd
 import sqlite3
@@ -17,7 +17,7 @@ from ai_service import run_ai_prompt_safe
 from exam_designer import render_exam_designer_section 
 from grade_manager import render_grade_manager_section
 from tkb_manager import render_tkb_manager  
-from khbd_manager import render_khbd_section  # 🚀 ĐÃ SỬA CHÍNH XÁC KHBD_MANAGER TẠI ĐÂY
+from khbd_manager import render_khbd_section  
 from danh_gia_manager import render_assessment_section
 
 from org_manager import render_org_section
@@ -34,6 +34,27 @@ if "db_thanh_vien" not in st.session_state: st.session_state["db_thanh_vien"] = 
 if "db_phan_cong_hien_tai" not in st.session_state: st.session_state["db_phan_cong_hien_tai"] = []
 
 st.set_page_config(page_title="HỆ SINH THÁI SỐ GIÁO VIÊN", layout="wide")
+
+# 🚀 BỘ VÁ CSS: Khử toàn bộ padding/margin thừa giữa các phần tử trong Sidebar
+st.markdown("""
+    <style>
+        /* Thu hẹp khoảng cách giữa các phần tử widget trong Sidebar */
+        [data-testid="stSidebarUserContent"] {
+            padding-top: 1.5rem !important;
+            padding-bottom: 1.5rem !important;
+        }
+        [data-testid="stSidebarUserContent"] .stMarkdown, 
+        [data-testid="stSidebarUserContent"] .stRadio, 
+        [data-testid="stSidebarUserContent"] .stSelectbox {
+            margin-bottom: -0.4rem !important;
+        }
+        /* Thu hẹp khoảng cách của các đường kẻ gạch ngang hr */
+        [data-testid="stSidebarUserContent"] hr {
+            margin-top: 0.6rem !important;
+            margin-bottom: 0.6rem !important;
+        }
+    </style>
+""", unsafe_allow_html=True)
 
 # Tiêu đề giao diện chính
 st.markdown("<h1 style='text-align: center; color: darkred; font-weight: bold;'>🔰 HỆ SINH THÁI SỐ - HỖ TRỢ GIÁO VIÊN</h1>", unsafe_allow_html=True)
@@ -114,7 +135,7 @@ else:  # Phân hệ Quản lý tổ chuyên môn
             st.dataframe(df_tv, use_container_width=True)
 
 # ==================================================================================
-# --- KHỐI HIỂN THỊ Ô NHẬP KEY THEO THIẾT BỊ ĐỐI TƯỢNG (VỊ TRÍ 3 - ĐẨY XUỐNG CUỐI CÙNG) ---
+# --- KHỐI HIỂN THỊ Ô NHẬP KEY THEO THIẾT BỊ ĐỐI TƯỢNG (VỊ TRÍ 3 - Ở DƯỚI) ---
 # ==================================================================================
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 🔑 TRẠNG THÁI TÀI KHOẢN")
@@ -129,3 +150,14 @@ else:
     st.sidebar.text_input("Nhập API Key Gemini của thầy/cô:", type="password", placeholder="AIzaSy...", key="gv_api_key_input")
     if st.session_state["gv_api_key_input"]:
         st.sidebar.success("🟢 Đã nhận diện Key cá nhân.")
+
+# ==================================================================================
+# --- 🚀 KHỐI THÔNG TIN TÁC GIẢ & ĐƠN VỊ (VỊ TRÍ 4 - XUYÊN SUỐT DƯỚI CÙNG SIDEBAR) ---
+# ==================================================================================
+st.sidebar.markdown("<br>", unsafe_allow_html=True)
+st.sidebar.markdown("""
+    <div style='text-align: center; border-top: 1px solid #ddd; padding-top: 12px; margin-top: 5px;'>
+        <p style='color: #991B1B; font-weight: bold; margin-bottom: 2px; font-size: 14px;'>Tác giả: Lê Hồng Dưỡng</p>
+        <p style='color: #1E3A8A; font-weight: bold; margin-bottom: 0px; font-size: 14px;'>Đơn vị: THCS Nguyễn Chí Thanh</p>
+    </div>
+""", unsafe_allow_html=True)
