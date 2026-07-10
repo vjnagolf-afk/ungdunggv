@@ -1,4 +1,4 @@
-# khbd_manager.py - ĐOẠN 1: ĐỒNG BỘ LUỒNG XÁC THỰC GOOGLE SHEETS KHÔNG BỊ HẾT HẠN TOKEN
+# khbd_manager.py - ĐOẠN 1: CẤU HÌNH & TRÍCH XUẤT TÀI LIỆU (BẢN VÁ TOÀN DIỆN)
 import streamlit as st
 import docx  
 from docx.shared import Inches, Pt, RGBColor
@@ -19,10 +19,8 @@ from math_compiler import process_runs_with_math, generate_plot_stream
 SHEET_ID = '1C6642jk_oQ0g9UC2By2qsNxxfQVR0MrZYj52tRdWDlY' 
 
 def get_khbd_sheet():
-    """Tự động nhận diện cấu hình trong Secrets và đồng bộ luồng gspread chuẩn giống bên Đề KT"""
     try:
         creds_dict = None
-        # Quét tìm cấu hình Service Account đã lưu trong ô Secrets của thầy
         priority_keys = ["gspread_credentials", "GSPREAD_CREDENTIALS", "google_sheet_creds", "google_creds", "GOOGLE_KEY"]
         for key in priority_keys:
             if key in st.secrets:
@@ -40,13 +38,11 @@ def get_khbd_sheet():
         if creds_dict is None:
             return None
             
-        # 🚀 SỬ DỤNG HÀM NÀY ĐỂ GOOGLE TỰ ĐỘNG GIA HẠN TOKEN, TRIỆT TIÊU LỖI NO ACCESS TOKEN
         gc = gspread.service_account_from_dict(creds_dict)
-        sh = gc.open_by_key(SPREADSHEET_ID if 'SPREADSHEET_ID' in globals() else SHEET_ID)
+        sh = gc.open_by_key(SHEET_ID)
         return sh.worksheet("KHBD")
     except:
         return None
-
 
 # --- HÀM TRÍCH XUẤT VĂN BẢN VÀ LỌC ẢNH TRÙNG LẶP ---
 def extract_context_from_uploaded_files(uploaded_files):
@@ -92,7 +88,6 @@ def set_paragraph_spacing(paragraph, before_pt=3.0, after_pt=4.5):
     spacing.set(qn('w:line'), '240')
     spacing.set(qn('w:lineRule'), 'auto')
     p_pr.append(spacing)
-# khbd_manager.py - ĐOẠN 2: THUẬT TOÁN KẾT XUẤT GIÁO ÁN CHUẨN WORD
 def export_khbd_to_docx(markdown_content, images_list):
     # Làm sạch các dấu thăng tiêu đề Markdown dư thừa
     text_clean_all = re.sub(r'(?m)^#+\s*', '', markdown_content)
