@@ -1,11 +1,12 @@
+# math_compiler.py - Bản vá lỗi Namespace XML Tối thượng (Toán - Lý - Hóa - Graph)
 import io
 import re
 import numpy as np
 import matplotlib.pyplot as plt
 from docx.oxml import parse_xml
-from docx.oxml.ns import nsdecls
 from docx.shared import Pt
 
+# ================= TỪ ĐIỂN KÝ HIỆU HY LẠP & TOÁN HỌC =================
 GREEK = {
     r'\alpha': 'α', r'\beta': 'β', r'\gamma': 'γ', r'\delta': 'δ', r'\epsilon': 'ε', r'\varepsilon': 'ε',
     r'\zeta': 'ζ', r'\eta': 'η', r'\theta': 'θ', r'\vartheta': 'ϑ', r'\iota': 'ι', r'\kappa': 'κ',
@@ -45,27 +46,34 @@ TAG_MAP = {
     'Ⓡ': '<m:mr>', 'ⓡ': '</m:mr>'
 }
 
+# ================= ĐỘNG CƠ BIÊN DỊCH LATEX SANG OMML WORD =================
 def convert_latex_to_omml(latex_str):
-    latex_str = latex_str.strip().replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+    latex_str = latex_str.strip()
+    latex_str = latex_str.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
     
-    # Chuẩn hóa khoảng trắng gây lỗi của AI
-    latex_str = latex_str.replace(r'\dfrac', r'\frac').replace(r'\limits', '')
-    latex_str = re.sub(r'\\frac\s*\{\s*', r'\\frac{', latex_str)
-    latex_str = re.sub(r'\}\s*\{\s*', r'}{', latex_str)
-    latex_str = re.sub(r'_\s*\{\s*', r'_{', latex_str)
-    latex_str = re.sub(r'\^\s*\{\s*', r'^{', latex_str)
+    # Chuẩn hóa các lỗi gõ của AI (Khoảng trắng dư thừa)
+    latex_str = latex_str.replace(r'\dfrac', r'\frac').replace(r'\limits', '').replace(r'\displaystyle', '')
+    latex_str = re.sub(r'\s*\{\s*', '{', latex_str)
+    latex_str = re.sub(r'\s*\}\s*', '}', latex_str)
+    latex_str = re.sub(r'\s*_\s*', '_', latex_str)
+    latex_str = re.sub(r'\s*\^\s*', '^', latex_str)
 
     for k, v in GREEK.items(): latex_str = latex_str.replace(k, v)
     for k, v in SYMBOLS.items(): latex_str = latex_str.replace(k, v)
+    latex_str = latex_str.replace(r'\,', ' ').replace(r'\;', ' ')
     latex_str = re.sub(r'\\(text|mathrm)\{([^{}]*)\}', r'\2', latex_str)
+    latex_str = re.sub(r'\\(sin|cos|tan|cot|log|ln|lim|max|min|det)', r'\1', latex_str)
 
     def repl_matrix(m):
+        rows = m.group(1).split('\\\\')
         res = 'Ⓜ'
-        for row in m.group(1).split('\\\\'):
+        for row in rows:
             res += 'Ⓡ'
-            for col in row.split('&'): res += f'Ⓔ{col.strip()}ⓔ'
+            cols = row.split('&')
+            for col in cols: res += f'Ⓔ{col.strip()}ⓔ'
             res += 'ⓡ'
-        return res + 'ⓜ'
+        res += 'ⓜ'
+        return res
     latex_str = re.sub(r'\\begin\{(?:p|b|v|V)?matrix\}(.*?)\\end\{(?:p|b|v|V)?matrix\}', repl_matrix, latex_str, flags=re.DOTALL)
 
     chars = r'a-zA-Z0-9_>\]/()ⒻⓕⓃⓝⒹⓓⓆⓠⒺⓔⒷⓑⓅⓟⓈⓢⓊⓤⓍⓧⓎⓨⓋⓥⓂⓜⓇⓡα-ωΑ-Ω∞=+\-.,'
@@ -74,41 +82,52 @@ def convert_latex_to_omml(latex_str):
         latex_str = re.sub(r'\\frac\{([^{}]+)\}\{([^{}]+)\}', r'ⒻⓃ\1ⓝⒹ\2ⓓⓕ', latex_str)
         latex_str = re.sub(r'\\sqrt\{([^{}]+)\}', r'ⓆⒺ\1ⓔⓠ', latex_str)
         latex_str = re.sub(r'\\vec\{([^{}]+)\}', r'ⓋⒺ\1ⓔⓥ', latex_str)
+        
         latex_str = re.sub(r'(∫|∑)_\{([^{}]+)\}\^\{([^{}]+)\}', r'ⓍⒺ\1ⓔⓈ\2ⓢⓊ\3ⓤⓧ', latex_str)
+        latex_str = re.sub(r'(∫|∑)_([a-zA-Z0-9])\^([a-zA-Z0-9])', r'ⓍⒺ\1ⓔⓈ\2ⓢⓊ\3ⓤⓧ', latex_str)
+        
         latex_str = re.sub(rf'([{chars}]+)_\{{([^{{}}]+)\}}\^\{{([^{{}}]+)\}}', r'ⓏⒺ\1ⓔⓈ\2ⓢⓊ\3ⓤⓩ', latex_str)
         latex_str = re.sub(rf'([{chars}]+)\^\{{([^{{}}]+)\}}_\{{([^{{}}]+)\}}', r'ⓏⒺ\1ⓔⓈ\3ⓢⓊ\2ⓤⓩ', latex_str)
+
         latex_str = re.sub(rf'([{chars}]+)_\{{([^{{}}]+)\}}', r'ⒷⒺ\1ⓔⓈ\2ⓢⓑ', latex_str)
         latex_str = re.sub(rf'([{chars}]+)_([a-zA-Z0-9])', r'ⒷⒺ\1ⓔⓈ\2ⓢⓑ', latex_str)
+        
         latex_str = re.sub(rf'([{chars}]+)\^\{{([^{{}}]+)\}}', r'ⓅⒺ\1ⓔⓊ\2ⓤⓟ', latex_str)
         latex_str = re.sub(rf'([{chars}]+)\^([a-zA-Z0-9])', r'ⓅⒺ\1ⓔⓊ\2ⓤⓟ', latex_str)
+
         if latex_str == prev: break
 
-    parts = re.split(f'([{"".join(TAG_MAP.keys())}])', latex_str)
-    xml = f'<m:oMath {nsdecls("m")}>'
+    MARKERS = "".join(TAG_MAP.keys())
+    parts = re.split(f'([{MARKERS}])', latex_str)
+    
     RPR = '<m:rPr><w:rFonts w:ascii="Cambria Math" w:hAnsi="Cambria Math"/><w:sz w:val="28"/><w:szCs w:val="28"/></m:rPr>'
+    
+    # [QUAN TRỌNG NHẤT]: Bổ sung namespace w: giúp Word không bị crash khi đọc rPr!
+    omml_xml = f'<m:oMath xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math" xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+    
     for p in parts:
-        if p in TAG_MAP: xml += TAG_MAP[p]
-        elif p.strip() or p == ' ': xml += f'<m:r>{RPR}<m:t>{p}</m:t></m:r>'
-    xml += '</m:oMath>'
+        if p in TAG_MAP:
+            omml_xml += TAG_MAP[p]
+        elif p.strip() or p == ' ':
+            omml_xml += f'<m:r>{RPR}<m:t>{p}</m:t></m:r>'
+            
+    omml_xml += '</m:oMath>'
     
     try:
-        return parse_xml(xml)
-    except Exception:
+        return parse_xml(omml_xml)
+    except Exception as e:
         return None
-
-def apply_unicode_chemistry(text):
-    """ Tự động nhận dạng H2O -> H₂O, SO4^2- -> SO₄²⁻ cho văn bản thường (Safe Text) """
-    def repl_chem(m):
-        elem = m.group(1)
-        sub = m.group(2).translate(str.maketrans("0123456789", "₀₁₂₃₄₅₆₇₈₉")) if m.group(2) else ""
-        sup = m.group(3).translate(str.maketrans("0123456789+-", "⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻")) if m.group(3) else ""
-        return elem + sub + sup
-    ELEMENTS = r"(H|He|Li|Be|B|C|N|O|F|Ne|Na|Mg|Al|Si|P|S|Cl|Ar|K|Ca|Fe|Cu|Zn|Br|Ag|I|Ba|Pt|Au|Hg|Pb)"
-    return re.sub(rf'\b({ELEMENTS})([0-9]+)?(?:\^([0-9]*[+-]))?', repl_chem, text)
 
 def process_runs_with_math(paragraph, text):
     text_clean = text.strip()
-    # Nhận diện TOÀN BỘ các loại phân tách Toán học LaTeX
+    
+    # Auto-Chemistry (Chỉ áp dụng cho text thường)
+    ELEMENTS = "H|He|Li|Be|B|C|N|O|F|Ne|Na|Mg|Al|Si|P|S|Cl|Ar|K|Ca|Sc|Ti|V|Cr|Mn|Fe|Co|Ni|Cu|Zn|Ag|Cd|I|Ba|Pt|Au|Hg|Pb"
+    text_clean = re.sub(rf'\b({ELEMENTS})(\d+)\^([0-9]*[+-])', r'\1<sub>\2</sub><sup>\3</sup>', text_clean)
+    text_clean = re.sub(rf'\b({ELEMENTS})\^([0-9]*[+-])', r'\1<sup>\2</sup>', text_clean)
+    text_clean = re.sub(rf'\b({ELEMENTS})(\d+)\b', r'\1<sub>\2</sub>', text_clean)
+
+    # Bóc tách Đa định dạng LaTeX
     delimiter_pattern = r'(\$\$[\s\S]*?\$\$|\\\[[\s\S]*?\\\]|\\\([\s\S]*?\\\)|\$[\s\S]*?\$)'
     parts = re.split(delimiter_pattern, text_clean)
     
@@ -117,24 +136,25 @@ def process_runs_with_math(paragraph, text):
         
         is_math = False
         math_content = ""
-        if part.startswith('$$') and part.endswith('$$'): math_content = part[2:-2].strip(); is_math = True
-        elif part.startswith('\\[') and part.endswith('\\]'): math_content = part[2:-2].strip(); is_math = True
-        elif part.startswith('\\(') and part.endswith('\\)'): math_content = part[2:-2].strip(); is_math = True
-        elif part.startswith('$') and part.endswith('$'): math_content = part[1:-1].strip(); is_math = True
+        if part.startswith('$$') and part.endswith('$$'):
+            math_content = part[2:-2].strip(); is_math = True
+        elif part.startswith('\\[') and part.endswith('\\]'):
+            math_content = part[2:-2].strip(); is_math = True
+        elif part.startswith('\\(') and part.endswith('\\)'):
+            math_content = part[2:-2].strip(); is_math = True
+        elif part.startswith('$') and part.endswith('$'):
+            math_content = part[1:-1].strip(); is_math = True
 
         if is_math and math_content:
             math_element = convert_latex_to_omml(math_content)
             if math_element is not None:
                 paragraph._p.append(math_element)
             else:
-                # Fallback an toàn nếu XML quá tải
-                clean_text = math_content.replace(r'\frac', '').replace('{', '').replace('}', '')
-                run = paragraph.add_run(clean_text)
-                run.font.name = 'Times New Roman'; run.font.size = Pt(14); run.italic = True
+                run = paragraph.add_run(part)
+                run.font.name = 'Times New Roman'
+                run.font.size = Pt(14)
         else:
-            # Xử lý text thông thường & Auto-Chem
-            chem_part = apply_unicode_chemistry(part)
-            bold_parts = chem_part.split('**')
+            bold_parts = part.split('**')
             for i, b_part in enumerate(bold_parts):
                 is_bold = (i % 2 != 0)
                 sub_sup_parts = re.split(r'(<sub>.*?</sub>|<sup>.*?</sup>)', b_part)
@@ -142,7 +162,9 @@ def process_runs_with_math(paragraph, text):
                     if not s_part: continue
                     run = paragraph.add_run()
                     run.bold = is_bold
-                    run.font.name = 'Times New Roman'; run.font.size = Pt(14)
+                    run.font.name = 'Times New Roman'
+                    run.font.size = Pt(14)
+                    
                     if s_part.startswith('<sub>') and s_part.endswith('</sub>'):
                         run.text = s_part[5:-6]
                         run.font.subscript = True
@@ -155,23 +177,24 @@ def process_runs_with_math(paragraph, text):
 def generate_plot_stream(eq_str):
     fig, ax = plt.subplots(figsize=(5, 3.5))
     if eq_str.lower().strip() == 'scatter':
-        ax.scatter(np.random.rand(50)*10, np.random.rand(50)*10, color='#1E40AF', alpha=0.7)
+        x, y = np.random.rand(50) * 10, np.random.rand(50) * 10
+        ax.scatter(x, y, color='#1E40AF', alpha=0.7)
         ax.set_title("Đồ thị phân tán (Scatter)", fontsize=10, pad=10)
     else:
         x = np.linspace(-10, 10, 400)
-        safe_dict = {"x": x, "np": np, "sin": np.sin, "cos": np.cos, "tan": np.tan, "log": np.log, "exp": np.exp, "pi": np.pi}
+        safe_dict = {"x": x, "np": np, "sin": np.sin, "cos": np.cos, "tan": np.tan, "sqrt": np.sqrt, "log": np.log, "log10": np.log10, "exp": np.exp, "e": np.e, "pi": np.pi}
         try:
-            eq_py = eq_str.lower().replace('y=', '').replace('y =', '').strip().replace('^', '**')
+            eq_clean = eq_str.lower().replace('y=', '').replace('y =', '').strip()
+            eq_py = eq_clean.replace('^', '**').replace('e**x', 'np.exp(x)')
             eq_py = re.sub(r'(\d)(x)', r'\1*\2', eq_py)
             y = eval(eq_py, {"__builtins__": {}}, safe_dict)
             if isinstance(y, (int, float)): y = np.full_like(x, y)
             ax.plot(x, y, color='#1E40AF', linewidth=2.5)
             ax.axhline(0, color='black', linewidth=1.2)
             ax.axvline(0, color='black', linewidth=1.2)
-        except:
-            ax.text(0.5, 0.5, f"[Lỗi biểu thức]", ha='center', va='center', color='red')
-        ax.set_title(f"Đồ thị: y = {eq_str.replace('y=','')}", fontsize=10, pad=10)
-
+        except Exception as e:
+            ax.text(0.5, 0.5, f"[Lỗi biểu thức: {eq_str}]", ha='center', va='center', color='red')
+        ax.set_title(f"Đồ thị: y = {eq_str.replace('y=','').replace('y =','')}", fontsize=10, pad=10)
     ax.grid(color='gray', linestyle='--', linewidth=0.5, alpha=0.7)
     buf = io.BytesIO()
     plt.savefig(buf, format='png', bbox_inches='tight', dpi=150)
