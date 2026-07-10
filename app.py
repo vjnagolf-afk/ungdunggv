@@ -33,22 +33,28 @@ from google.genai import errors
 import streamlit as st
 
 API_KEY_HE_THONG = st.secrets.get("GEMINI_API_KEY", "")
+# app.py (Bản vá dứt điểm lỗi 404 NOT_FOUND bằng Model ID chuẩn của Google)
+from google import genai
+from google.genai import errors
+import streamlit as st
+
+API_KEY_HE_THONG = st.secrets.get("GEMINI_API_KEY", "")
 
 def run_ai_prompt_safe(prompt_text, preferred_model="3.5 Flash"):
     """
-    Hàm gọi API Gemini thế hệ mới - Đã sửa lỗi logic vòng lặp 
-    và đồng bộ mã mô hình chính thức để kích hoạt Gemini Pro thành công.
+    Hàm gọi API Gemini thế hệ mới - Đã sửa đổi chính xác mã định danh 
+    Model ID để tránh lỗi 404 hệ thống.
     """
     api_key = API_KEY_HE_THONG
     if not api_key:
         return "⚠️ Hệ thống chưa được cấu hình API Key trong mục Secrets. Vui lòng liên hệ Admin.", "error"
     
-    # 🌟 CẬP NHẬT MÃ MÔ HÌNH CHUẨN XÁC THEO HỆ THỐNG PHÂN CẤP GOOGLE AI STUDIO 2026
+    # 🌟 VÁ LỖI CỐT LÕI: ĐỒNG BỘ ĐÚNG MÃ MÔ HÌNH CHÍNH THỨC CỦA GOOGLE AI STUDIO
     model_pool = {
-        "3.1 Pro": ["gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.5-flash-8b"],
-        "3.5 Flash": ["gemini-2.5-flash", "gemini-2.5-flash-8b"],
-        "3.1 Flash-Lite": ["gemini-2.5-flash-8b"],
-        "Tư duy mở rộng": ["gemini-2.5-pro", "gemini-2.5-flash"]
+        "3.1 Pro": ["gemini-1.5-pro", "gemini-2.5-flash"],
+        "3.5 Flash": ["gemini-2.5-flash", "gemini-1.5-flash"],
+        "3.1 Flash-Lite": ["gemini-1.5-flash"], # Sử dụng gemini-1.5-flash làm giải pháp siêu nhanh/tiết kiệm thay thế
+        "Tư duy mở rộng": ["gemini-1.5-pro", "gemini-2.5-flash"]
     }
     
     models_to_try = model_pool.get(preferred_model, ["gemini-2.5-flash"])
@@ -60,17 +66,17 @@ def run_ai_prompt_safe(prompt_text, preferred_model="3.5 Flash"):
     for model_name in models_to_try:
         try:
             config_params = {}
+            # Tính năng Tư duy mở rộng (Thinking) chuẩn của dòng Pro (1.5-pro hỗ trợ rất tốt)
             if preferred_model == "Tư duy mở rộng" and "pro" in model_name:
                 config_params["thinking_config"] = {"thinking_budget": 1024}
             
-            # Gọi API
+            # Thực hiện lệnh gọi sinh văn bản
             response = client.models.generate_content(
                 model=model_name,
                 contents=prompt_text,
                 config=config_params if config_params else None
             )
             
-            # 🌟 NẾU THÀNH CÔNG: Trả về văn bản và dừng toàn bộ vòng lặp ngay lập tức
             if response and response.text:
                 return response.text, model_name
             else:
@@ -78,17 +84,15 @@ def run_ai_prompt_safe(prompt_text, preferred_model="3.5 Flash"):
                 continue
                 
         except errors.APIError as error:  
-            # Cập nhật chi tiết lỗi thực tế từ máy chủ Google để lưu lại lịch sử quét
             last_error_message = f"Mô hình {model_name} báo lỗi API: {str(error)}"
-            st.toast(f"⚠️ {model_name} đang nghẽn hoặc hết lượt xử lý. Hệ thống tự lùi...", icon="⏳")
+            st.toast(f"⏳ {model_name} lỗi hoặc hết lượt xử lý. Hệ thống tự động lùi...", icon="⏳")
             continue  
             
         except Exception as e:
             last_error_message = f"Mô hình {model_name} gặp sự cố kết nối: {str(e)}"
             continue
             
-    # Trả về thông báo lỗi chuẩn xác nếu sau khi duyệt qua TẤT CẢ các cấu hình dự phòng vẫn thất bại
-    return f"❌ Lỗi quá tải hệ thống trên diện rộng (Tất cả mô hình dự phòng đều cạn hạn mức). Lỗi cuối cùng ghi nhận: {last_error_message}", "error"
+    return f"❌ Lỗi hệ thống: Tất cả các dòng máy dự phòng cấu hình đều không phản hồi thành công. Ghi nhận lỗi cuối cùng: {last_error_message}", "error"
 
 # --- 3. KHỞI TẠO BỘ NHỚ TẠM ĐỒNG BỘ ---
 if "db_thanh_vien" not in st.session_state: 
