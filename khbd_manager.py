@@ -117,23 +117,44 @@ def export_khbd_to_docx(markdown_content, images_list):
 
 def render_khbd_section(run_ai_prompt_safe_func):
     st.markdown("<h3 style='text-align: center; color: blue;'>🧠 TRỢ LÝ THIẾT KẾ KHBD AI</h3>", unsafe_allow_html=True)
+    
     tab_thiet_ke, tab_thu_vien = st.tabs(["📝 THIẾT KẾ", "🗄️ THƯ VIỆN"])
     
+    # Khởi tạo session state nếu chưa có
+    if "ket_qua_khbd" not in st.session_state: st.session_state["ket_qua_khbd"] = ""
+
     with tab_thiet_ke:
-        ten_bai = st.text_input("Tên bài học:")
-        if st.button("⚡ Thiết kế"):
-            st.session_state["ket_qua_khbd"] = run_ai_prompt_safe_func(f"Soạn bài: {ten_bai}")[0]
+        ten_bai = st.text_input("Tên bài học:", key="input_ten_bai")
+        if st.button("⚡ Thiết kế bài dạy"):
+            if ten_bai:
+                st.session_state["ket_qua_khbd"] = run_ai_prompt_safe_func(f"Soạn bài: {ten_bai}")[0]
+            else:
+                st.warning("Vui lòng nhập tên bài!")
         
         if st.session_state.get("ket_qua_khbd"):
             st.markdown(st.session_state["ket_qua_khbd"])
-            if st.button("💾 Lưu tạm"):
-                save_khbd_to_sheet(ten_bai, "Lớp 7", "Kết nối", "2 tiết", st.session_state["ket_qua_khbd"])
-                st.success("Đã lưu!")
+            # Nút Lưu tạm thời
+            if st.button("💾 Lưu tạm thời vào Google Sheets"):
+                if save_khbd_to_sheet(ten_bai, "Lớp 7", "Kết nối", "2 tiết", st.session_state["ket_qua_khbd"]):
+                    st.success("✅ Đã lưu tạm thời!")
+                else:
+                    st.error("❌ Lưu thất bại!")
                 
     with tab_thu_vien:
-        for idx, bai in enumerate(get_all_khbd_from_sheet()):
-            with st.expander(f"{bai['Tên bài']} ({bai['Thời gian']})"):
-                if st.button("📥 Gọi", key=f"load_{idx}"):
-                    st.session_state["ket_qua_khbd"] = bai['Nội dung chi tiết']; st.rerun()
-                if st.button("🗑️ Xóa", key=f"del_{idx}"):
-                    delete_khbd_from_sheet(idx); st.rerun()
+        st.write("🗄️ Danh sách bài soạn đã lưu:")
+        ds_bai = get_all_khbd_from_sheet()
+        
+        for idx, bai in enumerate(ds_bai):
+            with st.expander(f"{bai['Tên bài']} ({bai.get('Thời gian', 'N/A')})"):
+                col1, col2 = st.columns(2)
+                # Nút Gọi lại
+                if col1.button("📥 Gọi bài", key=f"load_{idx}"):
+                    st.session_state["ket_qua_khbd"] = bai['Nội dung chi tiết']
+                    st.rerun()
+                # Nút Xóa bài soạn
+                if col2.button("🗑️ Xóa bài soạn", key=f"del_{idx}"):
+                    if delete_khbd_from_sheet(idx):
+                        st.success("✅ Đã xóa!")
+                        st.rerun() # Tải lại danh sách sau khi xóa
+                    else:
+                        st.error("❌ Xóa thất bại!")
