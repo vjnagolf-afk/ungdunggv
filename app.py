@@ -26,7 +26,7 @@ from bien_ban_manager import render_meeting_minutes
 from ke_hoach_ca_nhan_manager import render_personal_plan 
 from stem_manager import render_stem_section
 from chu_nhiem_manager import render_chu_nhiem_section 
-
+from hskt_plan import render_special_ed_section
 st.set_page_config(page_title="HỆ SINH THÁI SỐ GIÁO VIÊN", layout="wide")
 
 # --- THUẬT TOÁN WHITELIST IP: KHÓA CỨNG ĐỊA CHỈ IP CHÍNH CHỦ DỰ ÁN ---
@@ -107,7 +107,7 @@ st.sidebar.markdown("---")
 # ==================================================================================
 if phan_he == "Trợ lý Giảng dạy (Giáo viên)":
     st.sidebar.markdown("### 🛠️ CHỨC NĂNG GIÁO VIÊN")
-    menu = st.sidebar.selectbox("Nội dung giảng dạy", ["1. Thiết kế KHBD", "2. Thiết kế Đề KT", "3. Đánh giá HS", "4. Quản lý điểm (SMAS)", "5. Quản lý TKB","6. Thiết kế bài dạy STEM","7. Kế hoạch công tác chủ nhiệm lớp"], label_visibility="collapsed", key="menu_gv_selectbox_v9")
+    menu = st.sidebar.selectbox("Nội dung giảng dạy", ["1. Thiết kế KHBD", "2. Thiết kế Đề KT", "3. Đánh giá HS", "4. Quản lý điểm (SMAS)", "5. Quản lý TKB","6. Thiết kế bài dạy STEM","7. Kế hoạch công tác chủ nhiệm lớp","8. Kế hoạch hỗ trợ học sinh khuyết tật"], label_visibility="collapsed", key="menu_gv_selectbox_v9")
     
     if menu == "1. Thiết kế KHBD": 
         render_khbd_section(lambda p: run_ai_prompt_safe(p, is_admin_owner=is_admin_owner))
@@ -123,6 +123,8 @@ if phan_he == "Trợ lý Giảng dạy (Giáo viên)":
         render_stem_section()
     elif menu == "7. Kế hoạch công tác chủ nhiệm lớp":
         render_chu_nhiem_section(lambda p: run_ai_prompt_safe(p, is_admin_owner=is_admin_owner))
+    elif chuc_nang_gv == "8. Kế hoạch hỗ trợ học sinh khuyết tật":
+        render_special_ed_section(run_ai_prompt_safe_func)
 
 else:  # Phân hệ Quản lý tổ chuyên môn
     st.sidebar.markdown("### 📂 QUẢN LÝ TỔ CHUYÊN MÔN")
