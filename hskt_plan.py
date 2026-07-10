@@ -1,54 +1,63 @@
 import streamlit as st
-from document_processor import read_uploaded_docx, read_uploaded_pdf
 
 def render_special_ed_section(run_ai_prompt_safe_func):
-    # CSS: Tăng cỡ chữ tổng thể
+    # CSS: Tăng cỡ chữ và nút bấm
     st.markdown("""<style>
-        .big-text { font-size: 18px !important; font-weight: bold; }
+        .big-font { font-size: 18px !important; }
         .stButton button { font-size: 16px !important; }
         .stSelectbox, .stTextInput { font-size: 16px !important; }
     </style>""", unsafe_allow_html=True)
     
     st.markdown("<h3 style='text-align: center; color: #154360;'>🌱 XÂY DỰNG KẾ HOẠCH HỖ TRỢ HSKT</h3>", unsafe_allow_html=True)
 
-    # Khởi tạo session state lưu file
-    if "files_hskt" not in st.session_state: st.session_state["files_hskt"] = {}
+    # Khởi tạo kho lưu trữ file vĩnh viễn trong session
+    if "my_files" not in st.session_state: st.session_state["my_files"] = {}
 
     tab_thiet_ke, tab_quan_ly = st.tabs(["📝 XÂY DỰNG KẾ HOẠCH", "🗂️ QUẢN LÝ HỒ SƠ"])
     
     with tab_thiet_ke:
-        # Hàng 1
-        c1, c2, c3, c4, c5 = st.columns(5)
-        ten_hs = c1.text_input("Họ và tên HS:")
-        lop_hs = c2.selectbox("Khối lớp:", ["Lớp 6", "Lớp 7", "Lớp 8", "Lớp 9", "Khối 10", "Khối 11", "Khối 12"])
-        dang_kt = c3.selectbox("Dạng khuyết tật:", ["Khuyết tật vận động", "Khuyết tật trí tuệ", "Khuyết tật nghe", "Khuyết tật nhìn", "Tự kỷ", "Khuyết tật thần kinh", "Khác"])
-        ky_hoc = c4.selectbox("Kế hoạch GDHSKT:", ["Kế hoạch HK I", "Kế hoạch HK II", "Cả Năm"])
-        mon_hoc = c5.selectbox("Chọn môn học:", ["Ngữ văn", "Toán", "Tiếng Anh", "Giáo dục công dân", "KHTN (Lý)", "KHTN (Hóa)", "KHTN (Sinh)", "Công nghệ", "Tin học", "Giáo dục thể chất", "Nghệ thuật", "HĐTN, hướng nghiệp"])
+        # Hàng menu
+        col1, col2, col3, col4, col5 = st.columns(5)
+        ten_hs = col1.text_input("Họ và tên HS:")
+        lop_hs = col2.selectbox("Khối lớp:", ["Lớp 6", "Lớp 7", "Lớp 8", "Lớp 9", "Khối 10", "Khối 11", "Khối 12"])
+        dang_kt = col3.selectbox("Dạng khuyết tật:", ["Vận động", "Trí tuệ", "Nghe", "Nhìn", "Tự kỷ", "Thần kinh", "Khác"])
+        ky_hoc = col4.selectbox("Kế hoạch GDHSKT:", ["Kế hoạch HK I", "Kế hoạch HK II", "Cả Năm"])
+        mon_hoc = col5.selectbox("Chọn môn học:", ["Ngữ văn", "Toán", "Tiếng Anh", "KHTN (Lý)", "KHTN (Hóa)", "KHTN (Sinh)", "Tin học", "Nghệ thuật", "HĐTN, hướng nghiệp"])
         
-        # Hàng tải file (3 nút)
-        cf1, cf2, cf3 = st.columns(3)
-        files = {
-            "KH Mẫu": cf1.file_uploader("Tải file KH mẫu:"),
-            "Thông tin HSKT": cf2.file_uploader("Thông tin HSKT:"),
-            "Nội dung HK": cf3.file_uploader("Tải nội dung học tập trong HK:")
-        }
+        # Khu vực quản lý file: Tải - Lưu - Xóa
+        st.markdown("---")
+        for label in ["KH Mẫu", "Thông tin HSKT", "Nội dung học tập HK"]:
+            c1, c2, c3, c4 = st.columns([2, 2, 1, 1])
+            c1.markdown(f"**{label}**")
+            
+            # Hiển thị file đã lưu nếu có
+            if label in st.session_state["my_files"]:
+                c2.success(f"Đã có file: {st.session_state['my_files'][label].name}")
+                if c4.button("🗑️", key=f"del_{label}"):
+                    del st.session_state["my_files"][label]
+                    st.rerun()
+            else:
+                uploaded = c2.file_uploader(f"Chọn file:", key=f"up_{label}")
+                if c3.button("💾 Lưu", key=f"save_{label}") and uploaded:
+                    st.session_state["my_files"][label] = uploaded
+                    st.rerun()
         
-        if st.button("💾 Lưu các file đã chọn"):
-            for name, f in files.items():
-                if f: st.session_state["files_hskt"][name] = f
-            st.success("Đã lưu tệp vào hệ thống!")
-
+        st.markdown("---")
+        
         if st.button("✨ TẠO KẾ HOẠCH HỖ TRỢ HSKT BẰNG AI", type="primary", use_container_width=True):
-            with st.spinner("AI đang phân tích dữ liệu và mẫu..."):
-                # Gom nội dung từ file để gửi AI
-                file_context = "Có sử dụng file mẫu." if st.session_state["files_hskt"] else "Không dùng file."
-                prompt = f"""Lập kế hoạch hỗ trợ HSKT cho em {ten_hs}, {lop_hs}, dạng {dang_kt}.
-                Môn: {mon_hoc}, {ky_hoc}.
-                Yêu cầu: Bám sát 100% cấu trúc các cột trong file mẫu đã tải lên. Nội dung học tập cần khớp với dữ liệu học tập HK đã cung cấp. 
-                Sử dụng thông tin HSKT làm căn cứ chính để cá nhân hóa."""
-                ket_qua, _ = run_ai_prompt_safe_func(prompt)
-                st.session_state["ket_qua_hskt"] = ket_qua
-                st.markdown(ket_qua)
+            if not ten_hs:
+                st.warning("Vui lòng nhập tên học sinh!")
+            else:
+                with st.spinner("Đang phân tích dữ liệu..."):
+                    prompt = f"Lập kế hoạch hỗ trợ HS {ten_hs}, lớp {lop_hs}, dạng {dang_kt}, môn {mon_hoc}, kỳ {ky_hoc}. Bám sát file mẫu đã lưu."
+                    ket_qua, _ = run_ai_prompt_safe_func(prompt)
+                    st.session_state["ket_qua_hskt"] = ket_qua
+                    st.markdown(ket_qua)
+        
+        if "ket_qua_hskt" in st.session_state and st.session_state["ket_qua_hskt"]:
+            st.download_button("📥 Tải kế hoạch (Word)", data=st.session_state["ket_qua_hskt"], file_name=f"KH_{ten_hs}.docx", use_container_width=True)
                     
     with tab_quan_ly:
-        st.write("📂 Quản lý hồ sơ cá nhân học sinh.")
+        st.write("📂 Danh sách hồ sơ đã lưu:")
+        for name, f in st.session_state["my_files"].items():
+            st.write(f"- {name}: {f.name}")
