@@ -4,7 +4,7 @@ st.markdown("---")
     danh_sach_file = ["KH Mẫu", "Thông tin HSKT", "Nội dung học tập HK"]
     
     for label in danh_sach_file:
-        # Chia cột: Nhãn(1) | Upload(4) | Lưu(1)
+        # Chia cột: Nhãn(1.5) | Upload(4) | Lưu(1)
         c_label, c_up, c_save = st.columns([1.5, 4, 1])
         
         c_label.markdown(f"**{label}**")
@@ -20,7 +20,7 @@ st.markdown("---")
             else:
                 st.warning(f"Vui lòng chọn file cho {label}")
         
-        # Hiển thị trạng thái file đã lưu ngay dưới hàng đó
+        # Hiển thị trạng thái file đã lưu
         if label in st.session_state["my_files"]:
             st.caption(f"✅ Đang dùng tệp: {st.session_state['my_files'][label].name}")
 
