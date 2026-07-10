@@ -82,8 +82,9 @@ phan_he = st.sidebar.radio(
     label_visibility="collapsed",
     key="app_main_sidebar_navigation_root_key_2026_v9"
 )
-
-# --- 5. XỬ LÝ ĐIỀU HƯỚNG ---
+# ==================================================================================
+# --- 5. XỬ LÝ ĐIỀU HƯỚNG & GỌI PHÂN HỆ TÁC NGHIỆP ---
+# ==================================================================================
 if phan_he == "Trợ lý Giảng dạy (Giáo viên)":
     st.sidebar.markdown("### 🛠️ CHỨC NĂNG GIÁO VIÊN")
     menu = st.sidebar.selectbox("Nội dung giảng dạy", ["1. Thiết kế KHBD", "2. Thiết kế Đề KT", "3. Đánh giá HS", "4. Quản lý điểm (SMAS)", "5. Quản lý TKB","6. Thiết kế bài dạy STEM","7. Kế hoạch công tác chủ nhiệm lớp"], label_visibility="collapsed", key="menu_gv_selectbox_v9")
@@ -93,7 +94,7 @@ if phan_he == "Trợ lý Giảng dạy (Giáo viên)":
     if menu == "1. Thiết kế KHBD": 
         render_khbd_section(lambda p: run_ai_prompt_safe(p))
     elif menu == "2. Thiết kế Đề KT": 
-        render_exam_designer_section(lambda p: run_ai_prompt_safe(p)) # 🚀 Đã khớp tham số truyền hàm
+        render_exam_designer_section(lambda p: run_ai_prompt_safe(p))
     elif menu == "3. Đánh giá HS": 
         render_assessment_section(lambda p: run_ai_prompt_safe(p))
     elif menu == "4. Quản lý điểm (SMAS)": 
@@ -115,7 +116,7 @@ else:  # Phân hệ Quản lý tổ chuyên môn
         render_meeting_minutes(lambda p: run_ai_prompt_safe(p))
     elif menu == "3. Kế hoạch cá nhân": 
         render_personal_plan(lambda p: run_ai_prompt_safe(p))
-        elif menu == "4. Thống kê số liệu": 
+    elif menu == "4. Thống kê số liệu": 
         st.header("📊 THỐNG KÊ SỐ LIỆU TỔ CHUYÊN MÔN")
         
         import sqlite3
@@ -173,9 +174,3 @@ else:  # Phân hệ Quản lý tổ chuyên môn
         else:
             st.subheader("📋 Danh sách phân công hiện tại:")
             st.dataframe(df_tv, use_container_width=True)
-
-                
-                # 🚀 BỔ SUNG KHỐI NÀY VÀO CUỐI FILE CỦA BẠN ĐỂ VÁ LỖI CÚ PHÁP
-                except Exception as e:
-                    st.error(f"❌ Không thể nạp dữ liệu demo: {str(e)}")
-
