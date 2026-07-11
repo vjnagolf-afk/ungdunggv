@@ -4,7 +4,54 @@ import pandas as pd
 import sqlite3
 import os
 import sys
-import urllib.request
+import urllib.request# =====================================================================
+# ĐOẠN SỬA ĐỔI TRONG APP.PY - FIX LỖI HIỂN THỊ JSON CHO THIẾT KẾ ĐỀ
+# =====================================================================
+    if menu == "1. Thiết kế KHBD": 
+        render_khbd_section(lambda p: run_ai_prompt_safe(p, is_admin_owner=is_admin_owner))
+        
+    elif menu == "2. Thiết kế Đề KT": 
+        from exam_designer import render_exam_designer_section
+        from ai_service import run_ai_prompt_safe
+        
+        # Tạo một hàm bọc an toàn để xử lý làm sạch mọi định dạng JSON trả về từ AI
+        def safe_ai_adapter(prompt, model_choice):
+            # Gọi hàm sinh nội dung gốc từ hệ thống
+            raw_res = run_ai_prompt_safe(prompt, model_choice, is_admin_owner)
+            
+            # Khởi tạo giá trị chuỗi văn bản mặc định
+            clean_text = ""
+            
+            # Trường hợp 1: Kết quả là danh sách chứa các block text (Lỗi bạn đang gặp phải)
+            if isinstance(raw_res, list) and len(raw_res) > 0:
+                first_item = raw_res[0]
+                if isinstance(first_item, dict) and "text" in first_item:
+                    clean_text = first_item["text"]
+                elif isinstance(first_item, dict) and "get" in dir(first_item) and first_item.get("text"):
+                    clean_text = first_item.get("text")
+                else:
+                    clean_text = str(first_item)
+            
+            # Trường hợp 2: Kết quả là một từ điển trực tiếp
+            elif isinstance(raw_res, dict):
+                clean_text = raw_res.get("text", str(raw_res))
+            
+            # Trường hợp 3: Đã là chuỗi văn bản chuẩn
+            else:
+                clean_text = str(raw_res)
+            
+            # Khử toàn bộ ký tự thoát chuỗi '\n' và '\t' thô nếu có để đưa về định dạng văn bản markdown sạch
+            clean_text = clean_text.replace("\\n", "\n").replace("\\t", "\t")
+            
+            # Trả về bộ tuple (Nội dung sạch, Tên mô hình hiển thị) đúng cấu trúc thiết kế đề yêu cầu
+            return clean_text, model_choice
+
+        # Truyền hàm bọc an toàn đã xử lý lỗi JSON vào giao diện
+        render_exam_designer_section(safe_ai_adapter)
+
+    elif menu == "3. Đánh giá HS": 
+# =====================================================================
+
 
 # THUẬT TOÁN ĐƯỜNG DẪN: Ép hệ thống tìm module trong cùng thư mục chạy ứng dụng
 current_dir = os.path.dirname(os.path.abspath(__file__))
