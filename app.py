@@ -13,22 +13,19 @@ if current_dir not in sys.path:
 
 from database_manager import inject_demo_data, DB_PATH
 from ai_service import run_ai_prompt_safe
-
-# Nhúng các phân hệ tác nghiệp vệ tinh của thầy/cô
 from exam_designer import render_exam_designer_section 
 from grade_manager import render_grade_manager_section
 from tkb_manager import render_tkb_manager  
 from khbd_manager import render_khbd_section  
 from danh_gia_manager import render_assessment_section
-
 from org_manager import render_org_section
 from bien_ban_manager import render_meeting_minutes
 from ke_hoach_ca_nhan_manager import render_personal_plan 
 from stem_manager import render_stem_section
 from chu_nhiem_manager import render_chu_nhiem_section 
-
+from hskt_plan import render_special_ed_section
+from teaching_assistant.main import render_teaching_assistant_section
 st.set_page_config(page_title="HỆ SINH THÁI SỐ GIÁO VIÊN", layout="wide")
-
 # --- THUẬT TOÁN WHITELIST IP: KHÓA CỨNG ĐỊA CHỈ IP CHÍNH CHỦ DỰ ÁN ---
 def get_current_public_ip():
     """Tự động quét địa chỉ IP công cộng của thiết bị đang kết nối mạng"""
@@ -44,7 +41,6 @@ ADMIN_IP_WHITELIST = [
     "113.161.220.105",  # Ví dụ địa chỉ IP mạng Internet trường THCS Nguyễn Chí Thanh
     "14.161.12.34"      # Thầy có thể thêm nhiều IP khác nhau (Ví dụ IP mạng Wifi nhà riêng của thầy)
 ]
-
 current_device_ip = get_current_public_ip()
 
 # 🚀 TỰ ĐỘNG KHÓA CỨNG QUYỀN ADMIN: Mở tab mới hay F5 chỉ cần trùng IP mạng là tự động nhận diện Admin
@@ -55,13 +51,11 @@ else:
     MAT_MA_ADMIN_CỐ_ĐỊNH = "123456"
     if "current_entered_password" not in st.session_state:
         st.session_state["current_entered_password"] = ""
-    
     url_params = st.query_params
     if url_params.get("admin") == MAT_MA_ADMIN_CỐ_ĐỊNH:
         st.session_state["current_entered_password"] = MAT_MA_ADMIN_CỐ_ĐỊNH
         
     is_admin_owner = (st.session_state["current_entered_password"] == MAT_MA_ADMIN_CỐ_ĐỊNH)
-
 
 # 🚀 BỘ VÁ CSS: Khử padding/margin thừa giữa các phần tử trong Sidebar
 st.markdown("""
@@ -95,23 +89,27 @@ st.sidebar.caption("CHỌN PHÂN HỆ TÁC NGHIỆP")
 
 phan_he = st.sidebar.radio(
     "Chọn phân hệ:",
-    ["Trợ lý Giảng dạy (Giáo viên)", "Trợ lý Quản lý (Tổ chuyên môn)"],
+    ["Trợ lý Giảng dạy (Giáo viên)", "Hỗ trợ giảng dạy", "Trợ lý Quản lý (Tổ chuyên môn)"],
     label_visibility="collapsed",
     key="app_main_sidebar_navigation_root_key_2026_v9"
 )
-
 st.sidebar.markdown("---")
+# ==================================================================================
+# --- KHỐI ĐIỀU HƯỚNG TÁC NGHIỆP CHI TIẾT (3 PHÂN HỆ ĐỘC LẬP) ---
+# ==================================================================================
 
-# ==================================================================================
-# --- KHỐI ĐIỀU HƯỚNG TÁC NGHIỆP CHI TIẾT (VỊ TRÍ 2 - Ở GIỮA SƠ ĐỒ) ---
-# ==================================================================================
+# 1. Phân hệ Trợ lý Giảng dạy (Giáo viên)
 if phan_he == "Trợ lý Giảng dạy (Giáo viên)":
     st.sidebar.markdown("### 🛠️ CHỨC NĂNG GIÁO VIÊN")
-    menu = st.sidebar.selectbox("Nội dung giảng dạy", ["1. Thiết kế KHBD", "2. Thiết kế Đề KT", "3. Đánh giá HS", "4. Quản lý điểm (SMAS)", "5. Quản lý TKB","6. Thiết kế bài dạy STEM","7. Kế hoạch công tác chủ nhiệm lớp"], label_visibility="collapsed", key="menu_gv_selectbox_v9")
+    menu = st.sidebar.selectbox("Nội dung giảng dạy", ["1. Thiết kế KHBD", "2. Thiết kế Đề KT", "3. Đánh giá HS", "4. Quản lý điểm (SMAS)", "5. Quản lý TKB","6. Thiết kế bài dạy STEM","7. Kế hoạch công tác chủ nhiệm lớp","8. Kế hoạch hỗ trợ học sinh khuyết tật"], label_visibility="collapsed", key="menu_gv_selectbox_v9")
     
     if menu == "1. Thiết kế KHBD": 
         render_khbd_section(lambda p: run_ai_prompt_safe(p, is_admin_owner=is_admin_owner))
     elif menu == "2. Thiết kế Đề KT": 
+        # Thêm dòng này để kiểm tra xem nó có vào được hàm không
+        # st.write("Đang tải giao diện thiết kế đề...") 
+        from exam_designer import render_exam_designer_section
+        from ai_service import run_ai_prompt_safe
         render_exam_designer_section(lambda p, m: run_ai_prompt_safe(p, m, is_admin_owner))
     elif menu == "3. Đánh giá HS": 
         render_assessment_section(lambda p: run_ai_prompt_safe(p, is_admin_owner=is_admin_owner))
@@ -123,8 +121,15 @@ if phan_he == "Trợ lý Giảng dạy (Giáo viên)":
         render_stem_section()
     elif menu == "7. Kế hoạch công tác chủ nhiệm lớp":
         render_chu_nhiem_section(lambda p: run_ai_prompt_safe(p, is_admin_owner=is_admin_owner))
+    elif menu == "8. Kế hoạch hỗ trợ học sinh khuyết tật":
+        render_special_ed_section(lambda p: run_ai_prompt_safe(p))
 
-else:  # Phân hệ Quản lý tổ chuyên môn
+# 2. Phân hệ Hỗ trợ giảng dạy (MỚI - ĐỘC LẬP)
+elif phan_he == "Hỗ trợ giảng dạy":
+    render_teaching_assistant_section()
+
+# 3. Phân hệ Quản lý tổ chuyên môn
+elif phan_he == "Trợ lý Quản lý (Tổ chuyên môn)":
     st.sidebar.markdown("### 📂 QUẢN LÝ TỔ CHUYÊN MÔN")
     menu = st.sidebar.selectbox("Nội dung quản lý", ["1. Quản lý & Phân công chuyên môn", "2. Biên bản sinh hoạt", "3. Kế hoạch cá nhân", "4. Thống kê số liệu"], label_visibility="collapsed", key="menu_ql_selectbox_v9")
     
@@ -135,7 +140,9 @@ else:  # Phân hệ Quản lý tổ chuyên môn
     elif menu == "3. Kế hoạch cá nhân": 
         render_personal_plan(lambda p: run_ai_prompt_safe(p, is_admin_owner=is_admin_owner))
     elif menu == "4. Thống kê số liệu": 
+        # ... giữ nguyên phần logic thống kê cũ của bạn ở đây ...
         st.header("📊 THỐNG KÊ SỐ LIỆU TỔ CHUYÊN MÔN")
+        # [Chèn phần code xử lý database/dataframe của tổ chuyên môn vào đây]
         
         df_tv = pd.DataFrame()
         if os.path.exists(DB_PATH):
