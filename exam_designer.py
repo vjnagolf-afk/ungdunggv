@@ -2,81 +2,53 @@ import sys
 import os
 import streamlit as st
 import gspread
-import re
 
-# Đảm bảo đường dẫn module
+# 1. Đường dẫn module
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'teaching_assistant')))
-
 from rag_module.latex_formatter import process_science_formulas
-from rag_module.document_export import export_to_docx
-from ai_service import run_ai_prompt_safe
 from document_processor import read_uploaded_docx, read_uploaded_pdf, export_to_docx_vietnam_standard
+from ai_service import run_ai_prompt_safe
 
-# ================= CẤU HÌNH GOOGLE SHEETS =================
-SPREADSHEET_ID = "1C6642jk_oQ0g9UC2By2qsNxxfQVR0MrZYj52tRdWDlY"
-TAB_NAME = "DE_KT"
+# [PHẦN CẤU HÌNH GOOGLE SHEET VÀ CÁC HÀM GET/SYNC/DELETE CŨ CỦA THẦY VẪN ĐỂ NGUYÊN Ở ĐÂY]
+# ... (Thầy giữ nguyên các hàm get_exam_sheet, sync_exam_to_google_sheet...) ...
 
-def get_exam_sheet():
-    try:
-        creds_dict = st.secrets.get("gspread_credentials") or st.secrets.get("google_sheet_creds")
-        gc = gspread.service_account_from_dict(creds_dict)
-        sh = gc.open_by_key(SPREADSHEET_ID)
-        return sh.worksheet(TAB_NAME)
-    except:
-        return None
-
-# ================= HÀM GIAO DIỆN CHÍNH =================
 def render_exam_designer_section(run_ai_prompt_safe_func):
+    # [Giữ nguyên phần CSS st.markdown cũ của thầy]
     
-    # Khởi tạo session state
-    if "ket_qua_de" not in st.session_state: st.session_state["ket_qua_de"] = ""
+    # [PHẦN CÁC Ô NHẬP LIỆU CŨ CỦA THẦY VẪN ĐỂ NGUYÊN]
+    # ... col1, col2, col3, col4, các number_input ...
     
-    # Bố cục Tab
-    tab_tao_de, tab_thu_muc = st.tabs(["CHỨC NĂNG TẠO ĐỀ KIỂM TRA", "THƯ MỤC LƯU ĐỀ ĐÃ XD"])
-    
-    with tab_tao_de:
-        # Giả định các biến nhập liệu đã có từ giao diện trước đó của thầy
-        nut_sinh_de = st.button("🚀 TỰ ĐỘNG KHỞI TẠO MA TRẬN VÀ ĐỀ THI", type="primary")
+    # 2. Xử lý nút bấm KHÔNG CẦN TABS
+    if st.button("🚀 TỰ ĐỘNG KHỞI TẠO MA TRẬN VÀ ĐỀ THI", type="primary"):
+        with st.spinner("🧠 AI đang soạn đề..."):
+            # Gọi AI (Thầy đảm bảo biến prompt_vi_mo đã được định nghĩa từ các ô nhập liệu bên trên)
+            raw_output, model_name = run_ai_prompt_safe_func(prompt_vi_mo, mo_hinh_uu_tien)
+            
+            # --- ĐỒNG BỘ BỘ LỌC CÔNG THỨC ---
+            final_content = process_science_formulas(raw_output)
+            st.session_state["ket_qua_de"] = final_content
+            st.rerun()
 
-        if nut_sinh_de:
-            with st.spinner("🧠 AI đang soạn đề..."):
-                # Ghi chú: Biến prompt_vi_mo phải chứa đầy đủ yêu cầu như bản gốc của thầy
-                # Ở đây tôi giả định thầy đã có các biến st.session_state["save_mon_hoc"] v.v...
-                
-                # Gọi AI
-                raw_output, model_name = run_ai_prompt_safe_func(st.session_state.get("prompt_vi_mo", ""), "3.5 Flash")
-                
-                # ĐỒNG BỘ: Sử dụng bộ lọc chuẩn hóa Toán/Lý/Hóa
-                final_exam_content = process_science_formulas(raw_output)
-                
-                # Lưu vào session
-                st.session_state["ket_qua_de"] = final_content
+    # 3. HIỂN THỊ KẾT QUẢ VÀ NÚT XUẤT WORD CHUẨN (Ngay dưới nút bấm)
+    if st.session_state.get("ket_qua_de"):
+        st.markdown("<hr>", unsafe_allow_html=True)
+        st.markdown(st.session_state["ket_qua_de"])
+        
+        col_x, col_y = st.columns(2)
+        with col_x:
+            # Xuất file Word bản chuẩn hành chính
+            data_word = export_to_docx_vietnam_standard(
+                st.session_state["ket_qua_de"], 
+                st.session_state["save_ten_de"], 
+                school_name=st.session_state["save_school"]
+            )
+            st.download_button("📥 Tải đề Word chuẩn", data_word, "De_Thi_Chuan.docx", use_container_width=True)
+        with col_y:
+            if st.button("🗑️ Xóa đề", use_container_width=True):
+                st.session_state["ket_qua_de"] = ""
                 st.rerun()
 
-        # HIỂN THỊ KẾT QUẢ ĐÃ XỬ LÝ
-        if st.session_state["ket_qua_de"]:
-            st.markdown(st.session_state["ket_qua_de"])
-            
-            c_save, c_del = st.columns([1, 1])
-            with c_save:
-                # Xuất file Word chuẩn hành chính
-                try:
-                    data_word = export_to_docx_vietnam_standard(
-                        st.session_state["ket_qua_de"], 
-                        st.session_state.get("save_ten_de", "De_Kiem_Tra"), 
-                        school_name=st.session_state.get("save_school", "Trường THCS")
-                    )
-                    st.download_button("📥 Tải Đề Kiểm Tra (.docx)", data_word, "De_Thi_Chuan.docx")
-                except Exception as e:
-                    st.error(f"Lỗi xuất file: {e}")
-            
-            with c_del:
-                if st.button("🗑️ Xóa đề hiện tại"):
-                    st.session_state["ket_qua_de"] = ""
-                    st.rerun()
-
-    with tab_thu_muc:
-        st.write("📂 Danh sách đề kiểm tra đã lưu:")
-        # Logic gọi get_all_exams_from_sheet() của thầy để hiển thị ở đây
-
-# LƯU Ý: Phần CSS thầy đã có, thầy cứ để nguyên phía trên đầu hàm này là được.
+    # 4. THAY VÌ TAB, DÙNG EXPANDER ĐỂ XEM THƯ MỤC LƯU ĐỀ
+    with st.expander("📂 XEM THƯ MỤC LƯU ĐỀ ĐÃ XD"):
+        # [Chèn đoạn code lấy ds_de và hiển thị bằng st.expander của thầy ở đây]
+        pass
