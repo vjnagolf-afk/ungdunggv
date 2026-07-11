@@ -1,6 +1,6 @@
 import re
 
-def format_latex_response(raw_text: str) -> str:
+def process_science_formulas(raw_text: str) -> str:
     """
     Module trung gian chuẩn hóa toàn bộ chuỗi văn bản và công thức Toán - Lý - Hóa
     trước khi chuyển tiếp đến giao diện Streamlit.
@@ -10,21 +10,19 @@ def format_latex_response(raw_text: str) -> str:
 
     text = str(raw_text)
 
-    # 1. Khôi phục các ký tự xuống dòng và tab thô từ chuỗi JSON/LangChain
+    # 1. Khôi phục các ký tự xuống dòng và tab thô nếu có
     text = text.replace('\\n', '\n').replace('\\t', '\t')
 
-    # 2. Sửa lỗi OCR dính chữ phổ biến (ví dụ: fracst -> \frac{s}{t})
-    # Tự động phát hiện và chuyển đổi cụm dính chữ 'fracst' thành dạng phân số chuẩn
-    text = re.sub(r'fracst\b', r'\\frac{s}{t}', text)
-    text = re.sub(r'frac\s*s\s*t\b', r'\\frac{s}{t}', text)
+    # 2. Tự động phát hiện và sửa lỗi OCR dính chữ (ví dụ: fracst -> \frac{s}{t})
+    text = re.sub(r'\bfracst\b', r'\\frac{s}{t}', text)
+    text = re.sub(r'\bfrac\s*s\s*t\b', r'\\frac{s}{t}', text)
 
-    # 3. Đảm bảo các hàm toán học tiếng Việt trong công thức LaTeX được bọc qua \text{...}
-    # Ví dụ: biến $\textTốc độ = ...$ thành $\text{Tốc độ} = ...$
+    # 3. Đảm bảo các hàm văn bản tiếng Việt trong LaTeX (nếu có) được bọc qua \text{...} đúng chuẩn
     text = re.sub(r'\\text\s*([^\{][^\$\n]*)', r'\\text{\1}', text)
 
-    # 4. Bảo vệ dấu gạch chéo ngược khỏi bộ lọc escape của Markdown Streamlit
-    # Trong Streamlit Markdown, dấu \ đứng trước một số ký tự đặc biệt có thể bị nuốt mất.
-    # Chúng ta chỉ nhân đôi các dấu \ đi liền với các từ khóa LaTeX phổ biến để tránh làm vỡ định dạng tổng thể.
+    # 4. GIẢI PHÁP ĐẶC TRỊ LỖI HIỂN THỊ TRÊN STREAMLIT:
+    # Bản chất st.markdown coi dấu \ là escape character nên sẽ nuốt mất dấu của các lệnh LaTeX.
+    # Ta cần nhân đôi dấu gạch chéo ngược cho các lệnh toán học/khoa học phổ biến.
     latex_keywords = [
         'frac', 'sqrt', 'alpha', 'beta', 'gamma', 'delta', 'pi', 'mu', 'rho', 'sigma', 'tau', 'omega',
         'times', 'div', 'pm', 'mp', 'le', 'ge', 'leq', 'geq', 'neq', 'approx', 'equiv', 'cdot',
@@ -32,7 +30,7 @@ def format_latex_response(raw_text: str) -> str:
     ]
     
     for kw in latex_keywords:
-        # Thay thế \keyword thành \\keyword một cách an toàn bằng regex
+        # Biến \keyword thành \\keyword một cách an toàn
         text = re.sub(r'\\(' + kw + r')\b', r'\\\\\1', text)
 
     return text
