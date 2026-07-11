@@ -6,30 +6,34 @@ from langchain_community.vectorstores import Chroma
 import os
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
-def backup_to_googlesheet(data_dict):
+
+def backup_to_googlesheet(data_dict, google_creds):
     """
-    Gửi thông tin giao tiếp về Google Sheet bằng tài khoản bảo mật từ Secrets
+    Gửi thông tin giao tiếp về Google Sheet bằng tài khoản dịch vụ
     """
     try:
-        google_creds = dict(st.secrets["gcp_service_account"])
         client = gspread.service_account_from_dict(google_creds)
         sheet = client.open("Data_Nhat_Ky_Giang_Day").sheet1
+        
+        # Tiến hành chèn dòng dữ liệu vào trang tính
         sheet.append_row([data_dict['timestamp'], data_dict['query'], data_dict['response']])
+        return True
+        
     except Exception as e:
-        error_msg = str(e)
-        # Nếu lỗi chứa "200" (tức là thao tác thành công nhưng bị hiểu nhầm), ta bỏ qua
-        if "200" not in error_msg:
-            st.error(f"Lỗi khi sao lưu dữ liệu lên Google Sheets: {error_msg}")
+        st.error(f"Lỗi khi sao lưu dữ liệu lên hệ thống Cloud: {e}")
+        return False
+
 def get_embedding_model():
-    api_key = st.secrets["GEMINI_API_KEY"]
-    # Sử dụng chính xác tên mô hình embedding từ danh sách của thầy
-    return GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-2", google_api_key=api_key)
+    """
+    Cấu hình Embedding model sử dụng mô hình Gemini chính xác
+    """
+    return GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001")
+
 def process_and_vectorize(file_path):
     # 1. Đọc tài liệu
     if file_path.endswith('.pdf'):
-    # Bổ sung chế độ extract_images để tự động chạy OCR nếu phát hiện trang quét bằng ảnh
-    loader = PyPDFLoader(file_path, extract_images=True)
-
+        # Kích hoạt extract_images=True để tự động OCR nếu phát hiện trang quét bằng ảnh
+        loader = PyPDFLoader(file_path, extract_images=True)
     elif file_path.endswith('.docx'):
         loader = Docx2txtLoader(file_path)
     else:
@@ -41,6 +45,10 @@ def process_and_vectorize(file_path):
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
     texts = text_splitter.split_documents(documents)
     
+    # Kiểm tra an toàn để tránh lỗi trống dữ liệu vector của ChromaDB
+    if not texts or len(texts) == 0:
+        raise ValueError("Tài liệu không chứa dữ liệu văn bản hoặc là file PDF scan chưa được trích xuất chữ thành công.")
+    
     # 3. Nhúng Vector (Embedding) và lưu vào ChromaDB
     vectorstore = Chroma.from_documents(
         documents=texts, 
@@ -50,10 +58,10 @@ def process_and_vectorize(file_path):
     return vectorstore
 
 def query_rag(vectorstore, question):
-    # Tìm kiếm tài liệu liên quan
+    # Tìm kiếm tài liệu liên quan bằng phương thức invoke mới
     retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
-    docs = retriever.invoke(question)  
-
+    docs = retriever.invoke(question)
+    
     # Ghép nội dung để gửi cho AI
     context = "\n".join([d.page_content for d in docs])
     return context
