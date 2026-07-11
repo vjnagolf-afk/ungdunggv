@@ -130,21 +130,16 @@ Câu hỏi: {question}"""
                         else:
                             raw_answer = ai_output
                             model_info = "AI"
-
                         # 3. Làm sạch mảng JSON của LangChain
-                        clean_response = extract_text_safely(raw_answer)
-                        
-                        # 4. --- GIẢI PHÁP SỬA LỖI LATEX CỦA THẦY ---
-                        # Nhân đôi dấu gạch chéo ngược để Streamlit nhận diện đúng ký tự \ trong LaTeX
-                        clean_response = clean_response.replace('\\', '\\\\')
-                        # Làm sạch các ký tự xuống dòng thô nếu có
-                        clean_response = clean_response.replace('\\\\n', '\n').replace('\\\\t', '\t')
-                        # ------------------------------------------
-
-                        # 5. Hiển thị kết quả
+                            clean_response = extract_text_safely(raw_answer)
+        
+                        # 4. --- GIẢI PHÁP SỬA LỖI ĐỊNH DẠNG ---
+        # Giải mã các ký tự xuống dòng và tab thô nếu có (không nhân đôi dấu gạch chéo)
+                            clean_response = clean_response.replace('\\n', '\n').replace('\\t', '\t')
+        
+        # 5. Hiển thị kết quả trực tiếp (Streamlit hỗ trợ gốc dấu \ của LaTeX trong Markdown)
                         st.markdown(clean_response)
-                        st.caption(f"⚡ Sinh bởi: {model_info}")
-                        
+                        st.caption(f"🤖 Sinh bởi: {model_info}") 
                         # Lưu lịch sử
                         st.session_state["chat_history"].append({
                             "role": "assistant", 
