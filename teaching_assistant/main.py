@@ -24,12 +24,9 @@ def render_teaching_assistant_section():
         
     # Liên kết module Ra đề (Thầy cần tạo file exam_module/manager.py)
     with tabs[1]:
-        try:
-            from teaching_assistant.exam_module.manager import render_exam
-            render_exam()
-        except ImportError:
-            st.warning("Module Ra đề đang được thiết lập. Vui lòng kiểm tra file `exam_module/manager.py`.")
-            
+        # Gọi trực tiếp tệp ở thư mục gốc
+        import exam_designer
+        exam_designer.render_exam_interface() # Thầy đảm bảo hàm chính trong file exam_designer.py tên là render_exam_interface            
     # Liên kết module KHBD (Thầy cần tạo file lesson_plan_module/manager.py)
     with tabs[2]:
         try:
