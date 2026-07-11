@@ -100,9 +100,14 @@ def render_rag():
 
         if question := st.chat_input("Nhập câu hỏi của thầy/cô về tài liệu..."):
             
-                        with st.chat_message("assistant"):
+            # --- HIỂN THỊ CÂU HỎI CỦA NGƯỜI DÙNG LÊN GIAO DIỆN ---
+            with st.chat_message("user"):
+                st.markdown(question)
+            st.session_state["chat_history"].append({"role": "user", "content": question})
+            # ----------------------------------------------------
+
+            with st.chat_message("assistant"):
                 with st.spinner("🔍 AI đang truy xuất các đoạn ngữ cảnh liên quan..."):
-                    # Khởi tạo giá trị mặc định để tránh lỗi UnboundLocalError
                     clean_response = "" 
                     model_info = "AI"
                     
@@ -132,8 +137,11 @@ Câu hỏi: {question}"""
                         # 3. Làm sạch mảng JSON của LangChain
                         clean_response = extract_text_safely(raw_answer)
                         
-                        # 4. Giải mã các ký tự xuống dòng và tab thô nếu có
-                        clean_response = clean_response.replace('\\n', '\n').replace('\\t', '\t')
+                        # 4. --- BẢO VỆ CÔNG THỨC KHOA HỌC TỰ NHIÊN ---
+                        # Nhân đôi dấu gạch chéo ngược để Streamlit nhận diện đúng ký tự \ trong LaTeX
+                        clean_response = clean_response.replace('\\', '\\\\')
+                        # Làm sạch các ký tự xuống dòng thô nếu có
+                        clean_response = clean_response.replace('\\\\n', '\n').replace('\\\\t', '\t')
                         
                         # 5. Hiển thị kết quả trực tiếp
                         st.markdown(clean_response)
@@ -146,15 +154,15 @@ Câu hỏi: {question}"""
                             "model_info": model_info
                         })
                         
-                        # 6. Sao lưu tự động qua biến an toàn đã lấy từ st.secrets ở tầng trên
-                        if "gcp_service_account" in st.secrets:
-                            creds_data = dict(st.secrets["gcp_service_account"])
-                            backup_to_googlesheet({
-                                'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                                'query': question,
-                                'response': clean_response
-                            }, google_creds=creds_data)
-                            st.caption(" Đã tự động đồng bộ cuộc hội thoại này vào Nhật ký giảng dạy trên Google Sheet!")
+                        # 6. Sao lưu tự động
+                        # Lưu ý: Hàm backup_to_googlesheet trong file processor.py đã tự gọi st.secrets bên trong nó
+                        # Nên ở đây chúng ta chỉ cần truyền dictionary dữ liệu là đủ.
+                        backup_to_googlesheet({
+                            'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                            'query': question,
+                            'response': clean_response
+                        })
+                        st.caption("✅ Đã tự động đồng bộ cuộc hội thoại này vào Nhật ký giảng dạy trên Google Sheet!")
                         
                     except Exception as e:
                         st.error(f"❌ Đã xảy ra lỗi trong quá trình xử lý câu hỏi: {str(e)}")
