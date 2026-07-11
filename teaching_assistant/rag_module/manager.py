@@ -1,5 +1,6 @@
 import sys
 import os
+import ast
 import streamlit as st
 from datetime import datetime
 
@@ -76,6 +77,8 @@ def render_rag():
         for message in st.session_state["chat_history"]:
             with st.chat_message(message["role"]):
                 st.markdown(message["content"])
+                if "model_info" in message:
+                    st.caption(f"⚡ Sinh bởi: {message['model_info']}")
 
         # Ô nhập câu hỏi dạng Chat Input hiện đại ở cuối trang
         if question := st.chat_input("Nhập câu hỏi của thầy/cô về tài liệu..."):
@@ -93,25 +96,58 @@ def render_rag():
                         context = query_rag(st.session_state["vectorstore"], question)
                         
                         # Thiết lập prompt chuẩn bám sát yêu cầu trích dẫn số trang/nguồn
-                        prompt = (
-                            f"Dựa vào ngữ cảnh tài liệu sau đây, hãy trả lời câu hỏi của giáo viên một cách chi tiết.\n"
-                            f"YÊU CẦU: Hãy luôn đính kèm chính xác nguồn trích dẫn hoặc số trang (nếu có trong ngữ cảnh) ở cuối câu trả lời.\n\n"
-                            f"Ngữ cảnh: {context}\n\n"
-                            f"Câu hỏi: {question}"
-                        )
+                        prompt = f"""Dựa vào ngữ cảnh tài liệu sau đây, hãy trả lời câu hỏi của giáo viên một cách chi tiết.
+
+YÊU CẦU ĐỊNH DẠNG:
+- Hãy luôn đính kèm chính xác nguồn trích dẫn hoặc số trang (nếu có trong ngữ cảnh) ở cuối câu trả lời.
+- BẮT BUỘC sử dụng cú pháp LaTeX chuẩn cho TẤT CẢ các công thức Toán, Khoa học Tự nhiên (Vật lý, Hóa học) và đặt trong dấu $ (ví dụ: $v = \\frac{{s}}{{t}}$) hoặc $$ (nằm độc lập trên một dòng).
+- Trình bày mạch lạc, xuống dòng rõ ràng, không viết dính liền công thức.
+
+Ngữ cảnh: {context}
+
+Câu hỏi: {question}"""
                         
                         # Gọi dịch vụ AI an toàn của bạn
-                        response = run_ai_prompt_safe(prompt)
+                        ai_output = run_ai_prompt_safe(prompt)
+                        
+                        # --- BỘ LỌC LÀM SẠCH DỮ LIỆU ---
+                        answer = ""
+                        model_info = "AI"
+                        
+                        if isinstance(ai_output, tuple):
+                            answer = ai_output[0]
+                            model_info = ai_output[1] if len(ai_output) > 1 else "AI"
+                        else:
+                            answer = ai_output
+
+                        # Bóc tách cấu trúc mảng JSON nếu có
+                        if isinstance(answer, str) and answer.strip().startswith("[{"):
+                            try:
+                                parsed_answer = ast.literal_eval(answer.strip())
+                                if isinstance(parsed_answer, list) and isinstance(parsed_answer[0], dict):
+                                    answer = parsed_answer[0].get('text', answer)
+                            except Exception:
+                                pass
+                        
+                        # Đảm bảo answer là chuỗi
+                        answer = str(answer)
+                        # -------------------------------
                         
                         # Hiển thị câu trả lời lên màn hình
-                        st.markdown(response)
-                        st.session_state["chat_history"].append({"role": "assistant", "content": response})
+                        st.markdown(answer)
+                        st.caption(f"⚡ Sinh bởi: {model_info}")
+                        
+                        st.session_state["chat_history"].append({
+                            "role": "assistant", 
+                            "content": answer,
+                            "model_info": model_info
+                        })
                         
                         # 3. Sao lưu tự động vào Google Sheet nhật ký giảng dạy
                         backup_to_googlesheet({
                             'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                             'query': question,
-                            'response': response
+                            'response': answer
                         })
                         st.caption("✅ Đã tự động đồng bộ cuộc hội thoại này vào Nhật ký giảng dạy trên Google Sheet!")
                         
