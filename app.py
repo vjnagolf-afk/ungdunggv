@@ -95,8 +95,10 @@ phan_he = st.sidebar.radio(
 )
 st.sidebar.markdown("---")
 # ==================================================================================
-# --- KHỐI ĐIỀU HƯỚNG TÁC NGHIỆP CHI TIẾT (VỊ TRÍ 2 - Ở GIỮA SƠ ĐỒ) ---
+# --- KHỐI ĐIỀU HƯỚNG TÁC NGHIỆP CHI TIẾT (3 PHÂN HỆ ĐỘC LẬP) ---
 # ==================================================================================
+
+# 1. Phân hệ Trợ lý Giảng dạy (Giáo viên)
 if phan_he == "Trợ lý Giảng dạy (Giáo viên)":
     st.sidebar.markdown("### 🛠️ CHỨC NĂNG GIÁO VIÊN")
     menu = st.sidebar.selectbox("Nội dung giảng dạy", ["1. Thiết kế KHBD", "2. Thiết kế Đề KT", "3. Đánh giá HS", "4. Quản lý điểm (SMAS)", "5. Quản lý TKB","6. Thiết kế bài dạy STEM","7. Kế hoạch công tác chủ nhiệm lớp","8. Kế hoạch hỗ trợ học sinh khuyết tật"], label_visibility="collapsed", key="menu_gv_selectbox_v9")
@@ -111,13 +113,19 @@ if phan_he == "Trợ lý Giảng dạy (Giáo viên)":
         render_grade_manager_section()
     elif menu == "5. Quản lý TKB": 
         render_tkb_manager()
+    elif menu == "6. Thiết kế bài dạy STEM":
+        render_stem_section()
     elif menu == "7. Kế hoạch công tác chủ nhiệm lớp":
         render_chu_nhiem_section(lambda p: run_ai_prompt_safe(p, is_admin_owner=is_admin_owner))
     elif menu == "8. Kế hoạch hỗ trợ học sinh khuyết tật":
         render_special_ed_section(lambda p: run_ai_prompt_safe(p))
-    elif menu == "Hỗ trợ giảng dạy":
-        render_teaching_assistant_section()
-else:  # Phân hệ Quản lý tổ chuyên môn
+
+# 2. Phân hệ Hỗ trợ giảng dạy (MỚI - ĐỘC LẬP)
+elif phan_he == "Hỗ trợ giảng dạy":
+    render_teaching_assistant_section()
+
+# 3. Phân hệ Quản lý tổ chuyên môn
+elif phan_he == "Trợ lý Quản lý (Tổ chuyên môn)":
     st.sidebar.markdown("### 📂 QUẢN LÝ TỔ CHUYÊN MÔN")
     menu = st.sidebar.selectbox("Nội dung quản lý", ["1. Quản lý & Phân công chuyên môn", "2. Biên bản sinh hoạt", "3. Kế hoạch cá nhân", "4. Thống kê số liệu"], label_visibility="collapsed", key="menu_ql_selectbox_v9")
     
@@ -128,7 +136,9 @@ else:  # Phân hệ Quản lý tổ chuyên môn
     elif menu == "3. Kế hoạch cá nhân": 
         render_personal_plan(lambda p: run_ai_prompt_safe(p, is_admin_owner=is_admin_owner))
     elif menu == "4. Thống kê số liệu": 
+        # ... giữ nguyên phần logic thống kê cũ của bạn ở đây ...
         st.header("📊 THỐNG KÊ SỐ LIỆU TỔ CHUYÊN MÔN")
+        # [Chèn phần code xử lý database/dataframe của tổ chuyên môn vào đây]
         
         df_tv = pd.DataFrame()
         if os.path.exists(DB_PATH):
