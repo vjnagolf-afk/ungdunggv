@@ -19,3 +19,4 @@ langchain-google-genai
 langchain-openai
 chromadb
 langchain-text-splitters
+rapidocr-onnxruntime
