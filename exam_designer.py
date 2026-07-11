@@ -69,7 +69,7 @@ def delete_exam_from_sheet(row_index):
             return False
     return False
 # =====================================================================
-# PHẦN 2: GIAO DIỆN CHÍNH (ĐÃ SỬA THU GỌN VÀ XÓA CHỮ VÍ DỤ SURPLUS)
+# PHẦN 2: GIAO DIỆN CHÍNH & THIẾT LẬP THÔNG SỐ CẤU CẤU TRÚC ĐỀ THI
 # =====================================================================
 
 def render_exam_designer_section(run_ai_prompt_safe_func):
@@ -79,9 +79,8 @@ def render_exam_designer_section(run_ai_prompt_safe_func):
     st.markdown("""
         <style>
             .block-container {
-                max-width: 82% !important; /* ĐÃ SỬA: Thu hẹp độ rộng từ 95% xuống 82% để vừa vặn màn hình */
+                max-width: 80% !important;
                 padding-top: 1rem !important;
-                margin: 0 auto !important; /* Căn giữa màn hình máy tính */
             }
             div[data-testid="stTabs"] button {
                 font-size: 18px !important;
@@ -113,41 +112,37 @@ def render_exam_designer_section(run_ai_prompt_safe_func):
         </style>
     """, unsafe_allow_html=True)
     
-    # [Giữ nguyên các dòng khởi tạo session_state ở đây...]
+    # Khởi tạo các trạng thái session_state hệ thống an toàn
     if "ket_qua_de" not in st.session_state: st.session_state["ket_qua_de"] = ""
     if "model_dung" not in st.session_state: st.session_state["model_dung"] = ""
+    
     if "save_ten_de" not in st.session_state: st.session_state["save_ten_de"] = "Kiểm tra đánh giá giữa kì I"
     if "save_school" not in st.session_state: st.session_state["save_school"] = "TRƯỜNG THCS NGUYỄN CHÍ THANH"
     if "save_mon_hoc" not in st.session_state: st.session_state["save_mon_hoc"] = "Khoa học tự nhiên"
     if "save_khoi_lop" not in st.session_state: st.session_state["save_khoi_lop"] = "Lớp 8"
     if "save_thoi_gian" not in st.session_state: st.session_state["save_thoi_gian"] = "45 phút"
 
+    # Phân chia hai tab chức năng chính
     tab_tao_de, tab_thu_muc = st.tabs(["CHỨC NĂNG TẠO ĐỀ KIỂM TRA", "THƯ MỤC LƯU ĐỀ ĐÃ XD"])
     
     with tab_tao_de:
-        # [Giữ nguyên code hiển thị Hàng 1 và Hàng 2...]
-        # (Bao gồm Menu môn học, lớp, hình thức, thời gian và Tỷ lệ mức độ nhận thức)
+        # Hàng 1: Menu thông tin chung của đề thi
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.markdown("<h6 style='color:blue; font-weight:bold; text-align:center;'>MENU MÔN HỌC</h6>", unsafe_allow_html=True)
+            danh_sach_mon = [
+                "Ngữ văn", "Toán", "Tiếng Anh", "Giáo dục công dân", "Lịch sử và Địa lí", 
+                "Khoa học tự nhiên", "KHTN (Lý)", "KHTN (Hóa)", "KHTN (Sinh)", 
+                "Công nghệ", "Tin học", "Nghệ thuật", "Giáo dục địa phương", 
+                "Hoạt động trải nghiệm, hướng nghiệp"
+            ]
+            idx_mon = danh_sach_mon.index(st.session_state["save_mon_hoc"]) if st.session_state["save_mon_hoc"] in danh_sach_mon else 5
+            st.session_state["save_mon_hoc"] = st.selectbox("Môn học:", danh_sach_mon, index=idx_mon, label_visibility="collapsed")
         
-        # ... (đoạn code trung gian giữ nguyên) ...
-
-        st.markdown("<br>", unsafe_allow_html=True)
-
-        # Hàng 3: Đặt tên đề thi và Tải tài liệu tham chiếu cấu trúc
-        col_name, col_f1, col_f2 = st.columns([2, 1.2, 1.2])
-        with col_name:
-            st.markdown("<h6 style='color:red; font-weight:bold;'>Tên bài kiểm tra / Đề số:</h6>", unsafe_allow_html=True)
-            st.session_state["save_ten_de"] = st.text_input("tende", value=st.session_state["save_ten_de"], label_visibility="collapsed")
-            # ĐÃ XÓA: Dòng st.markdown hiển thị chữ ví dụ bôi đen cũ tại đây để giao diện gọn gàng.
-            
-        with col_f1:
-            st.markdown("<p style='color:red; font-style:italic; font-weight:bold; text-align:center; font-size:14px;'>Tải Đề Cương (.docx, .pdf):</p>", unsafe_allow_html=True)
-            file_de_cuong = st.file_uploader("f1", type=["docx", "pdf"], key="exam_upload_de_cuong_2026", label_visibility="collapsed")
-        with col_f2:
-            st.markdown("<p style='color:red; font-style:italic; font-weight:bold; text-align:center; font-size:14px;'>Tải Đề mẫu ma trận (.docx, .pdf):</p>", unsafe_allow_html=True)
-            file_ma_tran = st.file_uploader("f2", type=["docx", "pdf"], key="exam_upload_ma_tran_2026", label_visibility="collapsed")
-
-        # [Các logic đọc file phía dưới giữ nguyên...]
-
+        with col2:
+            st.markdown("<h6 style='color:blue; font-weight:bold; text-align:center;'>MENU LỚP</h6>", unsafe_allow_html=True)
+            st.session_state["save_khoi_lop"] = st.selectbox("Khối lớp:", ["Lớp 6", "Lớp 7", "Lớp 8", "Lớp 9", "Khối 10", "Khối 11", "Khối 12"], index=2, label_visibility="collapsed")
+        
         with col3:
             st.markdown("<h6 style='color:blue; font-weight:bold; text-align:center;'>HÌNH THỨC KT</h6>", unsafe_allow_html=True)
             hinh_thuc = st.selectbox("Hình thức đề:", ["Trắc nghiệm kết hợp tự luận", "100% Trắc nghiệm", "100% Tự luận"], label_visibility="collapsed")
@@ -183,7 +178,7 @@ def render_exam_designer_section(run_ai_prompt_safe_func):
         with col_name:
             st.markdown("<h6 style='color:red; font-weight:bold;'>Tên bài kiểm tra / Đề số:</h6>", unsafe_allow_html=True)
             st.session_state["save_ten_de"] = st.text_input("tende", value=st.session_state["save_ten_de"], label_visibility="collapsed")
-            st.markdown("<p style='font-style:italic; font-size:15px; text-align:center;'>Ví dụ: Kiểm tra đánh giá giữa kì I</p>", unsafe_allow_html=True)
+    
         with col_f1:
             st.markdown("<p style='color:red; font-style:italic; font-weight:bold; text-align:center; font-size:14px;'>Tải Đề Cương (.docx, .pdf):</p>", unsafe_allow_html=True)
             file_de_cuong = st.file_uploader("f1", type=["docx", "pdf"], key="exam_upload_de_cuong_2026", label_visibility="collapsed")
@@ -346,75 +341,3 @@ QUY ĐỊNH ĐỊNH DẠNG TỐI QUAN TRỌNG KHI XUẤT WORD:
                         )
                         if success:
                             st.toast(" Đã tự động lưu trữ lên Google Sheet!", icon="🚀")
-# =====================================================================
-# PHẦN 5: HIỂN THỊ PREVIEW, XUẤT BẢN WORD VÀ QUẢN LÝ DANH SÁCH THƯ MỤC
-# =====================================================================
-
-        # Trình diễn hiển thị kết quả đầu ra
-        if st.session_state["ket_qua_de"]:
-            st.info(f" 🤖 Đề thi được xây dựng thành công bằng mô hình thực tế: `{st.session_state['model_dung']}`")
-            st.markdown("<br>", unsafe_allow_html=True)
-            
-            c_title, c_save, c_del = st.columns([5.5, 2.5, 2])
-            with c_title:
-                st.markdown("<h4 style='margin-top: 5px;'> 📝 Xem trước nội dung đề thi:</h4>", unsafe_allow_html=True)
-            with c_save:
-                if st.button(" 💾 Lưu file tạm thời", use_container_width=True):
-                    success = sync_exam_to_google_sheet(
-                        st.session_state["save_ten_de"],
-                        st.session_state["save_mon_hoc"],
-                        st.session_state["save_khoi_lop"],
-                        st.session_state["save_thoi_gian"],
-                        st.session_state["ket_qua_de"]
-                    )
-                    if success: 
-                        st.success(" ✅ Đã lưu vào thư mục!")
-                    else: 
-                        st.error(" ❌ Lỗi khi lưu file.")
-            with c_del:
-                if st.button(" 🗑️ Xóa đề thi này", use_container_width=True):
-                    st.session_state["ket_qua_de"] = ""
-                    st.rerun()
-            
-            st.markdown("<hr style='margin-top: 0px;'>", unsafe_allow_html=True)
-            st.markdown(st.session_state["ket_qua_de"])
-            
-            # Gọi hàm thư viện xuất bản định dạng Word chuẩn quốc gia Việt Nam
-            data_word = export_to_docx_vietnam_standard(
-                st.session_state["ket_qua_de"],
-                st.session_state["save_ten_de"],
-                school_name=st.session_state["save_school"]
-            )
-            
-            # ĐÃ SỬA: Đóng ngoặc đầy đủ cấu trúc của hàm download_button
-            st.download_button(
-                label=" 📥 Tải tệp Đề kiểm tra Word (.docx) bản chuẩn hành chính",
-                data=data_word,
-                file_name=f"De_Kiem_Tra_{st.session_state['save_khoi_lop'].replace(' ', '_')}.docx",
-                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                use_container_width=True
-            )
-
-    # ==================== ĐOẠN ĐÓNG KHỐI TAB QUẢN LÝ THƯ MỤC ====================
-    with tab_thu_muc:
-        st.write(" 📁 **Danh sách các đề kiểm tra đã đồng bộ và lưu trữ thành công:**")
-        st.markdown(f" 🔗 [Bấm vào đây để mở trực tiếp Google Sheets quản lý đề thi](https://google.com{SPREADSHEET_ID}/edit)")
-        st.markdown("<br>", unsafe_allow_html=True)
-        
-        ds_de = get_all_exams_from_sheet()
-        
-        if not ds_de:
-            st.info("Chưa có đề kiểm tra nào được lưu trong thư mục.")
-        else:
-            for idx, de in enumerate(ds_de):
-                with st.expander(f" 📄 {de.get('Tên Đề', 'Đề kiểm tra')} - {de.get('Môn Học', '')} ({de.get('Khối Lớp', '')})"):
-                    c_view, c_del2 = st.columns(2)
-                    if c_view.button(" 📥 Gọi lại đề này", key=f"call_de_{idx}", use_container_width=True):
-                        st.session_state["ket_qua_de"] = de.get('Nội Dung Đề Thi', '')
-                        st.rerun()
-                    if c_del2.button(" 🗑️ Xóa đề khỏi thư mục", key=f"del_de_{idx}", use_container_width=True):
-                        if delete_exam_from_sheet(idx):
-                            st.success(" Đã xóa đề thành công!")
-                            st.rerun()
-                        else:
-                            st.error(" Có lỗi xảy ra khi xóa đề.")
