@@ -20,3 +20,4 @@ langchain-openai
 chromadb
 langchain-text-splitters
 rapidocr-onnxruntime
+langchain-core
