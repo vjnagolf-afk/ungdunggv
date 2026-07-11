@@ -1,45 +1,22 @@
-import streamlit as st
-from langchain_community.document_loaders import PyPDFLoader, Docx2txtLoader
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
-from langchain_community.vectorstores import Chroma
-import os
+from teaching_assistant.rag_module.processor import process_and_vectorize, query_rag
 
-# Cấu hình Embedding model (Sử dụng Google Gemini Embedding)
-def get_embedding_model():
-    # Lưu ý: Thay API_KEY bằng biến môi trường hoặc input của giáo viên
-    return GoogleGenerativeAIEmbeddings(model="models/embedding-001")
+def render_rag():
+    uploaded_file = st.file_uploader("Tải lên tài liệu:", type=["pdf", "docx"])
+    
+    if uploaded_file:
+        # Lưu file tạm để xử lý
+        with open("temp_file" + os.path.splitext(uploaded_file.name)[1], "wb") as f:
+            f.write(uploaded_file.getbuffer())
+        
+        if st.button("Bắt đầu xử lý tài liệu"):
+            with st.spinner("Đang băm nhỏ và nhúng tài liệu..."):
+                vectorstore = process_and_vectorize("temp_file" + os.path.splitext(uploaded_file.name)[1])
+                st.session_state["vectorstore"] = vectorstore
+                st.success("Xử lý xong! Bạn có thể đặt câu hỏi.")
 
-def process_and_vectorize(file_path):
-    # 1. Đọc tài liệu
-    if file_path.endswith('.pdf'):
-        loader = PyPDFLoader(file_path)
-    elif file_path.endswith('.docx'):
-        loader = Docx2txtLoader(file_path)
-    else:
-        return None
-    
-    documents = loader.load()
-    
-    # 2. Băm văn bản (Chunking)
-    # Chia nhỏ văn bản thành các đoạn 1000 ký tự, overlap 200 ký tự để giữ ngữ cảnh
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
-    texts = text_splitter.split_documents(documents)
-    
-    # 3. Nhúng Vector (Embedding) và lưu vào ChromaDB
-    # Lưu tại thư mục tạm để truy vấn nhanh
-    vectorstore = Chroma.from_documents(
-        documents=texts, 
-        embedding=get_embedding_model(),
-        persist_directory="./rag_db" 
-    )
-    return vectorstore
-
-def query_rag(vectorstore, question):
-    # Tìm kiếm tài liệu liên quan
-    retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
-    docs = retriever.get_relevant_documents(question)
-    
-    # Ghép nội dung để gửi cho AI
-    context = "\n".join([d.page_content for d in docs])
-    return context
+    if "vectorstore" in st.session_state:
+        question = st.text_input("Nhập câu hỏi của thầy/cô:")
+        if question:
+            context = query_rag(st.session_state["vectorstore"], question)
+            # Sau đó gửi context + question vào hàm run_ai_prompt_safe của thầy
+            st.write("Dựa trên tài liệu, tôi trả lời như sau...")
