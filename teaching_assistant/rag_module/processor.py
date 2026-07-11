@@ -10,16 +10,16 @@ from oauth2client.service_account import ServiceAccountCredentials
 def backup_to_googlesheet(data_dict):
     """
     Gửi thông tin giao tiếp về Google Sheet để quản lý và kiểm tra dữ liệu 
-    theo thời gian thực
+    theo thời gian thực thông qua st.secrets
     """
     try:
-        scope = ['https://google.com', 'https://googleapis.com']
-# Lấy trực tiếp thông tin cấu hình từ Streamlit Secret
-        import json
+        # Cách kết nối hiện đại, an toàn và tối ưu nhất cho Streamlit Cloud Secrets
         google_creds = dict(st.secrets["gcp_service_account"])
-        creds = ServiceAccountCredentials.from_json_keyfile_dict(google_creds, scope)
-
-        client = gspread.authorize(creds)
+        
+        # Đồng bộ tài khoản và đăng nhập thẳng qua gspread
+        client = gspread.service_account_from_dict(google_creds)
+        
+        # Mở bảng tính và ghi dữ liệu
         sheet = client.open("Data_Nhat_Ky_Giang_Day").sheet1
         sheet.append_row([data_dict['timestamp'], data_dict['query'], data_dict['response']])
     except Exception as e:
