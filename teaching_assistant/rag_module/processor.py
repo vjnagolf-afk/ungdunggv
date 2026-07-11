@@ -53,9 +53,10 @@ def process_and_vectorize(file_path):
 def query_rag(vectorstore, question):
     # Tìm kiếm tài liệu liên quan
     retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
-    docs = retriever.get_relevant_documents(question)  # <-- Dòng bị lỗi
+    docs = retriever.invoke(question)  # <-- Thay đổi tại đây
 
     # Ghép nội dung để gửi cho AI
     context = "\n".join([d.page_content for d in docs])
     return context
+
 
