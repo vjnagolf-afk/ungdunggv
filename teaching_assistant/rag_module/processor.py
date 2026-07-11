@@ -1,13 +1,12 @@
 import streamlit as st
-from langchain_community.document_loaders import PyPDFLoader, Docx2txtLoader
-from langchain_core.documents import Document
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.vectorstores import Chroma
 import os
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_community.vectorstores import Chroma
 
+def backup_to_googlesheet(data_dict, google_creds):
     """
     Gửi thông tin giao tiếp về Google Sheet bằng tài khoản dịch vụ
     """
