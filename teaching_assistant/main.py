@@ -1,6 +1,5 @@
 import sys
 import os
-# Thêm thư mục gốc của dự án vào đường dẫn tìm kiếm của Python
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 import streamlit as st
 
