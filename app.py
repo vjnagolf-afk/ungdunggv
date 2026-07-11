@@ -96,7 +96,7 @@ st.sidebar.caption("CHỌN PHÂN HỆ TÁC NGHIỆP")
 
 phan_he = st.sidebar.radio(
     "Chọn phân hệ:",
-    ["Trợ lý Giảng dạy (Giáo viên)", "Trợ lý Quản lý (Tổ chuyên môn)"],
+    ["Trợ lý Giảng dạy (Giáo viên)", "Hỗ trợ giảng dạy", "Trợ lý Quản lý (Tổ chuyên môn)"],
     label_visibility="collapsed",
     key="app_main_sidebar_navigation_root_key_2026_v9"
 )
