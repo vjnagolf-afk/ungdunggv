@@ -1,9 +1,14 @@
 import sys
 import os
-# Thêm thư mục gốc của dự án vào đường dẫn tìm kiếm của Python
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
-from teaching_assistant.rag_module.processor import process_and_vectorize, query_rag
+import streamlit as st
+from datetime import datetime
+from ai_service import run_ai_prompt_safe # Import từ file gốc ở thư mục ngoài
+
+# Sử dụng import tương đối để tránh lỗi đường dẫn
 from .processor import process_and_vectorize, query_rag, backup_to_googlesheet
+
+def render_rag():
+    # ... (giữ nguyên phần logic của thầy)
 def render_rag():
     uploaded_file = st.file_uploader("Tải lên tài liệu:", type=["pdf", "docx"])
     
