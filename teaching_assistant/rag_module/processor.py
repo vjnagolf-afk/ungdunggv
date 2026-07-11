@@ -14,10 +14,10 @@ def backup_to_googlesheet(data_dict):
     """
     try:
         scope = ['https://google.com', 'https://googleapis.com']
-       # Lấy trực tiếp thông tin cấu hình từ Streamlit Secret
-import json
-google_creds = dict(st.secrets["gcp_service_account"])
-creds = ServiceAccountCredentials.from_json_keyfile_dict(google_creds, scope)
+# Lấy trực tiếp thông tin cấu hình từ Streamlit Secret
+        import json
+        google_creds = dict(st.secrets["gcp_service_account"])
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(google_creds, scope)
 
         client = gspread.authorize(creds)
         sheet = client.open("Data_Nhat_Ky_Giang_Day").sheet1
