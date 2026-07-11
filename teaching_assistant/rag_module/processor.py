@@ -27,54 +27,53 @@ def get_embedding_model():
 
 def process_and_vectorize(file_path):
     """
-    Sử dụng cơ chế Lazy Import để nạp bộ loader tương ứng khi cần,
-    giúp tránh lỗi sập ứng dụng khi hệ thống thiếu thư viện hệ thống của OCR.
+    Đọc tài liệu và tạo vectorstore.
     """
     documents = []
     ext = os.path.splitext(file_path)[-1].lower()
-    
+
     if ext == ".pdf":
-        # Chỉ nạp PyPDFLoader khi người dùng tải lên file PDF
         from langchain_community.document_loaders import PyPDFLoader
+
         loader = PyPDFLoader(file_path)
         documents = loader.load()
-        
+
     elif ext == ".docx":
-        # Chỉ nạp Docx2txtLoader khi người dùng tải lên file Word
+        from langchain_community.document_loaders import Docx2txtLoader
+
+        loader = Docx2txtLoader(file_path)
+        documents = loader.load()
+
+    elif ext in [".png", ".jpg", ".jpeg", ".tiff", ".bmp"]:
         from rapidocr_onnxruntime import RapidOCR
         from langchain_core.documents import Document
 
         ocr = RapidOCR()
+        result, _ = ocr(file_path)
 
-result, _ = ocr(file_path)
+        text = ""
+        if result:
+            text = "\n".join([line[1] for line in result])
 
-text = ""
-if result:
-    text = "\n".join([line[1] for line in result])
+        documents = [Document(page_content=text)]
 
-documents = [Document(page_content=text)]
-        
-    elif ext in [".png", ".jpg", ".jpeg", ".tiff", ".bmp"]:
-        # Chỉ nạp bộ OCR khi người dùng tải lên ảnh
-        try:
-            from langchain_community.document_loaders import RapidOCRLoader
-            loader = RapidOCRLoader(file_path)
-            documents = loader.load()
-        except ImportError as e:
-            st.error("Không thể sử dụng tính năng quét chữ từ ảnh (OCR) do máy chủ thiếu thư viện hệ thống.")
-            st.info("Vui lòng bổ sung tệp 'packages.txt' chứa dòng chữ 'libgl1' lên GitHub để khắc phục.")
-            raise e
     else:
         raise ValueError(f"Định dạng tệp '{ext}' không được hỗ trợ.")
-        
+
     text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=1000, 
+        chunk_size=1000,
         chunk_overlap=200
     )
+
     splits = text_splitter.split_documents(documents)
-    
+
     embedding_model = get_embedding_model()
-    vectorstore = Chroma.from_documents(documents=splits, embedding=embedding_model)
+
+    vectorstore = Chroma.from_documents(
+        documents=splits,
+        embedding=embedding_model
+    )
+
     return vectorstore
 
 def query_rag(vectorstore, question):
