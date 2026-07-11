@@ -120,16 +120,13 @@ if phan_he == "Trợ lý Giảng dạy (Giáo viên)":
         render_grade_manager_section()
     elif menu == "5. Quản lý TKB": 
         render_tkb_manager()
-    elif menu == "6. Thiết kế bài dạy STEM":
-        render_stem_section()
     elif menu == "7. Kế hoạch công tác chủ nhiệm lớp":
         render_chu_nhiem_section(lambda p: run_ai_prompt_safe(p, is_admin_owner=is_admin_owner))
-    elif st.session_state["menu_gv_selectbox_v9"] == "8. Kế hoạch hỗ trợ học sinh khuyết tật":
+        
+    elif menu == "8. Kế hoạch hỗ trợ học sinh khuyết tật":
         render_special_ed_section(lambda p: run_ai_prompt_safe(p))
-    elif st.session_state["menu_gv_selectbox_v9"] == "8. Kế hoạch hỗ trợ học sinh khuyết tật":
-        render_special_ed_section(lambda p: run_ai_prompt_safe(p))
-    elif st.session_state["menu_gv_selectbox_v9"] == "Hỗ trợ giảng dạy":
-        from teaching_assistant.main import render_teaching_assistant_section
+        
+    elif menu == "Hỗ trợ giảng dạy":
         render_teaching_assistant_section()
 else:  # Phân hệ Quản lý tổ chuyên môn
     st.sidebar.markdown("### 📂 QUẢN LÝ TỔ CHUYÊN MÔN")
